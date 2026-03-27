@@ -81,6 +81,14 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
   return new Promise<ConnectResult>((resolve) => {
     let resolved = false
 
+    // Timeout after 30 seconds if nothing happens
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true
+        resolve({ connected: false })
+      }
+    }, 30000)
+
     const sock = makeWASocket({
       auth: state,
       printQRInTerminal: false,
@@ -96,10 +104,10 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
       // If phone number provided, request pairing code instead of showing QR
       if (qr && phoneNumber && !resolved) {
         try {
-          // Format: remove spaces, dashes, plus sign prefix
           const cleanNumber = phoneNumber.replace(/[\s\-\+]/g, '')
           const code = await sock.requestPairingCode(cleanNumber)
           resolved = true
+          clearTimeout(timeout)
           resolve({ pairingCode: code, connected: false, phoneNumber: cleanNumber })
         } catch (err) {
           console.error('Pairing code request failed:', err)
@@ -112,6 +120,7 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
 
       if (qr && !resolved) {
         resolved = true
+        clearTimeout(timeout)
         resolve({ qrCode: qr, connected: false })
       }
 
@@ -122,6 +131,7 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
 
         if (!resolved) {
           resolved = true
+          clearTimeout(timeout)
           resolve({ connected: true, phoneNumber: sock.user?.id.split(':')[0] })
         }
       }
@@ -130,19 +140,23 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
         const reason = (lastDisconnect?.error as Boom)?.output?.statusCode
         connections.delete(userId)
 
-        if (reason === DisconnectReason.loggedOut) {
-          // User logged out — clean up session files
+        // Clean up invalid/expired session and let user re-authenticate
+        if (reason === DisconnectReason.loggedOut || reason === 401 || reason === 515) {
           fs.rmSync(sessionPath, { recursive: true, force: true })
           await upsertConnectionRecord(userId, 'disconnected')
-          if (!resolved) {
-            resolved = true
-            resolve({ connected: false })
+        }
+
+        if (!resolved) {
+          // Session expired or invalid — restart fresh to generate new QR
+          resolved = true
+          if (fs.existsSync(sessionPath)) {
+            fs.rmSync(sessionPath, { recursive: true, force: true })
           }
-        } else {
-          // Temporary disconnect — try reconnecting after a short delay
-          setTimeout(() => connectWhatsApp(userId), 3000)
-          if (!resolved) {
-            resolved = true
+          // Retry once to get a fresh QR code
+          try {
+            const retry = await connectWhatsApp(userId, phoneNumber)
+            resolve(retry)
+          } catch {
             resolve({ connected: false })
           }
         }

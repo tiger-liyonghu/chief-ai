@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { sendDigestForUser } from '@/lib/digest/send-digest'
 
-// Vercel Cron calls this every hour
-// It checks which users have digest enabled and if it's their scheduled time
+/**
+ * Vercel Cron calls this every hour.
+ * It checks which users have digest enabled and if it's their scheduled time,
+ * then sends the digest directly (no user session required).
+ */
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this header)
   const authHeader = request.headers.get('authorization')
@@ -13,11 +17,8 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient()
   const now = new Date()
   const currentHour = now.getUTCHours()
-  const currentMinute = now.getUTCMinutes()
 
-  // Find users with digest enabled whose scheduled time matches current hour
-  // daily_brief_time is stored as 'HH:MM' in user's local timezone
-  // For simplicity, we check profiles where daily_brief_enabled = true
+  // Find users with digest enabled
   const { data: users, error } = await admin
     .from('profiles')
     .select('id, email, timezone, daily_brief_time')
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   for (const user of users) {
     try {
       // Convert user's scheduled time to UTC and check if it matches now
-      const [scheduledHour, scheduledMinute] = (user.daily_brief_time || '08:00').split(':').map(Number)
+      const [scheduledHour] = (user.daily_brief_time || '08:00').split(':').map(Number)
 
       // Get the UTC offset for the user's timezone
       const userNow = new Date(now.toLocaleString('en-US', { timeZone: user.timezone || 'Asia/Singapore' }))
@@ -43,36 +44,15 @@ export async function GET(request: NextRequest) {
       const scheduledUtcHour = (scheduledHour - offsetHours + 24) % 24
 
       // Only send if current UTC hour matches their scheduled UTC hour
-      // Allow 30 min window to account for cron timing
       if (currentHour !== scheduledUtcHour) continue
 
-      // Call the digest API for this user
-      // We need to use the internal digest logic directly since we're in a cron context
-      const { data: tokenData } = await admin
-        .from('google_tokens')
-        .select('access_token_encrypted')
-        .eq('user_id', user.id)
-        .single()
+      // Send digest directly using the shared logic (no HTTP call, no session needed)
+      const result = await sendDigestForUser(user.id)
 
-      if (!tokenData) continue
-
-      // Trigger digest via internal fetch
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-
-      // Create a temporary admin session to call the digest endpoint
-      // Instead, let's directly implement the send logic here
-      const digestRes = await fetch(`${baseUrl}/api/digest`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-cron-user-id': user.id, // Internal header for cron
-        },
-      })
-
-      if (digestRes.ok) {
+      if (result.ok) {
         sent++
       } else {
-        errors.push(`${user.email}: ${digestRes.status}`)
+        errors.push(`${user.email}: ${result.error}`)
       }
     } catch (err: any) {
       errors.push(`${user.email}: ${err.message}`)

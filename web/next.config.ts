@@ -7,12 +7,36 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'places.googleapis.com' },
     ],
   },
+  // Prevent Baileys and its heavy native dependencies from being bundled.
+  // These are only used at runtime on long-lived Node servers, not in
+  // Vercel serverless functions where WhatsApp sessions can't persist.
   serverExternalPackages: [
     '@whiskeysockets/baileys',
     'pino',
     'jimp',
     'qrcode',
+    'link-preview-js',
   ],
+  // Turbopack config (Next.js 16 default bundler) — the serverExternalPackages
+  // above handles externalization. This empty config silences the webpack
+  // migration warning.
+  turbopack: {},
+  // Webpack fallback for environments that use `next build --webpack`
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || []
+      if (Array.isArray(config.externals)) {
+        config.externals.push({
+          '@whiskeysockets/baileys': 'commonjs @whiskeysockets/baileys',
+          'pino': 'commonjs pino',
+          'jimp': 'commonjs jimp',
+          'qrcode': 'commonjs qrcode',
+          'link-preview-js': 'commonjs link-preview-js',
+        })
+      }
+    }
+    return config
+  },
 }
 
 export default nextConfig

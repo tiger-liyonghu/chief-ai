@@ -1,6 +1,10 @@
 /**
  * Shared action parsing and execution logic.
  * Used by: chat API route, WhatsApp AI handler, briefing API.
+ *
+ * Supports two modes:
+ * 1. Function calling (tool_calls) — preferred for providers that support it
+ * 2. Text-based [ACTION:] parsing — fallback for providers without tool support
  */
 
 import { getValidAccessToken } from '@/lib/google/tokens'
@@ -10,6 +14,7 @@ import {
   createForwardEmail,
   sendMessage,
 } from '@/lib/google/gmail'
+import { TOOL_TO_ACTION_TYPE } from '@/lib/ai/tools'
 
 export interface ParsedAction {
   type: string
@@ -20,6 +25,28 @@ export interface ActionResult {
   type: string
   status: string
   detail?: string
+}
+
+/**
+ * Execute a single tool call from the LLM's function calling response.
+ * Maps tool names to legacy action types and delegates to executeActions().
+ */
+export async function executeToolCall(
+  toolName: string,
+  args: Record<string, any>,
+  userId: string,
+  admin: any,
+): Promise<ActionResult> {
+  const actionType = TOOL_TO_ACTION_TYPE[toolName]
+  if (!actionType) {
+    return { type: toolName, status: 'unknown_action' }
+  }
+  const results = await executeActions(
+    [{ type: actionType, params: args }],
+    userId,
+    admin,
+  )
+  return results[0] || { type: actionType, status: 'error', detail: 'No result' }
 }
 
 /**

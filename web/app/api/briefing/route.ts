@@ -110,10 +110,13 @@ async function gatherBriefingContext(userId: string, timezone: string) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const url = new URL(request.url)
+  const forceRefresh = url.searchParams.get('refresh') === '1'
 
   const admin = createAdminClient()
 
@@ -137,7 +140,7 @@ export async function GET() {
     .limit(1)
     .single()
 
-  if (cached) {
+  if (cached && !forceRefresh) {
     return NextResponse.json({
       briefing: cached.briefing,
       generated_at: cached.generated_at,

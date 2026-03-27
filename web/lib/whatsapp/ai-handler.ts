@@ -4,18 +4,23 @@
  * When a user receives a WhatsApp message and has AI auto-reply enabled,
  * this module processes the message through Chief AI, executes any actions,
  * and sends the response back via WhatsApp.
+ *
+ * Supports function calling for capable providers, with text-parsing fallback.
  */
 
 import { createAdminClient } from '@/lib/supabase/admin'
-import { createUserAIClient } from '@/lib/ai/unified-client'
-import { CHAT_SYSTEM_PROMPT } from '@/lib/ai/prompts/chat'
+import { createUserAIClient, getUserLLMConfig } from '@/lib/ai/unified-client'
+import { CHAT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT_FALLBACK } from '@/lib/ai/prompts/chat'
 import { gatherUserContext } from '@/lib/ai/context'
 import {
   parseActions,
   executeActions,
+  executeToolCall,
   stripActionBlocks,
   formatActionResultsForWhatsApp,
 } from '@/lib/ai/actions'
+import { CHIEF_TOOLS, supportsTools } from '@/lib/ai/tools'
+import type OpenAI from 'openai'
 
 // ── Rate limiting ──
 
@@ -135,7 +140,6 @@ export async function processMessageWithAI(
       const chronological = [...recentMessages].reverse()
       for (const msg of chronological) {
         if (!msg.body) continue
-        // Inbound = user message, outbound = assistant (our) message
         chatHistory.push({
           role: msg.direction === 'inbound' ? 'user' : 'assistant',
           content: msg.body,
@@ -146,50 +150,88 @@ export async function processMessageWithAI(
     // 2. Gather user context (tasks, calendar, emails, follow-ups, alerts)
     const { contextBlock, alertsBlock } = await gatherUserContext(admin, userId)
 
-    // 3. Build the system prompt
-    const systemPrompt =
-      `${CHAT_SYSTEM_PROMPT}${WHATSAPP_PROMPT_SUFFIX}\n\n--- USER CONTEXT ---\n${contextBlock}${alertsBlock}\n\n--- WHATSAPP CONTACT ---\nYou are chatting with: ${message.fromName} (${message.from})`
+    // 3. Determine provider capabilities
+    const llmConfig = await getUserLLMConfig(userId)
+    const useTools = supportsTools(llmConfig.provider)
+    const basePrompt = useTools ? CHAT_SYSTEM_PROMPT : CHAT_SYSTEM_PROMPT_FALLBACK
 
-    // 4. Build messages array
-    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+    // 4. Build the system prompt
+    const systemPrompt =
+      `${basePrompt}${WHATSAPP_PROMPT_SUFFIX}\n\n--- USER CONTEXT ---\n${contextBlock}${alertsBlock}\n\n--- WHATSAPP CONTACT ---\nYou are chatting with: ${message.fromName} (${message.from})`
+
+    // 5. Build messages array
+    const msgs: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [
       { role: 'system', content: systemPrompt },
     ]
 
     // Include recent conversation history (skip the last message -- it's the current one)
     if (chatHistory.length > 1) {
       for (const msg of chatHistory.slice(0, -1)) {
-        messages.push(msg)
+        msgs.push(msg)
       }
     }
 
     // Add the current message
-    messages.push({ role: 'user', content: message.body })
+    msgs.push({ role: 'user', content: message.body })
 
-    // 5. Call AI (non-streaming)
+    // 6. Call AI (non-streaming)
     const { client, model } = await createUserAIClient(userId)
-    const completion = await client.chat.completions.create({
-      model,
-      messages,
-      temperature: 0.7,
-      max_tokens: 512, // Keep responses concise for WhatsApp
-    })
 
-    const aiResponse = completion.choices[0]?.message?.content
-    if (!aiResponse) {
-      console.error('[WhatsApp AI] Empty response from AI')
-      return
-    }
-
-    // 6. Parse and execute actions
-    const actions = parseActions(aiResponse)
+    let cleanResponse = ''
     let actionSummary = ''
-    if (actions.length > 0) {
-      const results = await executeActions(actions, userId, admin)
-      actionSummary = formatActionResultsForWhatsApp(results)
-    }
 
-    // 7. Clean the response (strip action blocks)
-    let cleanResponse = stripActionBlocks(aiResponse)
+    if (useTools) {
+      // ─── Function-calling path ───
+      const completion = await client.chat.completions.create({
+        model,
+        messages: msgs,
+        tools: CHIEF_TOOLS,
+        temperature: 0.7,
+        max_tokens: 512,
+      })
+
+      const choice = completion.choices[0]?.message
+      cleanResponse = choice?.content || ''
+
+      // Execute tool calls if any
+      if (choice?.tool_calls && choice.tool_calls.length > 0) {
+        const actionResults = []
+
+        for (const tc of choice.tool_calls) {
+          if (tc.type !== 'function') continue
+          const fn = tc.function
+          let args: Record<string, any> = {}
+          try {
+            args = JSON.parse(fn.arguments)
+          } catch {
+            // Skip malformed
+          }
+          const result = await executeToolCall(fn.name, args, userId, admin)
+          actionResults.push(result)
+        }
+
+        actionSummary = formatActionResultsForWhatsApp(actionResults)
+      }
+    } else {
+      // ─── Text-parsing fallback path ───
+      const completion = await client.chat.completions.create({
+        model,
+        messages: msgs,
+        temperature: 0.7,
+        max_tokens: 512,
+      })
+
+      const aiResponse = completion.choices[0]?.message?.content || ''
+
+      // Parse and execute actions
+      const actions = parseActions(aiResponse)
+      if (actions.length > 0) {
+        const results = await executeActions(actions, userId, admin)
+        actionSummary = formatActionResultsForWhatsApp(results)
+      }
+
+      cleanResponse = stripActionBlocks(aiResponse)
+    }
 
     // Append action confirmations
     if (actionSummary) {
@@ -202,13 +244,13 @@ export async function processMessageWithAI(
       return
     }
 
-    // 8. Add a natural delay before replying (2 seconds)
+    // 7. Add a natural delay before replying (2 seconds)
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    // 9. Send the response via WhatsApp
+    // 8. Send the response via WhatsApp
     await sendReply(message.remoteJid, cleanResponse)
 
-    // 10. Store the outbound AI message
+    // 9. Store the outbound AI message
     await admin.from('whatsapp_messages').insert({
       user_id: userId,
       wa_message_id: `ai-reply-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

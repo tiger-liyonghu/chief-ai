@@ -19,6 +19,10 @@ import {
   Users,
   ChevronDown,
   ChevronRight,
+  RefreshCw,
+  MailOpen,
+  CalendarDays,
+  ShieldAlert,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useCallback, useRef } from 'react'
@@ -29,6 +33,7 @@ import { DepartureReminder } from '@/components/dashboard/DepartureReminder'
 import { OnboardingProgress } from '@/components/dashboard/OnboardingProgress'
 import Recommendations from '@/components/dashboard/Recommendations'
 import { cn } from '@/lib/utils'
+import { requestNotificationPermission, sendOverdueEmailNotification } from '@/lib/notifications'
 
 /* ─── Contact Intelligence Types & Components ─── */
 
@@ -1173,23 +1178,26 @@ export default function DashboardPage() {
     }
   }, [todayStr])
 
-  const fetchBriefing = useCallback(async () => {
-    // Check localStorage cache (1 hour TTL)
-    const cached = localStorage.getItem('chief_briefing')
-    if (cached) {
-      try {
-        const parsed = JSON.parse(cached)
-        const age = Date.now() - new Date(parsed.generated_at).getTime()
-        if (age < 60 * 60 * 1000) {
-          setBriefing(parsed.briefing)
-          return
-        }
-      } catch { /* ignore parse errors */ }
+  const fetchBriefing = useCallback(async (forceRefresh = false) => {
+    // Check localStorage cache (1 hour TTL) unless force refreshing
+    if (!forceRefresh) {
+      const cached = localStorage.getItem('chief_briefing')
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached)
+          const age = Date.now() - new Date(parsed.generated_at).getTime()
+          if (age < 60 * 60 * 1000) {
+            setBriefing(parsed.briefing)
+            return
+          }
+        } catch { /* ignore parse errors */ }
+      }
     }
 
     setBriefingLoading(true)
     try {
-      const res = await fetch('/api/briefing')
+      const url = forceRefresh ? '/api/briefing?refresh=1' : '/api/briefing'
+      const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         setBriefing(data.briefing)
@@ -1239,6 +1247,30 @@ export default function DashboardPage() {
   useEffect(() => { fetchBriefing() }, [fetchBriefing])
   useEffect(() => { fetchContacts() }, [fetchContacts])
   useEffect(() => { if (activeTab === 'whatsapp') fetchWhatsApp() }, [activeTab, fetchWhatsApp])
+
+  // Request notification permission on mount
+  useEffect(() => {
+    // Small delay so it doesn't feel intrusive on first load
+    const timer = setTimeout(() => requestNotificationPermission(), 3000)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Send browser notification for overdue emails (> 24h needing reply)
+  const overdueNotifiedRef = useRef(false)
+  useEffect(() => {
+    if (overdueNotifiedRef.current) return
+    if (allEmails.length > 0) {
+      const overdueCount = allEmails.filter((e: any) => {
+        if (!e.received_at) return false
+        const age = Date.now() - new Date(e.received_at).getTime()
+        return age > 24 * 60 * 60 * 1000
+      }).length
+      if (overdueCount > 0) {
+        overdueNotifiedRef.current = true
+        sendOverdueEmailNotification(overdueCount)
+      }
+    }
+  }, [allEmails])
 
   // Listen for background sync events from SyncManager
   useEffect(() => {
@@ -1312,41 +1344,128 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
-            {/* AI Brief Banner */}
+            {/* AI Brief Hero Banner */}
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl p-6 text-white mb-8"
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="relative overflow-hidden rounded-3xl mb-8"
             >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
-                  <Sparkles className="w-5 h-5" />
+              {/* Background gradient with subtle pattern */}
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_50%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(255,255,255,0.08),transparent_40%)]" />
+
+              <div className="relative p-6 sm:p-8 lg:p-10">
+                {/* Header row */}
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="font-bold text-xl text-white">{t('todaysBrief')}</h2>
+                      <p className="text-white/60 text-xs mt-0.5">{dateStr}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('chief_briefing')
+                      setBriefing(null)
+                      fetchBriefing(true)
+                    }}
+                    disabled={briefingLoading}
+                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition-all duration-200 text-white/80 hover:text-white disabled:opacity-40"
+                    aria-label="Refresh briefing"
+                    title="Refresh briefing"
+                  >
+                    <RefreshCw className={cn('w-4 h-4', briefingLoading && 'animate-spin')} />
+                  </button>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="font-semibold text-lg mb-1">{t('todaysBrief')}</h2>
+
+                {/* Briefing content */}
+                <div className="min-h-[80px]">
                   {briefingLoading ? (
-                    <div className="space-y-2">
-                      <div className="h-3 bg-white/20 rounded-full w-full animate-pulse" />
-                      <div className="h-3 bg-white/20 rounded-full w-4/5 animate-pulse" />
-                      <div className="h-3 bg-white/20 rounded-full w-3/5 animate-pulse" />
+                    /* Shimmer loading animation */
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <div className="h-4 bg-white/15 rounded-lg w-24 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '0ms' }} />
+                        <div className="h-4 bg-white/10 rounded-lg w-40 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '150ms' }} />
+                        <div className="h-4 bg-white/10 rounded-lg w-32 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="h-4 bg-white/10 rounded-lg w-36 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '200ms' }} />
+                        <div className="h-4 bg-white/15 rounded-lg w-28 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '350ms' }} />
+                        <div className="h-4 bg-white/10 rounded-lg w-20 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '500ms' }} />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="h-4 bg-white/10 rounded-lg w-16 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '400ms' }} />
+                        <div className="h-4 bg-white/15 rounded-lg w-44 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ animationDelay: '550ms' }} />
+                      </div>
                     </div>
                   ) : briefing ? (
-                    <p className="text-white/90 text-sm leading-relaxed">{briefing}</p>
+                    <p className="text-white/90 text-[15px] sm:text-base leading-relaxed max-w-3xl">{briefing}</p>
+                  ) : data.tasks.length === 0 && data.pendingReplies.length === 0 && data.todayEvents.length === 0 ? (
+                    /* Empty state: no data synced */
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                      <div className="flex-1">
+                        <p className="text-white font-medium text-base mb-1">Connect your Gmail to get your first AI briefing</p>
+                        <p className="text-white/60 text-sm">Your Chief of Staff needs access to your email and calendar to generate personalized daily briefings.</p>
+                      </div>
+                      <Link
+                        href="/dashboard/settings"
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 rounded-xl text-sm font-semibold hover:bg-white/90 transition-colors shrink-0 shadow-lg shadow-indigo-900/20"
+                      >
+                        <Mail className="w-4 h-4" />
+                        Connect Gmail
+                      </Link>
+                    </div>
                   ) : (
-                    <p className="text-white/90 text-sm leading-relaxed">
-                      {data.tasks.length === 0 && data.pendingReplies.length === 0 && data.todayEvents.length === 0 ? (
-                        <>{t('syncPrompt')}</>
-                      ) : (
-                        <>
-                          {urgentCount > 0 && <>{t('urgentTasks', { n: urgentCount })} </>}
-                          {data.pendingReplies.length > 0 && <>{t('emailsWaiting', { n: data.pendingReplies.length })} </>}
-                          {data.todayEvents.length > 0 && <>{t('firstMeetingAt', { time: new Date(data.todayEvents[0].start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) })} </>}
-                          {data.followUps.length > 0 && <>{t('followUpsNeedAttention', { n: data.followUps.length })}</>}
-                        </>
-                      )}
+                    <p className="text-white/90 text-[15px] sm:text-base leading-relaxed">
+                      {urgentCount > 0 && <>{t('urgentTasks', { n: urgentCount })} </>}
+                      {data.pendingReplies.length > 0 && <>{t('emailsWaiting', { n: data.pendingReplies.length })} </>}
+                      {data.todayEvents.length > 0 && <>{t('firstMeetingAt', { time: new Date(data.todayEvents[0].start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) })} </>}
+                      {data.followUps.length > 0 && <>{t('followUpsNeedAttention', { n: data.followUps.length })}</>}
                     </p>
                   )}
                 </div>
+
+                {/* Quick action buttons */}
+                {(briefing || data.pendingReplies.length > 0 || data.todayEvents.length > 0) && (
+                  <div className="flex items-center gap-2 mt-6 flex-wrap">
+                    {data.pendingReplies.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('needsReply')}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm rounded-xl text-sm font-medium text-white transition-all duration-200"
+                      >
+                        <MailOpen className="w-4 h-4" />
+                        Reply to top emails
+                      </button>
+                    )}
+                    {data.todayEvents.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const calendarSection = document.getElementById('calendar-section')
+                          calendarSection?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm rounded-xl text-sm font-medium text-white transition-all duration-200"
+                      >
+                        <CalendarDays className="w-4 h-4" />
+                        View today&apos;s schedule
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        const alertsSection = document.getElementById('alerts-section')
+                        alertsSection?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm rounded-xl text-sm font-medium text-white transition-all duration-200"
+                    >
+                      <ShieldAlert className="w-4 h-4" />
+                      Check alerts
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
 
@@ -1356,7 +1475,9 @@ export default function DashboardPage() {
             )}
 
             {/* Proactive Alerts */}
-            {activeTab === 'overview' && <AlertsBanner />}
+            <div id="alerts-section">
+              {activeTab === 'overview' && <AlertsBanner />}
+            </div>
 
             {/* Stats */}
             <motion.div
@@ -1450,7 +1571,7 @@ export default function DashboardPage() {
 
                 {/* Right: Calendar + Follow-ups */}
                 <div className="space-y-8">
-                  <div>
+                  <div id="calendar-section">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="font-semibold text-text-primary">{t('todaysSchedule')}</h3>
                       <Link href="/dashboard/calendar" className="text-sm text-primary hover:underline">{t('fullCalendar')}</Link>

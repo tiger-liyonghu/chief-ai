@@ -3,7 +3,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Navigation, Clock, Copy, MapPin, Car, X, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { sendDepartureNotification } from '@/lib/notifications'
 
 interface DepartureReminderProps {
   next_event_title: string
@@ -27,6 +28,7 @@ export function DepartureReminder({
   const [minutesLeft, setMinutesLeft] = useState(initialMinutes)
   const [copied, setCopied] = useState(false)
   const [visible, setVisible] = useState(true)
+  const notifiedRef = useRef(false)
 
   // Countdown timer
   useEffect(() => {
@@ -40,6 +42,14 @@ export function DepartureReminder({
   useEffect(() => {
     setMinutesLeft(initialMinutes)
   }, [initialMinutes])
+
+  // Send browser notification when departure is within 15 minutes
+  useEffect(() => {
+    if (minutesLeft <= 15 && !notifiedRef.current) {
+      notifiedRef.current = true
+      sendDepartureNotification(next_event_title, minutesLeft, depart_by)
+    }
+  }, [minutesLeft, next_event_title, depart_by])
 
   const handleCopyAddress = useCallback(async () => {
     try {
