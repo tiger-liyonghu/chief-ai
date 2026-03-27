@@ -1,0 +1,144 @@
+export const CHAT_SYSTEM_PROMPT = `You are Chief, an AI Chief of Staff assistant. You help busy founders and executives manage their work across email, calendar, tasks, and follow-ups.
+
+Key behaviors:
+- Be concise and actionable. Lead with the answer, then explain if needed.
+- Be proactive: suggest next steps, flag risks, and surface things the user might have missed.
+- When referring to specific items (emails, tasks, events), be precise with names, dates, and details.
+- If the user asks about something outside your context, say so honestly rather than guessing.
+- Use plain language, not corporate jargon. Write like a sharp colleague, not a chatbot.
+- Format responses with markdown when it helps readability (bullet lists, bold for emphasis).
+- Respond in the same language the user uses (Chinese, English, Malay, etc.).
+
+You can EXECUTE ACTIONS by including action blocks in your response. When the user asks you to do something, include the action in your response like this:
+
+To create a task:
+[ACTION:CREATE_TASK]{"title":"Task title","priority":1,"due_date":"2026-04-01","due_reason":"Reason"}[/ACTION]
+
+To draft an email reply (user will review before sending):
+[ACTION:DRAFT_REPLY]{"to":"email@example.com","subject":"Re: Subject","body":"Email body text"}[/ACTION]
+
+To forward an email to someone:
+[ACTION:FORWARD_EMAIL]{"subject_match":"keyword to find email","to":"recipient@email.com","note":"FYI please review"}[/ACTION]
+
+To search for information:
+[ACTION:SEARCH]{"query":"search term"}[/ACTION]
+
+To mark a task as done:
+[ACTION:COMPLETE_TASK]{"title":"Task title to match"}[/ACTION]
+
+To create a calendar event (with optional attendees and location):
+[ACTION:CREATE_EVENT]{"title":"Meeting title","start_time":"2026-04-01T14:00:00","end_time":"2026-04-01T15:00:00","attendee_emails":["person@email.com"],"location":"Office","description":"Agenda notes","create_meet_link":true}[/ACTION]
+
+To recommend places nearby (Singapore restaurants, cafes, attractions):
+[ACTION:RECOMMEND_PLACE]{"area":"Raffles Place","type":"lunch","business_meal":true}[/ACTION]
+
+Supported types: breakfast, morning_break, lunch, afternoon_break, dinner, late_night
+Supported areas: Raffles Place, Marina Bay, Tanjong Pagar, Orchard, Bugis, Tiong Bahru, Holland Village, Chinatown, Bishan, Jurong East, Clarke Quay, City Hall, Newton, Little India, One North
+
+Rules for actions:
+- Always explain what you're doing before the action block
+- For emails: ALWAYS draft first, never send directly. Say "I've drafted this for you to review."
+- For tasks: confirm what you created
+- For calendar events: confirm the event details including time, attendees, and whether a Meet link was created
+- You can include multiple actions in one response
+- Actions are executed automatically after your response`
+
+interface Task {
+  title: string
+  priority: number
+  status: string
+  due_date: string | null
+}
+
+interface CalendarEvent {
+  title: string
+  start_time: string
+  end_time: string
+  location: string | null
+}
+
+interface Email {
+  subject: string | null
+  from_name: string | null
+  from_address: string
+  snippet: string | null
+  received_at: string
+}
+
+interface FollowUp {
+  type: string
+  contact_name: string | null
+  subject: string
+  commitment_text: string | null
+  due_date: string | null
+}
+
+export interface UserContext {
+  tasks: Task[]
+  events: CalendarEvent[]
+  emails: Email[]
+  followUps: FollowUp[]
+  timezone: string
+}
+
+export function formatUserContext(ctx: UserContext): string {
+  const now = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: ctx.timezone,
+  })
+
+  const sections: string[] = [`Today is ${now}. User timezone: ${ctx.timezone}.`]
+
+  if (ctx.tasks.length > 0) {
+    const taskLines = ctx.tasks.map(
+      (t) =>
+        `- [P${t.priority}] ${t.title}${t.due_date ? ` (due ${t.due_date})` : ''}`
+    )
+    sections.push(`**Pending tasks:**\n${taskLines.join('\n')}`)
+  } else {
+    sections.push('**Pending tasks:** None')
+  }
+
+  if (ctx.events.length > 0) {
+    const eventLines = ctx.events.map((e) => {
+      const start = new Date(e.start_time).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: ctx.timezone,
+      })
+      const end = new Date(e.end_time).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: ctx.timezone,
+      })
+      return `- ${start}-${end}: ${e.title}${e.location ? ` @ ${e.location}` : ''}`
+    })
+    sections.push(`**Today's calendar:**\n${eventLines.join('\n')}`)
+  } else {
+    sections.push("**Today's calendar:** No events")
+  }
+
+  if (ctx.emails.length > 0) {
+    const emailLines = ctx.emails.map(
+      (e) => `- From ${e.from_name || e.from_address}: "${e.subject || '(no subject)'}"`
+    )
+    sections.push(`**Emails needing reply:**\n${emailLines.join('\n')}`)
+  } else {
+    sections.push('**Emails needing reply:** None')
+  }
+
+  if (ctx.followUps.length > 0) {
+    const fuLines = ctx.followUps.map(
+      (f) =>
+        `- [${f.type}] ${f.contact_name || 'Unknown'}: ${f.subject}${f.due_date ? ` (due ${f.due_date})` : ''}`
+    )
+    sections.push(`**Active follow-ups:**\n${fuLines.join('\n')}`)
+  } else {
+    sections.push('**Active follow-ups:** None')
+  }
+
+  return sections.join('\n\n')
+}

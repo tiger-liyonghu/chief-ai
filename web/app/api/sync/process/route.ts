@@ -1,0 +1,346 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getValidAccessToken } from '@/lib/google/tokens'
+import { getMessage, parseEmailHeaders, parseEmailBody } from '@/lib/google/gmail'
+import { createUserAIClient } from '@/lib/ai/unified-client'
+import { TASK_EXTRACTION_SYSTEM, TASK_EXTRACTION_USER } from '@/lib/ai/prompts/task-extraction'
+import { TRIP_DETECTION_SYSTEM, TRIP_DETECTION_USER } from '@/lib/ai/prompts/trip-detection'
+
+const AI_BATCH_SIZE = 5
+const PROCESS_LIMIT = 10
+
+// Keywords that indicate travel-related emails
+const TRAVEL_KEYWORDS = [
+  'flight', 'booking', 'confirmation', 'itinerary', 'hotel',
+  'reservation', 'boarding pass', 'check-in', 'checkin', 'e-ticket',
+  'airline', 'departure', 'arrival', 'travel'
+]
+
+function looksLikeTravel(subject: string): boolean {
+  const lower = (subject || '').toLowerCase()
+  return TRAVEL_KEYWORDS.some(kw => lower.includes(kw))
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Get current user
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const admin = createAdminClient()
+    const { client: aiClient, model: aiModel } = await createUserAIClient(user.id)
+    const accessToken = await getValidAccessToken(user.id)
+
+    // Query unprocessed emails
+    const { data: unprocessedEmails, error: queryErr } = await admin
+      .from('emails')
+      .select('id, gmail_message_id, from_address, from_name')
+      .eq('user_id', user.id)
+      .eq('body_processed', false)
+      .order('received_at', { ascending: false })
+      .limit(PROCESS_LIMIT)
+
+    if (queryErr) {
+      console.error('Failed to query unprocessed emails:', queryErr)
+      return NextResponse.json({ error: 'Query failed' }, { status: 500 })
+    }
+
+    if (!unprocessedEmails || unprocessedEmails.length === 0) {
+      // Count remaining just in case
+      const { count } = await admin
+        .from('emails')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('body_processed', false)
+
+      return NextResponse.json({ processed: 0, remaining: count || 0 })
+    }
+
+    let processed = 0
+
+    // Process in batches of AI_BATCH_SIZE (parallel within batch, sequential between batches)
+    for (let i = 0; i < unprocessedEmails.length; i += AI_BATCH_SIZE) {
+      const batch = unprocessedEmails.slice(i, i + AI_BATCH_SIZE)
+
+      const results = await Promise.allSettled(
+        batch.map(async (emailRow) => {
+          try {
+            // Fetch full message body from Gmail
+            const fullMessage = await getMessage(accessToken, emailRow.gmail_message_id)
+            const headers = parseEmailHeaders(fullMessage.payload?.headers as any)
+            const body = parseEmailBody(fullMessage.payload)
+
+            // AI task extraction
+            const aiResponse = await aiClient.chat.completions.create({
+              model: aiModel,
+              messages: [
+                { role: 'system', content: TASK_EXTRACTION_SYSTEM },
+                { role: 'user', content: TASK_EXTRACTION_USER({ from: headers.from, subject: headers.subject, body, date: headers.date }) },
+              ],
+              temperature: 0.3,
+              response_format: { type: 'json_object' },
+            })
+
+            const content = aiResponse.choices[0]?.message?.content
+            if (content) {
+              const parsed = JSON.parse(content)
+
+              // Update email: mark as processed + reply status
+              await admin.from('emails').update({
+                body_processed: true,
+                is_reply_needed: parsed.reply_needed || false,
+                reply_urgency: parsed.reply_urgency || 0,
+              }).eq('id', emailRow.id)
+
+              // Insert extracted tasks
+              for (const task of parsed.tasks || []) {
+                if (task.confidence < 0.5) continue
+
+                await admin.from('tasks').insert({
+                  user_id: user.id,
+                  title: task.title,
+                  priority: task.priority || 2,
+                  status: 'pending',
+                  source_type: 'email',
+                  source_email_id: emailRow.id,
+                  due_date: task.due_date || null,
+                  due_reason: task.due_reason || null,
+                  ai_confidence: task.confidence,
+                })
+              }
+
+              // Insert follow-ups
+              if (parsed.tasks) {
+                for (const task of parsed.tasks) {
+                  if (task.type === 'follow_up' && task.confidence >= 0.5) {
+                    await admin.from('follow_ups').insert({
+                      user_id: user.id,
+                      type: 'waiting_on_them',
+                      contact_email: emailRow.from_address,
+                      contact_name: emailRow.from_name || emailRow.from_address,
+                      subject: task.title,
+                      commitment_text: task.due_reason,
+                      source_email_id: emailRow.id,
+                      due_date: task.due_date || null,
+                    })
+                  }
+                }
+              }
+            } else {
+              // No AI content but mark as processed to avoid retrying
+              await admin.from('emails').update({
+                body_processed: true,
+              }).eq('id', emailRow.id)
+            }
+
+            return emailRow.id
+          } catch (aiErr) {
+            console.error('AI extraction failed for email:', emailRow.gmail_message_id, aiErr)
+            // Don't mark as processed so it can be retried
+            throw aiErr
+          }
+        })
+      )
+
+      processed += results.filter(r => r.status === 'fulfilled').length
+    }
+
+    // Count remaining unprocessed
+    const { count: remaining } = await admin
+      .from('emails')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('body_processed', false)
+
+    // Lightweight contact detection: upsert new email addresses not yet in contacts table
+    const newAddresses = new Set<string>()
+    for (const emailRow of unprocessedEmails) {
+      if (emailRow.from_address) {
+        newAddresses.add(emailRow.from_address.toLowerCase().trim())
+      }
+    }
+
+    for (const email of newAddresses) {
+      const { data: existing } = await admin
+        .from('contacts')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('email', email)
+        .single()
+
+      if (!existing) {
+        const matchingEmail = unprocessedEmails.find(e =>
+          e.from_address.toLowerCase().trim() === email
+        )
+        await admin.from('contacts').upsert({
+          user_id: user.id,
+          email,
+          name: matchingEmail?.from_name || null,
+          email_count: 1,
+          last_contact_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,email', ignoreDuplicates: true })
+      }
+    }
+
+    // --- Auto trip detection for travel-looking emails ---
+    let tripsDetected = 0
+
+    // Fetch subjects for processed emails to check for travel keywords
+    const processedIds = unprocessedEmails.map(e => e.id)
+    const { data: emailsWithSubjects } = await admin
+      .from('emails')
+      .select('id, subject, from_address, from_name, snippet, received_at, gmail_message_id')
+      .in('id', processedIds)
+
+    const travelCandidates = (emailsWithSubjects || []).filter(e => looksLikeTravel(e.subject || ''))
+
+    if (travelCandidates.length > 0) {
+      for (const email of travelCandidates) {
+        try {
+          // Fetch full body for better detection
+          let body = email.snippet || ''
+          try {
+            const fullMessage = await getMessage(accessToken, email.gmail_message_id)
+            body = parseEmailBody(fullMessage.payload) || body
+          } catch { /* use snippet as fallback */ }
+
+          const aiResponse = await aiClient.chat.completions.create({
+            model: aiModel,
+            messages: [
+              { role: 'system', content: TRIP_DETECTION_SYSTEM },
+              {
+                role: 'user',
+                content: TRIP_DETECTION_USER({
+                  from: `${email.from_name || ''} <${email.from_address}>`,
+                  subject: email.subject || '',
+                  body: body,
+                  date: email.received_at || '',
+                }),
+              },
+            ],
+            temperature: 0.2,
+            response_format: { type: 'json_object' },
+          })
+
+          const content = aiResponse.choices[0]?.message?.content
+          if (!content) continue
+
+          const parsed = JSON.parse(content)
+          if (!parsed.is_travel || !parsed.start_date) continue
+
+          // Determine status
+          const now = new Date()
+          const start = new Date(parsed.start_date)
+          const end = parsed.end_date ? new Date(parsed.end_date) : start
+          let status: 'upcoming' | 'active' | 'completed' = 'upcoming'
+          if (now > end) status = 'completed'
+          else if (now >= start && now <= end) status = 'active'
+
+          const city = parsed.destination_city || null
+          const country = parsed.destination_country || null
+
+          // Check for existing trip with same destination and overlapping dates
+          const { data: existingTrips } = await admin
+            .from('trips')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('destination_city', city || '')
+            .lte('start_date', parsed.end_date || parsed.start_date)
+            .gte('end_date', parsed.start_date)
+
+          if (existingTrips && existingTrips.length > 0) {
+            // Update existing trip with new info
+            const tripId = existingTrips[0].id
+            const updateData: any = {
+              status,
+              updated_at: new Date().toISOString(),
+            }
+            if (parsed.flight_info) updateData.flight_info = [parsed.flight_info]
+            if (parsed.hotel_info) updateData.hotel_info = [parsed.hotel_info]
+            await admin.from('trips').update(updateData).eq('id', tripId)
+
+            // Create expense if amount detected
+            if (parsed.amount && parsed.amount > 0) {
+              const { data: existingExpense } = await admin
+                .from('trip_expenses')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('source_email_id', email.id)
+
+              if (!existingExpense || existingExpense.length === 0) {
+                await admin.from('trip_expenses').insert({
+                  user_id: user.id,
+                  trip_id: tripId,
+                  category: parsed.trip_type === 'flight' ? 'flight' : parsed.trip_type === 'hotel' ? 'hotel' : parsed.trip_type === 'transport' ? 'transport' : 'other',
+                  merchant_name: parsed.merchant_name || null,
+                  amount: parsed.amount,
+                  currency: parsed.currency || 'SGD',
+                  expense_date: parsed.start_date,
+                  source_email_id: email.id,
+                  status: 'pending',
+                })
+              }
+            }
+          } else {
+            // Create new trip
+            const title = city
+              ? `Trip to ${city}`
+              : `Travel - ${(email.subject || '').slice(0, 50)}`
+
+            const { data: newTrip, error: tripError } = await admin
+              .from('trips')
+              .insert({
+                user_id: user.id,
+                title,
+                destination_city: city,
+                destination_country: country,
+                start_date: parsed.start_date,
+                end_date: parsed.end_date || parsed.start_date,
+                status,
+                flight_info: parsed.flight_info ? [parsed.flight_info] : [],
+                hotel_info: parsed.hotel_info ? [parsed.hotel_info] : [],
+                source_email_ids: [email.id],
+              })
+              .select('id')
+              .single()
+
+            if (!tripError && newTrip) {
+              tripsDetected++
+
+              // Create expense if amount detected
+              if (parsed.amount && parsed.amount > 0) {
+                await admin.from('trip_expenses').insert({
+                  user_id: user.id,
+                  trip_id: newTrip.id,
+                  category: parsed.trip_type === 'flight' ? 'flight' : parsed.trip_type === 'hotel' ? 'hotel' : parsed.trip_type === 'transport' ? 'transport' : 'other',
+                  merchant_name: parsed.merchant_name || null,
+                  amount: parsed.amount,
+                  currency: parsed.currency || 'SGD',
+                  expense_date: parsed.start_date,
+                  source_email_id: email.id,
+                  status: 'pending',
+                })
+              }
+            }
+          }
+        } catch (tripErr) {
+          console.error('Auto trip detection failed for email:', email.id, tripErr)
+          // Non-blocking — continue processing other emails
+        }
+      }
+    }
+
+    return NextResponse.json({
+      processed,
+      remaining: remaining || 0,
+      trips_detected: tripsDetected,
+    })
+  } catch (error: any) {
+    console.error('Process error:', error)
+    return NextResponse.json({ error: error.message || 'Processing failed' }, { status: 500 })
+  }
+}
