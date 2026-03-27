@@ -55,6 +55,8 @@ function SettingsContent() {
   const [waPhoneInput, setWaPhoneInput] = useState('')
   const [waMethod, setWaMethod] = useState<'qr' | 'phone'>('qr')
   const [waError, setWaError] = useState<string | null>(null)
+  const [waAiEnabled, setWaAiEnabled] = useState(false)
+  const [waAiToggling, setWaAiToggling] = useState(false)
   const waQrPollRef = useRef<NodeJS.Timeout | null>(null)
 
   // LLM config state
@@ -125,6 +127,7 @@ function SettingsContent() {
           const data = await res.json()
           setWaConnection(data.connection)
           setWaMessageCount(data.messageCount)
+          setWaAiEnabled(data.aiEnabled || false)
         }
       } catch {
         // Silently fail
@@ -318,12 +321,32 @@ function SettingsContent() {
       if (res.ok) {
         setWaConnection(null)
         setWaQrDataUrl(null)
+        setWaAiEnabled(false)
         if (waQrPollRef.current) clearInterval(waQrPollRef.current)
       }
     } catch {
       // Silently fail
     } finally {
       setWaDisconnecting(false)
+    }
+  }
+
+  const toggleWaAi = async () => {
+    const newValue = !waAiEnabled
+    setWaAiToggling(true)
+    try {
+      const res = await fetch('/api/whatsapp', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ai_enabled: newValue }),
+      })
+      if (res.ok) {
+        setWaAiEnabled(newValue)
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setWaAiToggling(false)
     }
   }
 
@@ -533,29 +556,56 @@ function SettingsContent() {
                 <div className="p-5 text-sm text-text-tertiary animate-pulse">Loading...</div>
               ) : waConnection && waConnection.status === 'active' ? (
                 /* ── Connected state ── */
-                <div className="p-5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
-                      <MessageCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">{waConnection.phone_number}</p>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                          {t('whatsappConnected')}
-                        </span>
+                <>
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-50 text-green-600 rounded-xl flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5" />
                       </div>
-                      <p className="text-xs text-text-tertiary">{t('waMessages', { n: waMessageCount })}</p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{waConnection.phone_number}</p>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                            {t('whatsappConnected')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-text-tertiary">{t('waMessages', { n: waMessageCount })}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={disconnectWhatsApp}
+                      disabled={waDisconnecting}
+                      className="text-xs font-medium text-text-tertiary hover:text-danger transition-colors disabled:opacity-50"
+                    >
+                      {waDisconnecting ? 'Disconnecting...' : t('disconnectWhatsApp')}
+                    </button>
                   </div>
-                  <button
-                    onClick={disconnectWhatsApp}
-                    disabled={waDisconnecting}
-                    className="text-xs font-medium text-text-tertiary hover:text-danger transition-colors disabled:opacity-50"
-                  >
-                    {waDisconnecting ? 'Disconnecting...' : t('disconnectWhatsApp')}
-                  </button>
-                </div>
+                  {/* AI Auto-Reply toggle */}
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center">
+                        <Bot className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{t('waAiAutoReply')}</p>
+                        <p className="text-xs text-text-tertiary">{t('waAiAutoReplyDesc')}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={toggleWaAi}
+                      disabled={waAiToggling}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                        waAiEnabled ? 'bg-primary' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          waAiEnabled ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </>
               ) : (
                 /* ── Not connected / QR scanning state ── */
                 <div className="p-5">

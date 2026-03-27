@@ -229,6 +229,27 @@ function setupMessageHandler(userId: string) {
         } catch (err) {
           console.error('WhatsApp task extraction failed:', err)
         }
+
+        // Process through AI auto-reply (async, non-blocking)
+        import('./ai-handler')
+          .then(({ processMessageWithAI }) => {
+            const isGroup = remoteJid.endsWith('@g.us')
+            processMessageWithAI(userId, {
+              from: fromNumber,
+              fromName: fromName || fromNumber,
+              body: text,
+              remoteJid,
+              isGroup,
+              messageType: getMessageType(msg.message),
+            }, async (jid: string, replyText: string) => {
+              await sock.sendMessage(jid, { text: replyText })
+            }).catch((err: any) => {
+              console.error('[WhatsApp AI] Handler error:', err)
+            })
+          })
+          .catch((err) => {
+            console.error('[WhatsApp AI] Failed to load handler:', err)
+          })
       }
     }
   })

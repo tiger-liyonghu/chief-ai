@@ -51,7 +51,7 @@ export async function GET() {
   // Also get the DB connection record for the frontend
   const { data: connection } = await supabase
     .from('whatsapp_connections')
-    .select('id, phone_number, status, created_at')
+    .select('id, phone_number, status, ai_enabled, created_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -65,6 +65,7 @@ export async function GET() {
       ? { ...connection, status: 'active' }
       : connection || null,
     messageCount,
+    aiEnabled: connection?.ai_enabled || false,
   })
 }
 
@@ -134,6 +135,42 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     )
   }
+}
+
+/**
+ * PATCH /api/whatsapp
+ * Update connection settings (e.g. ai_enabled toggle).
+ */
+export async function PATCH(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await request.json()
+  const admin = createAdminClient()
+
+  const updates: Record<string, any> = {}
+  if (typeof body.ai_enabled === 'boolean') {
+    updates.ai_enabled = body.ai_enabled
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+  }
+
+  updates.updated_at = new Date().toISOString()
+
+  const { error } = await admin
+    .from('whatsapp_connections')
+    .update(updates)
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, ...updates })
 }
 
 /**
