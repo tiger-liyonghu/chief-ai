@@ -899,6 +899,40 @@ function WhatsAppPanel({ messages, loading, connected, t }: {
   connected: boolean | null
   t: (key: any, params?: Record<string, string | number>) => string
 }) {
+  // Hooks must be called unconditionally before any early returns
+  const [selectedContact, setSelectedContact] = useState<string | null>(null)
+
+  // Group messages by contact (from_number for inbound, to_number for outbound)
+  const { contacts, activeContact } = (() => {
+    if (!messages || messages.length === 0) return { contacts: [], activeContact: undefined }
+
+    const contactMap = new Map<string, { name: string | null; number: string; messages: any[] }>()
+    for (const msg of messages) {
+      const contactNumber = msg.direction === 'inbound' ? msg.from_number : msg.to_number
+      if (!contactMap.has(contactNumber)) {
+        contactMap.set(contactNumber, {
+          name: msg.from_name || null,
+          number: contactNumber,
+          messages: [],
+        })
+      }
+      const group = contactMap.get(contactNumber)!
+      if (msg.from_name && !group.name) group.name = msg.from_name
+      group.messages.push(msg)
+    }
+
+    const sorted = Array.from(contactMap.values()).sort((a, b) => {
+      const aLatest = new Date(a.messages[0]?.received_at || 0).getTime()
+      const bLatest = new Date(b.messages[0]?.received_at || 0).getTime()
+      return bLatest - aLatest
+    })
+
+    return {
+      contacts: sorted,
+      activeContact: sorted.find((c) => c.number === selectedContact),
+    }
+  })()
+
   if (loading) {
     return (
       <div className="text-center py-16">
@@ -932,32 +966,6 @@ function WhatsAppPanel({ messages, loading, connected, t }: {
       </div>
     )
   }
-
-  // Group messages by contact (from_number for inbound, to_number for outbound)
-  const contactMap = new Map<string, { name: string | null; number: string; messages: any[] }>()
-  for (const msg of messages) {
-    const contactNumber = msg.direction === 'inbound' ? msg.from_number : msg.to_number
-    if (!contactMap.has(contactNumber)) {
-      contactMap.set(contactNumber, {
-        name: msg.from_name || null,
-        number: contactNumber,
-        messages: [],
-      })
-    }
-    const group = contactMap.get(contactNumber)!
-    // Update name if we find one
-    if (msg.from_name && !group.name) group.name = msg.from_name
-    group.messages.push(msg)
-  }
-
-  const contacts = Array.from(contactMap.values()).sort((a, b) => {
-    const aLatest = new Date(a.messages[0]?.received_at || 0).getTime()
-    const bLatest = new Date(b.messages[0]?.received_at || 0).getTime()
-    return bLatest - aLatest
-  })
-
-  const [selectedContact, setSelectedContact] = useState<string | null>(null)
-  const activeContact = contacts.find((c) => c.number === selectedContact)
 
   return (
     <div className="flex h-[calc(100vh-280px)] min-h-[400px] rounded-xl border border-border overflow-hidden bg-white">
@@ -1075,7 +1083,17 @@ export default function DashboardPage() {
   const [reminderDismissed, setReminderDismissed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [emailsLoading, setEmailsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<InboxTab>('overview')
+  const [activeTab, setActiveTab] = useState<InboxTab>(() => {
+    // Allow deep-link from other pages (e.g. trips "Reply Before You Fly")
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('chief-inbox-tab')
+      if (stored === 'needsReply' || stored === 'whatsapp') {
+        sessionStorage.removeItem('chief-inbox-tab')
+        return stored
+      }
+    }
+    return 'overview'
+  })
   const [briefing, setBriefing] = useState<string | null>(null)
   const [briefingLoading, setBriefingLoading] = useState(false)
   const [waMessages, setWaMessages] = useState<any[]>([])

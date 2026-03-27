@@ -110,7 +110,10 @@ export default function TripsPage() {
   const [briefingLoading, setBriefingLoading] = useState<Record<string, boolean>>({})
   const [reportLoading, setReportLoading] = useState<Record<string, boolean>>({})
   const [tripReports, setTripReports] = useState<Record<string, any>>({})
+  const [preFlightData, setPreFlightData] = useState<Record<string, { emails: any[]; tasks: any[] }>>({})
+  const [preFlightLoading, setPreFlightLoading] = useState<Record<string, boolean>>({})
   const briefingFetched = useRef<Set<string>>(new Set())
+  const preFlightFetched = useRef<Set<string>>(new Set())
 
   const fetchLandingBriefing = useCallback(async (tripId: string, force = false) => {
     if (!force && briefingFetched.current.has(tripId)) return
@@ -129,6 +132,22 @@ export default function TripsPage() {
     } catch { /* ignore */ }
     finally {
       setBriefingLoading(prev => ({ ...prev, [tripId]: false }))
+    }
+  }, [])
+
+  const fetchPreFlight = useCallback(async (tripId: string) => {
+    if (preFlightFetched.current.has(tripId)) return
+    preFlightFetched.current.add(tripId)
+    setPreFlightLoading(prev => ({ ...prev, [tripId]: true }))
+    try {
+      const res = await fetch(`/api/trips/pre-flight?trip_id=${tripId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPreFlightData(prev => ({ ...prev, [tripId]: { emails: data.emails, tasks: data.tasks } }))
+      }
+    } catch { /* ignore */ }
+    finally {
+      setPreFlightLoading(prev => ({ ...prev, [tripId]: false }))
     }
   }, [])
 
@@ -184,6 +203,20 @@ export default function TripsPage() {
       fetchLandingBriefing(trip.id)
     }
   }, [trips, fetchLandingBriefing])
+
+  // Auto-fetch pre-flight data for upcoming trips departing within 48 hours
+  useEffect(() => {
+    const now = new Date()
+    const soonTrips = trips.filter(t => {
+      if (t.status !== 'upcoming') return false
+      const start = new Date(t.start_date)
+      const hoursUntil = (start.getTime() - now.getTime()) / (1000 * 60 * 60)
+      return hoursUntil > 0 && hoursUntil <= 48
+    })
+    for (const trip of soonTrips) {
+      fetchPreFlight(trip.id)
+    }
+  }, [trips, fetchPreFlight])
 
   const handleDetect = async () => {
     setDetecting(true)
@@ -366,10 +399,14 @@ export default function TripsPage() {
               )
             })}
 
-            {/* Departing Soon Banner */}
+            {/* Departing Soon Banner with Reply Before You Fly */}
             {upcomingTrips.filter(isDepartingSoon).map(trip => {
               const hoursUntil = Math.round((new Date(trip.start_date).getTime() - now.getTime()) / (1000 * 60 * 60))
-              const preTasks = getPreTripTasks(trip)
+              const pf = preFlightData[trip.id]
+              const pfLoading = preFlightLoading[trip.id]
+              const pfEmails = pf?.emails || []
+              const pfTasks = pf?.tasks || getPreTripTasks(trip)
+              const totalItems = pfEmails.length + pfTasks.length
 
               return (
                 <motion.div
@@ -378,11 +415,12 @@ export default function TripsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-6 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl border border-amber-200 p-5"
                 >
+                  {/* Departure header */}
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
                       <Plane className="w-5 h-5 text-amber-600" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-semibold text-amber-900">
                         Departing Soon — {trip.destination_city || trip.title}
                       </h3>
@@ -392,20 +430,95 @@ export default function TripsPage() {
                     </div>
                   </div>
 
-                  {preTasks.length > 0 && (
-                    <div>
+                  {/* Summary banner */}
+                  {totalItems > 0 && (
+                    <div className="flex items-center gap-2 p-3 bg-amber-100/60 rounded-lg border border-amber-200 mb-3">
+                      <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                      <p className="text-sm font-medium text-amber-900">
+                        You depart in {hoursUntil} hours. {pfEmails.length > 0 ? `${pfEmails.length} email(s) need reply` : ''}{pfEmails.length > 0 && pfTasks.length > 0 ? ', ' : ''}{pfTasks.length > 0 ? `${pfTasks.length} task(s) due` : ''}.
+                      </p>
+                    </div>
+                  )}
+
+                  {pfLoading && !pf && (
+                    <div className="flex items-center gap-2 py-3">
+                      <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+                      <span className="text-sm text-amber-700">Checking pre-flight items...</span>
+                    </div>
+                  )}
+
+                  {/* Emails needing reply before departure */}
+                  {pfEmails.length > 0 && (
+                    <div className="mb-3">
                       <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                         <Mail className="w-3.5 h-3.5" />
-                        Reply Before You Fly ({preTasks.length})
+                        Emails to Reply ({pfEmails.length})
                       </h4>
                       <div className="space-y-1.5">
-                        {preTasks.slice(0, 5).map(task => (
+                        {pfEmails.slice(0, 5).map((email: any) => (
+                          <a
+                            key={email.id}
+                            href="/dashboard#needsReply"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              window.location.href = '/dashboard'
+                              // Signal to switch to needsReply tab
+                              sessionStorage.setItem('chief-inbox-tab', 'needsReply')
+                              window.location.href = '/dashboard'
+                            }}
+                            className="flex items-center gap-2.5 p-2.5 bg-white/60 rounded-lg border border-amber-100 hover:bg-white/80 transition-colors group cursor-pointer"
+                          >
+                            <div className="w-7 h-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-semibold shrink-0">
+                              {(email.from_name || email.from_address || '?')[0].toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-amber-900 font-medium truncate">
+                                {email.from_name || email.from_address}
+                              </p>
+                              <p className="text-xs text-amber-700 truncate">{email.subject}</p>
+                            </div>
+                            {email.reply_urgency >= 3 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium shrink-0">
+                                Urgent
+                              </span>
+                            )}
+                            {email.reply_urgency === 2 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-800 font-medium shrink-0">
+                                Important
+                              </span>
+                            )}
+                            <ArrowRight className="w-3.5 h-3.5 text-amber-400 group-hover:text-amber-600 transition-colors shrink-0" />
+                          </a>
+                        ))}
+                        {pfEmails.length > 5 && (
+                          <p className="text-xs text-amber-600 pl-10">
+                            +{pfEmails.length - 5} more email(s) need reply
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tasks due before/during trip */}
+                  {pfTasks.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Urgent Tasks ({pfTasks.length})
+                      </h4>
+                      <div className="space-y-1.5">
+                        {pfTasks.slice(0, 5).map((task: any) => (
                           <div
                             key={task.id}
                             className="flex items-center gap-2 p-2.5 bg-white/60 rounded-lg border border-amber-100"
                           >
                             <ArrowRight className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                             <span className="text-sm text-amber-900 truncate">{task.title}</span>
+                            {task.priority === 1 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium shrink-0">
+                                P1
+                              </span>
+                            )}
                             {task.due_date && (
                               <span className="text-xs text-amber-600 ml-auto shrink-0">
                                 Due {new Date(task.due_date).toLocaleDateString([], { month: 'short', day: 'numeric' })}
@@ -413,6 +526,11 @@ export default function TripsPage() {
                             )}
                           </div>
                         ))}
+                        {pfTasks.length > 5 && (
+                          <p className="text-xs text-amber-600 pl-7">
+                            +{pfTasks.length - 5} more task(s) to handle before departure
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -438,7 +556,8 @@ export default function TripsPage() {
                       trip={trip}
                       isExpanded={expandedTrip === trip.id}
                       onToggle={() => setExpandedTrip(expandedTrip === trip.id ? null : trip.id)}
-                      preTripTasks={getPreTripTasks(trip)}
+                      preTripTasks={preFlightData[trip.id]?.tasks || getPreTripTasks(trip)}
+                      preTripEmails={preFlightData[trip.id]?.emails || []}
                       onGenerateReport={fetchTripReport}
                       reportLoading={reportLoading[trip.id]}
                       tripReport={tripReports[trip.id]}
@@ -487,6 +606,7 @@ function TripCard({
   isExpanded,
   onToggle,
   preTripTasks,
+  preTripEmails = [],
   onGenerateReport,
   reportLoading,
   tripReport,
@@ -495,6 +615,7 @@ function TripCard({
   isExpanded: boolean
   onToggle: () => void
   preTripTasks: any[]
+  preTripEmails?: any[]
   onGenerateReport: (tripId: string) => void
   reportLoading?: boolean
   tripReport?: any
@@ -597,15 +718,58 @@ function TripCard({
               {/* Day-by-day timeline */}
               <DayTimeline trip={trip} />
 
+              {/* Pre-trip emails needing reply */}
+              {preTripEmails.length > 0 && (
+                <div className="mt-5">
+                  <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2 mb-3">
+                    <Mail className="w-4 h-4 text-blue-500" />
+                    Emails to Reply Before You Fly ({preTripEmails.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {preTripEmails.slice(0, 5).map((email: any) => (
+                      <a
+                        key={email.id}
+                        href="/dashboard"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          sessionStorage.setItem('chief-inbox-tab', 'needsReply')
+                          window.location.href = '/dashboard'
+                        }}
+                        className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100/60 transition-colors cursor-pointer"
+                      >
+                        <div className="w-7 h-7 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
+                          {(email.from_name || email.from_address || '?')[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-text-primary truncate font-medium">{email.from_name || email.from_address}</p>
+                          <p className="text-xs text-text-tertiary truncate mt-0.5">{email.subject}</p>
+                        </div>
+                        {email.reply_urgency >= 3 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium shrink-0 mt-1">
+                            Urgent
+                          </span>
+                        )}
+                        <ArrowRight className="w-4 h-4 text-blue-400 shrink-0 mt-1" />
+                      </a>
+                    ))}
+                    {preTripEmails.length > 5 && (
+                      <p className="text-xs text-text-tertiary pl-10">
+                        +{preTripEmails.length - 5} more email(s) need reply
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Pre-trip tasks */}
               {preTripTasks.length > 0 && (
                 <div className="mt-5">
                   <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2 mb-3">
                     <AlertCircle className="w-4 h-4 text-amber-500" />
-                    Reply Before You Fly
+                    Reply Before You Fly — Tasks ({preTripTasks.length})
                   </h4>
                   <div className="space-y-2">
-                    {preTripTasks.slice(0, 5).map(task => (
+                    {preTripTasks.slice(0, 5).map((task: any) => (
                       <div
                         key={task.id}
                         className="flex items-start gap-3 p-3 bg-amber-50 rounded-lg border border-amber-100"

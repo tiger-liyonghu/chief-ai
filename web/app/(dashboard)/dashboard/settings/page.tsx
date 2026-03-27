@@ -56,7 +56,7 @@ function SettingsContent() {
   const [waQrDataUrl, setWaQrDataUrl] = useState<string | null>(null)
   const [waPairingCode, setWaPairingCode] = useState<string | null>(null)
   const [waPhoneInput, setWaPhoneInput] = useState('')
-  const [waMethod, setWaMethod] = useState<'qr' | 'phone'>('qr')
+  const [waMethod, setWaMethod] = useState<'qr' | 'phone'>('phone')
   const [waError, setWaError] = useState<string | null>(null)
   const [waAiEnabled, setWaAiEnabled] = useState(false)
   const [waAiToggling, setWaAiToggling] = useState(false)

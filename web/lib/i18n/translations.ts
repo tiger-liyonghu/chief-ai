@@ -267,6 +267,15 @@ const en = {
   recCoworking: 'Coworking',
   recGapSuggestion: 'Suggestions',
   recNoGaps: 'No meeting gaps found today',
+
+  // Pre-flight / Reply Before You Fly
+  preFlightBanner: 'You depart in {hours} hours. {emails} email(s) need reply, {tasks} task(s) due.',
+  replyBeforeFly: 'Reply Before You Fly',
+  emailsToReply: 'Emails to Reply',
+  urgentTasksDue: 'Urgent Tasks',
+  departingSoon: 'Departing Soon',
+  checkingPreFlight: 'Checking pre-flight items...',
+  noPreFlightItems: 'All clear before departure',
 }
 
 const zh: typeof en = {
@@ -517,6 +526,14 @@ const zh: typeof en = {
   recCoworking: '共享办公',
   recGapSuggestion: '推荐',
   recNoGaps: '今天没有会议间隙',
+
+  preFlightBanner: '你将在 {hours} 小时后出发。{emails} 封邮件需要回复，{tasks} 个任务待处理。',
+  replyBeforeFly: '出发前回复',
+  emailsToReply: '需回复的邮件',
+  urgentTasksDue: '紧急任务',
+  departingSoon: '即将出发',
+  checkingPreFlight: '正在检查出发前事项...',
+  noPreFlightItems: '出发前一切就绪',
 }
 
 const ms: typeof en = {
@@ -765,6 +782,14 @@ const ms: typeof en = {
   recCoworking: 'Ruang Kerja',
   recGapSuggestion: 'Cadangan',
   recNoGaps: 'Tiada jurang mesyuarat hari ini',
+
+  preFlightBanner: 'Anda berlepas dalam {hours} jam. {emails} e-mel perlu dibalas, {tasks} tugas perlu diselesaikan.',
+  replyBeforeFly: 'Balas Sebelum Berlepas',
+  emailsToReply: 'E-mel untuk Dibalas',
+  urgentTasksDue: 'Tugas Mendesak',
+  departingSoon: 'Akan Berlepas',
+  checkingPreFlight: 'Menyemak item pra-penerbangan...',
+  noPreFlightItems: 'Semua selesai sebelum berlepas',
 }
 
 export const translations: Record<Locale, typeof en> = { en, zh, ms }
