@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import {
-  connectWhatsApp,
-  disconnectWhatsApp,
-  isConnected,
-  getPhoneNumber,
-  hasSession,
-} from '@/lib/whatsapp/client'
-import { reconnectAllSessions } from '@/lib/whatsapp/reconnect'
-import QRCode from 'qrcode'
 
-// Ensure saved sessions are reconnected when the server module loads
-reconnectAllSessions().catch(console.error)
+// Dynamic imports for Baileys (not compatible with Vercel Edge/Serverless bundling)
+async function getWhatsAppClient() {
+  try {
+    const mod = await import('@/lib/whatsapp/client')
+    return mod
+  } catch {
+    return null
+  }
+}
+
+async function getQRCode() {
+  try {
+    const mod = await import('qrcode')
+    return mod.default || mod
+  } catch {
+    return null
+  }
+}
+
+// Try reconnecting sessions (silently fail in serverless environments)
+import('@/lib/whatsapp/reconnect')
+  .then(m => m.reconnectAllSessions())
+  .catch(() => {})
 
 /**
  * GET /api/whatsapp
@@ -23,9 +35,10 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const connected = isConnected(user.id)
-  const phoneNumber = getPhoneNumber(user.id)
-  const sessionExists = hasSession(user.id)
+  const wa = await getWhatsAppClient()
+  const connected = wa ? wa.isConnected(user.id) : false
+  const phoneNumber = wa ? wa.getPhoneNumber(user.id) : undefined
+  const sessionExists = wa ? wa.hasSession(user.id) : false
 
   // Get message count
   let messageCount = 0
@@ -78,7 +91,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await connectWhatsApp(user.id, phoneNumber || undefined)
+    const wa = await getWhatsAppClient()
+    if (!wa) return NextResponse.json({ error: 'WhatsApp not available in this environment' }, { status: 503 })
+    const result = await wa.connectWhatsApp(user.id, phoneNumber || undefined)
 
     if (result.connected) {
       return NextResponse.json({
@@ -98,6 +113,8 @@ export async function POST(request: NextRequest) {
 
     // QR code flow
     if (result.qrCode) {
+      const QRCode = await getQRCode()
+      if (!QRCode) return NextResponse.json({ error: 'QR generation not available' }, { status: 503 })
       const qrDataUrl = await QRCode.toDataURL(result.qrCode, {
         width: 280,
         margin: 2,
@@ -129,7 +146,8 @@ export async function DELETE() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    await disconnectWhatsApp(user.id)
+    const wa = await getWhatsAppClient()
+    if (wa) await wa.disconnectWhatsApp(user.id)
     return NextResponse.json({ ok: true })
   } catch (err: any) {
     console.error('WhatsApp disconnect error:', err)
