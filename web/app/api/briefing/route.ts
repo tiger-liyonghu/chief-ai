@@ -21,7 +21,7 @@ async function gatherBriefingContext(userId: string, timezone: string) {
   const todayISO = now.toISOString().slice(0, 10)
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
 
-  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes] = await Promise.all([
+  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes, myCommitmentsRes, waMessagesRes] = await Promise.all([
     // Today's calendar events
     admin
       .from('calendar_events')
@@ -52,15 +52,15 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .order('received_at', { ascending: false })
       .limit(5),
 
-    // Overdue follow-ups
+    // Overdue follow-ups + today's due follow-ups
     admin
       .from('follow_ups')
-      .select('contact_name, contact_email, subject, due_date')
+      .select('contact_name, contact_email, subject, due_date, type')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .lt('due_date', todayISO)
+      .lte('due_date', todayISO)
       .order('due_date', { ascending: true })
-      .limit(5),
+      .limit(10),
 
     // Recent important emails (last 24 hours)
     admin
@@ -78,6 +78,27 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .eq('user_id', userId)
       .in('importance', ['vip', 'high'])
       .limit(50),
+
+    // My commitments due today or overdue (i_promised type)
+    admin
+      .from('follow_ups')
+      .select('contact_name, contact_email, subject, due_date, commitment_text')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .eq('type', 'i_promised')
+      .lte('due_date', todayISO)
+      .order('due_date', { ascending: true })
+      .limit(5),
+
+    // Recent WhatsApp messages (last 24h, inbound only)
+    admin
+      .from('whatsapp_messages')
+      .select('from_name, from_number, body, received_at')
+      .eq('user_id', userId)
+      .eq('direction', 'inbound')
+      .gte('received_at', yesterday)
+      .order('received_at', { ascending: false })
+      .limit(10),
   ])
 
   // Build VIP contact lookup for enriching email/follow-up context
@@ -105,6 +126,15 @@ async function gatherBriefingContext(userId: string, timezone: string) {
     emailsNeedReply: enrichedEmails,
     overdueFollowUps: enrichedFollowUps,
     recentEmails: recentEmailsRes.data || [],
+    myCommitmentsDue: (myCommitmentsRes.data || []).map((c: any) => {
+      const vip = vipMap.get((c.contact_email || '').toLowerCase())
+      return { ...c, contact_importance: vip?.importance }
+    }),
+    recentWhatsApp: (waMessagesRes.data || []).map((m: any) => ({
+      from: m.from_name || m.from_number,
+      snippet: (m.body || '').slice(0, 100),
+      received_at: m.received_at,
+    })),
     todayDate: now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone }),
     timezone,
   }

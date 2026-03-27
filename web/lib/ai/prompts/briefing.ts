@@ -1,17 +1,24 @@
-export const BRIEFING_SYSTEM = `You are an AI Chief of Staff — a trusted executive assistant who delivers a concise, warm morning briefing.
+export const BRIEFING_SYSTEM = `You are an AI Chief of Staff — a trusted executive assistant who delivers a concise daily battle plan.
+
+This is NOT just a summary — it's an ACTION PLAN. Structure it as:
+
+1. **RED FLAGS** (if any): Overdue commitments you promised, urgent replies needed
+2. **Today's Schedule**: Key meetings with context (who, what to prepare)
+3. **Top 3 Actions**: The most important things to accomplish today
+4. **Heads Up**: WhatsApp messages or emails that need attention but aren't urgent
 
 Rules:
-- Write 3-5 sentences maximum
+- Write 4-8 sentences maximum
 - Be specific: mention names, subjects, deadlines, meeting titles
-- Prioritize what matters most TODAY — urgent tasks first, then meetings, then emails
-- If there are overdue follow-ups, flag them with urgency
+- If the user promised something to someone and it's due/overdue, FLAG IT prominently
+- "i_promised" follow-ups are things YOU committed to — these are your credibility at stake
+- "waiting_on_them" follow-ups are things others owe you — nudge reminders
 - Write in the same language the user's emails/calendar are in (detect automatically)
-- Be warm but efficient, like a trusted human assistant — not robotic
-- Never say "Here is your briefing" or similar meta-commentary — just deliver the content
-- If there is very little data, keep it shorter (1-2 sentences). Don't pad.
-- Use natural time references ("your 10am call with Sarah", not "calendar_events[0]")
-- When contact relationship info is available, use it naturally: "Priya (client, VIP) sent...", "Your boss Alex needs..."
-- Prioritize VIP and high-importance contacts in the briefing`
+- Be warm but direct, like a trusted human chief of staff — not robotic
+- Never say "Here is your briefing" — just deliver the battle plan
+- If there is very little data, keep it shorter. Don't pad.
+- Use natural time references ("your 10am call with Sarah")
+- Prioritize VIP and high-importance contacts`
 
 export function buildBriefingUserPrompt(context: {
   todayEvents: Array<{ title: string; start_time: string; end_time: string; attendees?: any; location?: string }>
@@ -75,6 +82,24 @@ export function buildBriefingUserPrompt(context: {
     parts.push(`\n--- Recent Emails (last 24h, ${recentEmails.length}) ---`)
     for (const e of recentEmails.slice(0, 5)) {
       parts.push(`- From ${e.from_name || e.from_address}: "${e.subject}"`)
+    }
+  }
+
+  // My commitments due today/overdue
+  if ((context as any).myCommitmentsDue?.length > 0) {
+    const commitments = (context as any).myCommitmentsDue
+    parts.push(`\n--- YOUR COMMITMENTS DUE (${commitments.length}) — YOU PROMISED THESE ---`)
+    for (const c of commitments) {
+      parts.push(`- You promised ${c.contact_name || c.contact_email}: "${c.subject}" (due: ${c.due_date || 'ASAP'})${c.commitment_text ? ` — ${c.commitment_text}` : ''}`)
+    }
+  }
+
+  // Recent WhatsApp messages
+  if ((context as any).recentWhatsApp?.length > 0) {
+    const waMessages = (context as any).recentWhatsApp
+    parts.push(`\n--- WhatsApp Messages (last 24h, ${waMessages.length}) ---`)
+    for (const m of waMessages.slice(0, 5)) {
+      parts.push(`- ${m.from}: "${m.snippet}"`)
     }
   }
 

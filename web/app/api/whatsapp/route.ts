@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// Allow up to 60 seconds for WhatsApp connection (Baileys needs 10-30s)
+export const maxDuration = 60
+
 const WA_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || ''
 const WA_API_SECRET = process.env.WHATSAPP_API_SECRET || ''
 
@@ -31,6 +34,7 @@ async function proxyToService(
     method,
     headers,
     ...(body ? { body: JSON.stringify(body) } : {}),
+    signal: AbortSignal.timeout(55000), // 55s timeout (under Vercel's 60s limit)
   })
 
   const data = await res.json()

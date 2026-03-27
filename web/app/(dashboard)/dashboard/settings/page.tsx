@@ -531,7 +531,7 @@ function SettingsContent() {
                 <div className="p-5 text-sm text-text-tertiary animate-pulse">Loading accounts...</div>
               ) : accounts.length === 0 ? (
                 <div className="p-5 text-sm text-text-tertiary">
-                  No Google accounts connected. Add one to start syncing.
+                  No email accounts connected. Add Gmail or Outlook to start syncing.
                 </div>
               ) : (
                 accounts.map((account) => (
@@ -579,14 +579,21 @@ function SettingsContent() {
                 ))
               )}
 
-              {/* Add Account button */}
-              <div className="p-5">
+              {/* Add Account buttons */}
+              <div className="p-5 flex items-center gap-6">
                 <a
                   href="/api/accounts/add"
                   className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Google Account
+                  Add Gmail
+                </a>
+                <a
+                  href="/api/accounts/add-outlook"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-500 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Outlook
                 </a>
               </div>
             </div>

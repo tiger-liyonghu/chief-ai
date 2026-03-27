@@ -4,6 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAllAccountTokens, updateAccountHistoryId } from '@/lib/google/tokens'
 import { listMessages, getMessageMetadata, parseEmailHeaders, listHistory, getProfile } from '@/lib/google/gmail'
 import { listEvents } from '@/lib/google/calendar'
+import { getMicrosoftAccountTokens, updateMicrosoftDeltaLink } from '@/lib/microsoft/tokens'
+import { listMessages as msListMessages, parseGraphMessage } from '@/lib/microsoft/mail'
+import { listEvents as msListEvents, parseGraphEvent } from '@/lib/microsoft/calendar'
 import type { AccountWithToken } from '@/lib/google/tokens'
 
 export async function POST(request: NextRequest) {
@@ -24,21 +27,28 @@ export async function POST(request: NextRequest) {
       status: 'running',
     }).select('id').single()
 
-    // Get all connected accounts
-    const accounts = await getAllAccountTokens(user.id)
-
     let totalEmailsSynced = 0
     let totalEventsSynced = 0
     let usedIncremental = false
     const accountResults: { email: string; emails: number; events: number; error?: string }[] = []
 
-    // Sync each account
-    for (const account of accounts) {
-      const result = await syncOneAccount(admin, user.id, account)
+    // Sync Google accounts
+    const googleAccounts = await getAllAccountTokens(user.id)
+    for (const account of googleAccounts) {
+      const result = await syncOneGoogleAccount(admin, user.id, account)
       accountResults.push(result)
       totalEmailsSynced += result.emails
       totalEventsSynced += result.events
       if (result.emails > 0) usedIncremental = true
+    }
+
+    // Sync Microsoft accounts
+    const msAccounts = await getMicrosoftAccountTokens(user.id)
+    for (const account of msAccounts) {
+      const result = await syncOneMicrosoftAccount(admin, user.id, account)
+      accountResults.push(result)
+      totalEmailsSynced += result.emails
+      totalEventsSynced += result.events
     }
 
     // Update sync log
@@ -65,7 +75,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function syncOneAccount(
+async function syncOneGoogleAccount(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
   account: AccountWithToken,
@@ -109,10 +119,15 @@ async function syncOneAccount(
     }
 
     if (!usedIncremental) {
-      const messageList = await listMessages(accessToken, fullSyncLimit)
-      messageIdsToSync = (messageList.messages || [])
-        .map((m: any) => m.id!)
-        .filter(Boolean)
+      // Sync both inbox and sent emails
+      const [inboxList, sentList] = await Promise.all([
+        listMessages(accessToken, fullSyncLimit, undefined, 'in:inbox'),
+        listMessages(accessToken, Math.min(fullSyncLimit, 50), undefined, 'in:sent'),
+      ])
+      const allIds = new Set<string>()
+      for (const m of (inboxList.messages || [])) { if (m.id) allIds.add(m.id) }
+      for (const m of (sentList.messages || [])) { if (m.id) allIds.add(m.id) }
+      messageIdsToSync = Array.from(allIds)
     }
 
     if (!newHistoryId) {
@@ -217,5 +232,107 @@ async function syncOneAccount(
   } catch (err: any) {
     console.error(`Sync failed for account ${googleEmail}:`, err)
     return { email: googleEmail, emails: emailsSynced, events: eventsSynced, error: err.message }
+  }
+}
+
+// ─── Microsoft Account Sync ───
+
+async function syncOneMicrosoftAccount(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  account: { accountId: string; email: string; accessToken: string; deltaLink: string | null },
+): Promise<{ email: string; emails: number; events: number; error?: string }> {
+  const { accessToken, email, accountId, deltaLink } = account
+  let emailsSynced = 0
+  let eventsSynced = 0
+
+  try {
+    // === SYNC EMAILS via Microsoft Graph ===
+    const { count: existingEmailCount } = await admin
+      .from('emails')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('source_account_email', email)
+
+    const isFirstSync = !existingEmailCount || existingEmailCount === 0
+    const limit = isFirstSync ? 200 : 100
+
+    const { messages, deltaLink: newDeltaLink } = await msListMessages(
+      accessToken,
+      limit,
+      deltaLink || undefined,
+    )
+
+    for (const msg of messages) {
+      if (msg.isDraft) continue
+
+      const parsed = parseGraphMessage(msg)
+
+      const { data: existing } = await admin
+        .from('emails')
+        .select('id, body_processed')
+        .eq('user_id', userId)
+        .eq('gmail_message_id', parsed.messageId)
+        .single()
+
+      if (existing?.body_processed) continue
+
+      await admin.from('emails').upsert({
+        user_id: userId,
+        gmail_message_id: parsed.messageId,
+        thread_id: parsed.threadId,
+        subject: parsed.subject,
+        from_address: parsed.fromAddress,
+        from_name: parsed.fromName,
+        to_addresses: parsed.toAddresses,
+        received_at: new Date(parsed.receivedAt).toISOString(),
+        snippet: parsed.snippet,
+        labels: parsed.labels,
+        body_processed: false,
+        source_account_email: email,
+      }, { onConflict: 'user_id,gmail_message_id' })
+
+      emailsSynced++
+    }
+
+    // Save delta link for next incremental sync
+    if (newDeltaLink) {
+      await updateMicrosoftDeltaLink(accountId, newDeltaLink)
+    }
+
+    // === SYNC CALENDAR via Microsoft Graph ===
+    try {
+      const now = new Date()
+      const twoWeeksLater = new Date(now.getTime() + 14 * 86400000)
+      const events = await msListEvents(accessToken, now.toISOString(), twoWeeksLater.toISOString())
+
+      for (const event of events) {
+        const parsed = parseGraphEvent(event)
+
+        await admin.from('calendar_events').upsert({
+          user_id: userId,
+          google_event_id: parsed.googleEventId,
+          title: parsed.title,
+          description: parsed.description,
+          start_time: parsed.startTime,
+          end_time: parsed.endTime,
+          attendees: JSON.stringify(parsed.attendees),
+          location: parsed.location,
+          meeting_link: parsed.meetingLink,
+          is_recurring: parsed.isRecurring,
+          source_account_email: email,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'user_id,google_event_id' })
+
+        eventsSynced++
+      }
+    } catch (calErr) {
+      console.error(`Microsoft Calendar sync failed for ${email}:`, calErr)
+    }
+
+    return { email, emails: emailsSynced, events: eventsSynced }
+  } catch (err: any) {
+    console.error(`Microsoft sync failed for ${email}:`, err)
+    return { email, emails: emailsSynced, events: eventsSynced, error: err.message }
   }
 }

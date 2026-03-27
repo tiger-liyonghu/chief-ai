@@ -7,13 +7,13 @@ function getGmailClient(accessToken: string) {
   return google.gmail({ version: 'v1', auth })
 }
 
-export async function listMessages(accessToken: string, maxResults = 50, pageToken?: string) {
+export async function listMessages(accessToken: string, maxResults = 50, pageToken?: string, query = 'in:inbox') {
   const gmail = getGmailClient(accessToken)
   const res = await gmail.users.messages.list({
     userId: 'me',
     maxResults,
     pageToken,
-    q: 'in:inbox',
+    q: query,
   })
   return res.data
 }

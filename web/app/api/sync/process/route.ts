@@ -6,6 +6,7 @@ import { getMessage, parseEmailHeaders, parseEmailBody } from '@/lib/google/gmai
 import { createUserAIClient } from '@/lib/ai/unified-client'
 import { TASK_EXTRACTION_SYSTEM, TASK_EXTRACTION_USER } from '@/lib/ai/prompts/task-extraction'
 import { TRIP_DETECTION_SYSTEM, TRIP_DETECTION_USER } from '@/lib/ai/prompts/trip-detection'
+import { COMMITMENT_EXTRACTION_SYSTEM, COMMITMENT_EXTRACTION_USER } from '@/lib/ai/prompts/commitment-extraction'
 
 const AI_BATCH_SIZE = 5
 const PROCESS_LIMIT = 10
@@ -334,10 +335,85 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // --- Commitment extraction from SENT emails ---
+    let commitmentsExtracted = 0
+    try {
+      const { data: sentEmails } = await admin
+        .from('emails')
+        .select('id, gmail_message_id, from_address, to_addresses, subject, snippet, labels')
+        .eq('user_id', user.id)
+        .eq('body_processed', true)
+        .contains('labels', ['SENT'])
+        .is('commitment_scanned', null)
+        .order('received_at', { ascending: false })
+        .limit(10)
+
+      if (sentEmails && sentEmails.length > 0) {
+        for (const email of sentEmails) {
+          try {
+            let body = email.snippet || ''
+            try {
+              const fullMsg = await getMessage(accessToken, email.gmail_message_id)
+              body = parseEmailBody(fullMsg.payload) || body
+            } catch { /* use snippet */ }
+
+            const toAddr = Array.isArray(email.to_addresses) ? email.to_addresses[0] : ''
+
+            const aiRes = await aiClient.chat.completions.create({
+              model: aiModel,
+              messages: [
+                { role: 'system', content: COMMITMENT_EXTRACTION_SYSTEM },
+                { role: 'user', content: COMMITMENT_EXTRACTION_USER({
+                  to: toAddr,
+                  subject: email.subject || '',
+                  body,
+                  date: new Date().toISOString(),
+                  channel: 'email',
+                }) },
+              ],
+              temperature: 0.3,
+              response_format: { type: 'json_object' },
+            })
+
+            const content = aiRes.choices[0]?.message?.content
+            if (content) {
+              const parsed = JSON.parse(content)
+              for (const c of parsed.commitments || []) {
+                if ((c.confidence || 0) < 0.5) continue
+
+                await admin.from('follow_ups').insert({
+                  user_id: user.id,
+                  type: c.type === 'waiting_on_them' ? 'waiting_on_them' : 'i_promised',
+                  contact_email: toAddr,
+                  contact_name: null,
+                  subject: c.title,
+                  commitment_text: c.due_reason || null,
+                  source_email_id: email.id,
+                  due_date: c.due_date || null,
+                  status: 'active',
+                })
+                commitmentsExtracted++
+              }
+            }
+
+            // Mark as scanned (use a lightweight update)
+            await admin.from('emails').update({
+              commitment_scanned: true,
+            }).eq('id', email.id)
+          } catch (err) {
+            console.error('Commitment extraction failed for:', email.id, err)
+          }
+        }
+      }
+    } catch (commitErr) {
+      console.error('Commitment extraction pass failed:', commitErr)
+    }
+
     return NextResponse.json({
       processed,
       remaining: remaining || 0,
       trips_detected: tripsDetected,
+      commitments_extracted: commitmentsExtracted,
     })
   } catch (error: any) {
     console.error('Process error:', error)
