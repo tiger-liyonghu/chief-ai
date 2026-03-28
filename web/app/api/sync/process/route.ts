@@ -409,11 +409,94 @@ export async function POST(request: NextRequest) {
       console.error('Commitment extraction pass failed:', commitErr)
     }
 
+    // --- WhatsApp: commitment tracking + contact recognition ---
+    let waProcessed = 0
+    try {
+      const { data: unprocessedWa } = await admin
+        .from('whatsapp_messages')
+        .select('id, from_number, from_name, to_number, body, direction, received_at')
+        .eq('user_id', user.id)
+        .eq('is_task_extracted', false)
+        .not('body', 'is', null)
+        .order('received_at', { ascending: false })
+        .limit(20)
+
+      if (unprocessedWa && unprocessedWa.length > 0) {
+        // Contact recognition: upsert WhatsApp contacts
+        const waContacts = new Map<string, string>()
+        for (const m of unprocessedWa) {
+          if (m.direction === 'inbound' && m.from_name && m.from_number) {
+            waContacts.set(m.from_number, m.from_name)
+          }
+        }
+
+        for (const [phone, name] of waContacts) {
+          try {
+            await admin.from('contacts').upsert({
+              user_id: user.id,
+              phone,
+              name,
+              email: `wa-${phone}@whatsapp.placeholder`,
+              last_contact_at: new Date().toISOString(),
+            }, { onConflict: 'user_id,email', ignoreDuplicates: true })
+          } catch { /* ignore duplicates */ }
+        }
+
+        // Commitment extraction from outbound WhatsApp
+        const outboundWa = unprocessedWa.filter(m => m.direction === 'outbound' && m.body)
+        for (const msg of outboundWa.slice(0, 5)) {
+          try {
+            const aiRes = await aiClient.chat.completions.create({
+              model: aiModel,
+              messages: [
+                { role: 'system', content: COMMITMENT_EXTRACTION_SYSTEM },
+                { role: 'user', content: COMMITMENT_EXTRACTION_USER({
+                  to: msg.to_number || '',
+                  subject: 'WhatsApp message',
+                  body: msg.body || '',
+                  date: msg.received_at || new Date().toISOString(),
+                  channel: 'whatsapp',
+                }) },
+              ],
+              temperature: 0.3,
+              response_format: { type: 'json_object' },
+            })
+
+            const content = aiRes.choices[0]?.message?.content
+            if (content) {
+              const parsed = JSON.parse(content)
+              for (const c of parsed.commitments || []) {
+                if ((c.confidence || 0) < 0.5) continue
+                await admin.from('follow_ups').insert({
+                  user_id: user.id,
+                  type: c.type === 'waiting_on_them' ? 'waiting_on_them' : 'i_promised',
+                  contact_email: `wa-${msg.to_number}@whatsapp.placeholder`,
+                  contact_name: null,
+                  subject: c.title,
+                  commitment_text: c.due_reason || null,
+                  due_date: c.due_date || null,
+                  status: 'active',
+                })
+              }
+            }
+          } catch { /* non-critical */ }
+        }
+
+        // Mark all as processed
+        const waIds = unprocessedWa.map(m => m.id)
+        await admin.from('whatsapp_messages').update({ is_task_extracted: true }).in('id', waIds)
+        waProcessed = unprocessedWa.length
+      }
+    } catch (waErr) {
+      console.error('WhatsApp processing failed:', waErr)
+    }
+
     return NextResponse.json({
       processed,
       remaining: remaining || 0,
       trips_detected: tripsDetected,
       commitments_extracted: commitmentsExtracted,
+      whatsapp_processed: waProcessed,
     })
   } catch (error: any) {
     console.error('Process error:', error)

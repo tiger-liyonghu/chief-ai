@@ -1,13 +1,9 @@
 import OpenAI from 'openai'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { decrypt } from '@/lib/google/tokens'
+import { getModelForTask, type TaskType, type LLMConfig, type ModelSelection } from './router'
 
-interface LLMConfig {
-  provider: string
-  apiKey: string
-  model: string
-  baseURL: string
-}
+export type { LLMConfig, TaskType, ModelSelection }
 
 // Default configs for each provider
 const PROVIDER_DEFAULTS: Record<string, { baseURL: string; models: string[]; defaultModel: string }> = {
@@ -84,6 +80,27 @@ export async function createUserAIClient(userId: string): Promise<{ client: Open
   })
 
   return { client, model: config.model }
+}
+
+// Create an OpenAI-compatible client with task-optimized parameters
+export async function createTaskAIClient(
+  userId: string,
+  taskType: TaskType,
+): Promise<{ client: OpenAI; model: string; temperature: number; maxTokens: number }> {
+  const config = await getUserLLMConfig(userId)
+  const selection = getModelForTask(taskType, config)
+
+  const client = new OpenAI({
+    apiKey: config.apiKey,
+    baseURL: config.baseURL,
+  })
+
+  return {
+    client,
+    model: selection.model,
+    temperature: selection.temperature,
+    maxTokens: selection.maxTokens,
+  }
 }
 
 // For system-level calls (no user context), use default DeepSeek

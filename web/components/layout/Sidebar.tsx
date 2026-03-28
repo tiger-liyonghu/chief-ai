@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   CheckSquare,
   Calendar,
+  Users,
   Settings,
   Sparkles,
   LogOut,
@@ -19,6 +20,7 @@ const navKeys = [
   { href: '/dashboard', key: 'inbox' as const, icon: LayoutDashboard },
   { href: '/dashboard/tasks', key: 'tasks' as const, icon: CheckSquare },
   { href: '/dashboard/calendar', key: 'calendar' as const, icon: Calendar },
+  { href: '/dashboard/contacts', key: 'contacts' as const, icon: Users },
   { href: '/dashboard/settings', key: 'settings' as const, icon: Settings },
 ]
 
