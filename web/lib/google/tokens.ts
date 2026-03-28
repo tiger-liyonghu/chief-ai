@@ -102,6 +102,7 @@ export async function getAllAccountTokens(userId: string): Promise<AccountWithTo
     .from('google_accounts')
     .select('id, google_email, access_token_encrypted, refresh_token_encrypted, token_expires_at, gmail_history_id')
     .eq('user_id', userId)
+    .or('provider.eq.google,provider.is.null')
     .order('is_primary', { ascending: false })
 
   if (error || !accounts || accounts.length === 0) {

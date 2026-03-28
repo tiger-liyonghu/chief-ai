@@ -11,7 +11,7 @@ export async function GET() {
   const admin = createAdminClient()
   const { data: accounts, error } = await admin
     .from('google_accounts')
-    .select('id, google_email, google_name, google_avatar, is_primary, created_at')
+    .select('id, google_email, google_name, google_avatar, is_primary, provider, created_at')
     .eq('user_id', user.id)
     .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })

@@ -20,6 +20,7 @@ interface GoogleAccount {
   google_name: string | null
   google_avatar: string | null
   is_primary: boolean
+  provider?: string | null
   created_at: string
 }
 
@@ -47,6 +48,14 @@ function SettingsContent() {
   const [accountsLoading, setAccountsLoading] = useState(true)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [accountMessage, setAccountMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // IMAP account modal state
+  const [imapModalOpen, setImapModalOpen] = useState(false)
+  const [imapEmail, setImapEmail] = useState('')
+  const [imapPassword, setImapPassword] = useState('')
+  const [imapConnecting, setImapConnecting] = useState(false)
+  const [imapError, setImapError] = useState<string | null>(null)
+  const [imapShowPassword, setImapShowPassword] = useState(false)
 
   // WhatsApp state
   const { t } = useI18n()

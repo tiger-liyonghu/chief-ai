@@ -7,6 +7,8 @@ import { listEvents } from '@/lib/google/calendar'
 import { getMicrosoftAccountTokens, updateMicrosoftDeltaLink } from '@/lib/microsoft/tokens'
 import { listMessages as msListMessages, parseGraphMessage } from '@/lib/microsoft/mail'
 import { listEvents as msListEvents, parseGraphEvent } from '@/lib/microsoft/calendar'
+import { getImapAccountTokens, updateImapSyncState } from '@/lib/imap/tokens'
+import { listImapMessages, listImapSentMessages, type ImapConfig } from '@/lib/imap/client'
 import type { AccountWithToken } from '@/lib/google/tokens'
 
 export async function POST(request: NextRequest) {
@@ -46,6 +48,15 @@ export async function POST(request: NextRequest) {
     const msAccounts = await getMicrosoftAccountTokens(user.id)
     for (const account of msAccounts) {
       const result = await syncOneMicrosoftAccount(admin, user.id, account)
+      accountResults.push(result)
+      totalEmailsSynced += result.emails
+      totalEventsSynced += result.events
+    }
+
+    // Sync IMAP accounts (163, QQ, etc.)
+    const imapAccounts = await getImapAccountTokens(user.id)
+    for (const account of imapAccounts) {
+      const result = await syncOneImapAccount(admin, user.id, account)
       accountResults.push(result)
       totalEmailsSynced += result.emails
       totalEventsSynced += result.events
@@ -334,5 +345,124 @@ async function syncOneMicrosoftAccount(
   } catch (err: any) {
     console.error(`Microsoft sync failed for ${email}:`, err)
     return { email, emails: emailsSynced, events: eventsSynced, error: err.message }
+  }
+}
+
+// ─── IMAP Account Sync (163, QQ, etc.) ───
+
+interface ImapAccountForSync {
+  accountId: string
+  email: string
+  password: string
+  imapConfig: ImapConfig
+  uidValidity: string | null
+  lastUid: string | null
+}
+
+async function syncOneImapAccount(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  account: ImapAccountForSync,
+): Promise<{ email: string; emails: number; events: number; error?: string }> {
+  const { email, imapConfig, accountId } = account
+  let emailsSynced = 0
+
+  try {
+    // Determine sync strategy
+    const { count: existingEmailCount } = await admin
+      .from('emails')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('source_account_email', email)
+
+    const isFirstSync = !existingEmailCount || existingEmailCount === 0
+    const limit = isFirstSync ? 200 : 100
+
+    // Check if UID validity changed (mailbox was recreated)
+    const storedUidValidity = account.uidValidity
+    const storedLastUid = account.lastUid ? parseInt(account.lastUid, 10) : undefined
+
+    // Fetch inbox messages
+    const sinceUid = storedUidValidity && storedLastUid ? storedLastUid : undefined
+    const { messages: inboxMessages, uidValidity, lastUid } = await listImapMessages(
+      imapConfig,
+      limit,
+      sinceUid,
+    )
+
+    // If UID validity changed, do a full sync (ignore stored UID)
+    let messagesToSync = inboxMessages
+    if (storedUidValidity && storedUidValidity !== String(uidValidity)) {
+      console.warn(`IMAP UID validity changed for ${email}, doing full re-sync`)
+      const fullResult = await listImapMessages(imapConfig, limit)
+      messagesToSync = fullResult.messages
+    }
+
+    // Also fetch sent messages on first sync
+    if (isFirstSync) {
+      try {
+        const sentMessages = await listImapSentMessages(imapConfig, 30)
+        messagesToSync = [...messagesToSync, ...sentMessages]
+      } catch {
+        // Sent folder is non-critical
+      }
+    }
+
+    // Deduplicate by messageId
+    const seen = new Set<string>()
+    const unique = messagesToSync.filter((m) => {
+      if (seen.has(m.messageId)) return false
+      seen.add(m.messageId)
+      return true
+    })
+
+    // Upsert into emails table
+    for (const msg of unique) {
+      const imapMessageId = `imap-${accountId}-${msg.uid}-${msg.messageId}`
+
+      const { data: existing } = await admin
+        .from('emails')
+        .select('id, body_processed')
+        .eq('user_id', userId)
+        .eq('gmail_message_id', imapMessageId)
+        .single()
+
+      if (existing?.body_processed) continue
+
+      // Determine labels based on flags
+      const labels: string[] = []
+      if (msg.flags.includes('\\Seen')) labels.push('UNREAD')
+      else labels.push('INBOX')
+      if (msg.flags.includes('\\Flagged')) labels.push('STARRED')
+
+      // Build to_addresses array
+      const toAddresses = msg.to.map((t) => t.address).filter(Boolean)
+
+      await admin.from('emails').upsert({
+        user_id: userId,
+        gmail_message_id: imapMessageId,
+        thread_id: msg.messageId, // Use message-id as thread grouping
+        subject: msg.subject,
+        from_address: msg.from.address,
+        from_name: msg.from.name,
+        to_addresses: toAddresses,
+        received_at: msg.date,
+        snippet: msg.snippet || msg.subject,
+        labels,
+        body_processed: false,
+        source_account_email: email,
+      }, { onConflict: 'user_id,gmail_message_id' })
+
+      emailsSynced++
+    }
+
+    // Update sync state for incremental sync next time
+    await updateImapSyncState(accountId, String(uidValidity), String(lastUid))
+
+    // IMAP doesn't have calendar — events = 0
+    return { email, emails: emailsSynced, events: 0 }
+  } catch (err: any) {
+    console.error(`IMAP sync failed for ${email}:`, err)
+    return { email, emails: emailsSynced, events: 0, error: err.message }
   }
 }
