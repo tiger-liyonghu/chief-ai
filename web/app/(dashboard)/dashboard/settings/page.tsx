@@ -828,7 +828,7 @@ function SettingsContent() {
                   value={settings.writing_style_notes || ''}
                   onChange={(e) => updateField('writing_style_notes', e.target.value)}
                   disabled={loading}
-                  placeholder="e.g., Keep it concise and friendly. Use bullet points for action items. Sign off with 'Best, Tiger'."
+                  placeholder="e.g., Keep it concise and friendly. Use bullet points for action items."
                   rows={3}
                   className="w-full text-sm bg-surface-secondary border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50 resize-none"
                 />

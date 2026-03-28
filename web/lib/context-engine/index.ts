@@ -310,19 +310,32 @@ async function enrichContact(
   if (email && !email.startsWith('wa-')) channels.push('gmail')
   if (contact.phone) channels.push('whatsapp')
 
-  // Calculate temperature
+  // Calculate temperature with exponential decay
+  // Formula: base_score × decay_factor^days + interaction_bonus + commitment_bonus
+  // Decay: temperature halves every 14 days without interaction
   const daysSince = contact.last_contact_at
     ? Math.ceil((Date.now() - new Date(contact.last_contact_at).getTime()) / 86400000)
     : 999
 
-  let temperature = 50
-  if (daysSince <= 3) temperature += 30
-  else if (daysSince <= 7) temperature += 20
-  else if (daysSince <= 14) temperature += 10
-  else if (daysSince <= 30) temperature -= 10
-  else temperature -= 30
-  temperature += Math.min((emailCount || 0) * 3, 15)
-  temperature += (iPromised + waitingOnThem) * 5
+  const DECAY_HALF_LIFE = 14 // days for temperature to halve
+  const decayFactor = Math.pow(0.5, daysSince / DECAY_HALF_LIFE)
+
+  // Base score from recency (starts at 80, decays over time)
+  const recencyScore = 80 * decayFactor
+
+  // Interaction frequency bonus (each recent email adds warmth)
+  const interactionBonus = Math.min((emailCount || 0) * 4, 20)
+
+  // Active commitments = active relationship
+  const commitmentBonus = (iPromised + waitingOnThem) * 6
+
+  // Importance multiplier (VIP contacts cool slower)
+  const importanceMultiplier = contact.importance === 'vip' ? 1.3
+    : contact.importance === 'high' ? 1.15 : 1.0
+
+  let temperature = Math.round(
+    (recencyScore + interactionBonus + commitmentBonus) * importanceMultiplier
+  )
   temperature = Math.max(0, Math.min(100, temperature))
 
   return {

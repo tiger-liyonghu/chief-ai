@@ -116,11 +116,11 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
         {subtitle && <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 truncate">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-        {lastSyncLabel && (
-          <span className="hidden md:inline text-xs text-text-tertiary">
-            {t('synced' as any)} {lastSyncLabel}
-          </span>
-        )}
+        <span className="hidden md:inline text-xs text-text-tertiary">
+          {lastSyncLabel
+            ? `${t('lastSynced')}: ${lastSyncLabel} ${t('ago')}`
+            : t('notSyncedYet')}
+        </span>
         <button
           onClick={() => setSearchOpen(true)}
           className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-secondary hover:text-primary hover:bg-primary-light rounded-xl transition-all duration-200"

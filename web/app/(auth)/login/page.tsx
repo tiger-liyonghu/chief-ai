@@ -48,7 +48,25 @@ export default function LoginPage() {
             </span>
           </button>
 
-          <p className="mt-6 text-xs text-text-tertiary text-center leading-relaxed">
+          <a
+            href="/api/accounts/add-outlook"
+            className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-[#0078D4] rounded-xl hover:bg-[#0078D4]/5 transition-all duration-200 font-medium text-sm group"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 23 23">
+              <path fill="#f35325" d="M1 1h10v10H1z"/>
+              <path fill="#81bc06" d="M12 1h10v10H12z"/>
+              <path fill="#05a6f0" d="M1 12h10v10H1z"/>
+              <path fill="#ffba08" d="M12 12h10v10H12z"/>
+            </svg>
+            <span className="group-hover:translate-x-0.5 transition-transform duration-200 text-[#0078D4]">
+              {t('continueWithMicrosoft')}
+            </span>
+          </a>
+          <p className="mt-1.5 text-[11px] text-text-tertiary text-center">
+            {t('connectOutlookHint')}
+          </p>
+
+          <p className="mt-5 text-xs text-text-tertiary text-center leading-relaxed">
             {t('loginDisclaimer')}
           </p>
         </div>

@@ -70,6 +70,82 @@ export default function LandingPage() {
           </Link>
           <p className="mt-4 text-sm text-text-tertiary">{t('freeToStart')}</p>
         </motion.div>
+
+        {/* Product screenshot mock */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+          className="mt-16 max-w-3xl mx-auto"
+        >
+          <div className="rounded-2xl border-2 border-transparent bg-gradient-to-br from-primary/20 via-primary/5 to-indigo-100 p-[2px]">
+            <div className="bg-white rounded-[14px] overflow-hidden shadow-xl">
+              {/* Browser chrome */}
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-border">
+                <div className="flex gap-1.5">
+                  <div className="w-3 h-3 rounded-full bg-red-400" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                  <div className="w-3 h-3 rounded-full bg-green-400" />
+                </div>
+                <div className="flex-1 mx-4">
+                  <div className="bg-white rounded-md px-3 py-1 text-xs text-text-tertiary border border-border text-center">
+                    app.chiefai.com/dashboard
+                  </div>
+                </div>
+              </div>
+              {/* Dashboard mock */}
+              <div className="flex min-h-[280px]">
+                {/* Sidebar */}
+                <div className="w-48 bg-gray-50/80 border-r border-border p-4 hidden sm:block">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
+                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <span className="font-semibold text-sm text-text-primary">Chief</span>
+                  </div>
+                  {['Daily Brief', 'Inbox', 'Tasks', 'Calendar'].map((item, i) => (
+                    <div key={item} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs mb-1 ${i === 0 ? 'bg-primary/10 text-primary font-medium' : 'text-text-secondary'}`}>
+                      <div className={`w-3.5 h-3.5 rounded ${i === 0 ? 'bg-primary/20' : 'bg-gray-200'}`} />
+                      {item}
+                    </div>
+                  ))}
+                </div>
+                {/* Main content */}
+                <div className="flex-1 p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="text-sm font-semibold text-text-primary">Good morning</div>
+                      <div className="text-xs text-text-tertiary">3 tasks, 5 emails, 2 meetings today</div>
+                    </div>
+                    <div className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-lg">Sync now</div>
+                  </div>
+                  {/* Stat cards */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {[
+                      { label: 'Pending Tasks', value: '7', color: 'text-emerald-600' },
+                      { label: 'Needs Reply', value: '5', color: 'text-blue-600' },
+                      { label: 'Meetings', value: '2', color: 'text-amber-600' },
+                    ].map((stat) => (
+                      <div key={stat.label} className="bg-gray-50 rounded-xl p-3">
+                        <div className={`text-lg font-bold ${stat.color}`}>{stat.value}</div>
+                        <div className="text-[10px] text-text-tertiary">{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Task rows */}
+                  <div className="space-y-2">
+                    {['Review partnership proposal', 'Prepare investor update', 'Reply to Sarah re: Q1 report'].map((task, i) => (
+                      <div key={task} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                        <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-red-400' : i === 1 ? 'bg-orange-400' : 'bg-yellow-400'}`} />
+                        <span className="text-xs text-text-primary">{task}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </section>
 
       {/* Features */}

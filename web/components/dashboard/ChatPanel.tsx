@@ -458,7 +458,25 @@ export function ChatPanel() {
                     <Sparkles className="w-6 h-6 text-primary" />
                   </div>
                   <p className="text-sm font-medium text-text-primary mb-1">{t('chiefAI')}</p>
-                  <p className="text-xs text-text-tertiary">Ask me anything about your tasks, emails, or schedule.</p>
+                  <p className="text-xs text-text-tertiary mb-4">Ask me anything about your tasks, emails, or schedule.</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {[
+                      t('chatSuggestion1'),
+                      t('chatSuggestion2'),
+                      t('chatSuggestion3'),
+                      t('chatSuggestion4'),
+                    ].map((suggestion) => (
+                      <motion.button
+                        key={suggestion}
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => setInput(suggestion)}
+                        className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-full hover:bg-primary/20 transition-colors duration-150"
+                      >
+                        {suggestion}
+                      </motion.button>
+                    ))}
+                  </div>
                 </div>
               )}
 

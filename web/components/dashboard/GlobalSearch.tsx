@@ -231,10 +231,27 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
 
             {/* Results area */}
             <div ref={listRef} className="max-h-[60vh] overflow-y-auto">
-              {/* No query yet */}
+              {/* No query yet — show quick links */}
               {!query && (
-                <div className="px-4 py-8 text-center text-sm text-text-tertiary">
-                  {t('searchPlaceholder')}
+                <div className="py-2">
+                  <div className="px-4 py-2 text-xs font-semibold text-text-tertiary uppercase tracking-wider">
+                    {t('quickLinks')}
+                  </div>
+                  {[
+                    { emoji: '\uD83D\uDCE7', label: t('inbox'), href: '/dashboard/inbox' },
+                    { emoji: '\u2705', label: t('tasks'), href: '/dashboard/tasks' },
+                    { emoji: '\uD83D\uDCC5', label: t('calendar'), href: '/dashboard/calendar' },
+                    { emoji: '\uD83D\uDC65', label: t('contacts'), href: '/dashboard/contacts' },
+                  ].map((item) => (
+                    <button
+                      key={item.href}
+                      onClick={() => { onClose(); router.push(item.href) }}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-3 hover:bg-surface-secondary transition-colors cursor-pointer"
+                    >
+                      <span className="text-base">{item.emoji}</span>
+                      <span className="text-sm font-medium text-text-primary">{item.label}</span>
+                    </button>
+                  ))}
                 </div>
               )}
 

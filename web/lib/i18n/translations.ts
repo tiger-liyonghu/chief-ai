@@ -178,9 +178,11 @@ const en = {
   footerText: '© {year} Chief. Built for founders who move fast.',
 
   // Login page
-  welcomeBack: 'Welcome back',
-  signInSubtitle: 'Sign in to access your AI Chief of Staff',
+  welcomeBack: 'Welcome to Chief',
+  signInSubtitle: 'Your AI-powered productivity hub for email, tasks, and calendar',
   continueWithGoogle: 'Continue with Google',
+  continueWithMicrosoft: 'Continue with Microsoft',
+  connectOutlookHint: 'Connect Outlook or Microsoft 365',
   loginDisclaimer: "We'll access your Gmail and Calendar to help manage your tasks. You can revoke access anytime.",
 
   // WhatsApp
@@ -228,9 +230,16 @@ const en = {
   importanceNormal: 'Normal',
   importanceLow: 'Low',
 
+  // Chat suggestions
+  chatSuggestion1: "What's on my schedule today?",
+  chatSuggestion2: 'Draft a reply to my most urgent email',
+  chatSuggestion3: 'What did I promise this week?',
+  chatSuggestion4: 'Show my pending tasks',
+
   // Global Search
   search: 'Search',
   searchPlaceholder: 'Search emails, tasks, events...',
+  quickLinks: 'Quick Links',
   searchResults: 'Found {n} results',
   noResults: 'No results for "{q}"',
   emails: 'Emails',
@@ -315,6 +324,8 @@ const en = {
   // TopBar
   lastSynced: 'Last synced',
   synced: 'Synced',
+  ago: 'ago',
+  notSyncedYet: 'Not synced yet',
 
   // Calendar
   day: 'Day',
@@ -510,9 +521,11 @@ const zh: typeof en = {
   gmailCalendar: 'Gmail 和 Google 日历',
   footerText: '© {year} Chief。为行动派创始人而生。',
 
-  welcomeBack: '欢迎回来',
-  signInSubtitle: '登录以访问你的 AI 首席幕僚',
+  welcomeBack: '欢迎使用 Chief',
+  signInSubtitle: '你的 AI 驱动的邮件、任务和日历效率中心',
   continueWithGoogle: '使用 Google 登录',
+  continueWithMicrosoft: '使用 Microsoft 登录',
+  connectOutlookHint: '连接 Outlook 或 Microsoft 365',
   loginDisclaimer: '我们将访问你的 Gmail 和日历来帮助管理任务。你可以随时撤销访问权限。',
 
   // WhatsApp
@@ -560,9 +573,16 @@ const zh: typeof en = {
   importanceNormal: '普通',
   importanceLow: '低',
 
+  // Chat suggestions
+  chatSuggestion1: '今天日程安排是什么？',
+  chatSuggestion2: '帮我起草回复最紧急的邮件',
+  chatSuggestion3: '这周我承诺了什么？',
+  chatSuggestion4: '显示我的待办任务',
+
   // Global Search
   search: '搜索',
   searchPlaceholder: '搜索邮件、任务、事件...',
+  quickLinks: '快速入口',
   searchResults: '找到 {n} 个结果',
   noResults: '没有找到 "{q}" 的结果',
   emails: '邮件',
@@ -646,6 +666,8 @@ const zh: typeof en = {
   // TopBar
   lastSynced: '上次同步',
   synced: '已同步',
+  ago: '前',
+  notSyncedYet: '尚未同步',
 
   // Calendar
   day: '日',
@@ -841,9 +863,11 @@ const ms: typeof en = {
   gmailCalendar: 'Gmail & Google Kalendar',
   footerText: '© {year} Chief. Dibina untuk pengasas yang bergerak pantas.',
 
-  welcomeBack: 'Selamat kembali',
-  signInSubtitle: 'Log masuk untuk mengakses AI Ketua Staf anda',
+  welcomeBack: 'Selamat Datang ke Chief',
+  signInSubtitle: 'Hab produktiviti dikuasakan AI untuk e-mel, tugasan dan kalendar anda',
   continueWithGoogle: 'Teruskan dengan Google',
+  continueWithMicrosoft: 'Teruskan dengan Microsoft',
+  connectOutlookHint: 'Sambung Outlook atau Microsoft 365',
   loginDisclaimer: 'Kami akan mengakses Gmail dan Kalendar anda untuk membantu mengurus tugasan. Anda boleh membatalkan akses pada bila-bila masa.',
   whatsapp: 'WhatsApp',
   whatsappIntegration: 'Integrasi WhatsApp',
@@ -889,9 +913,16 @@ const ms: typeof en = {
   importanceNormal: 'Biasa',
   importanceLow: 'Rendah',
 
+  // Chat suggestions
+  chatSuggestion1: 'Apa jadual saya hari ini?',
+  chatSuggestion2: 'Draf balasan untuk e-mel paling mendesak',
+  chatSuggestion3: 'Apa yang saya janjikan minggu ini?',
+  chatSuggestion4: 'Tunjukkan tugasan tertangguh saya',
+
   // Global Search
   search: 'Cari',
   searchPlaceholder: 'Cari e-mel, tugasan, acara...',
+  quickLinks: 'Pautan Pantas',
   searchResults: 'Dijumpai {n} hasil',
   noResults: 'Tiada hasil untuk "{q}"',
   emails: 'E-mel',
@@ -975,6 +1006,8 @@ const ms: typeof en = {
   // TopBar
   lastSynced: 'Segerak terakhir',
   synced: 'Disegerakkan',
+  ago: 'lalu',
+  notSyncedYet: 'Belum disegerakkan',
 
   // Calendar
   day: 'Hari',
