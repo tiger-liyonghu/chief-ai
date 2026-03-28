@@ -11,6 +11,7 @@ interface Settings {
   daily_brief_time: string
   gdpr_data_retention_days: number
   writing_style_notes: string | null
+  assistant_name: string
 }
 
 interface GoogleAccount {
@@ -29,6 +30,7 @@ function SettingsContent() {
     daily_brief_time: '08:00',
     gdpr_data_retention_days: 90,
     writing_style_notes: '',
+    assistant_name: 'Chief',
   })
   const [loading, setLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -365,6 +367,7 @@ function SettingsContent() {
             daily_brief_time: data.daily_brief_time?.slice(0, 5) || '08:00',
             gdpr_data_retention_days: data.gdpr_data_retention_days || 90,
             writing_style_notes: data.writing_style_notes || '',
+            assistant_name: data.assistant_name || 'Chief',
           })
         }
       } catch {
@@ -775,6 +778,26 @@ function SettingsContent() {
           <section>
             <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">{t('preferences')}</h2>
             <div className="bg-white rounded-2xl border border-border divide-y divide-border">
+              {/* Assistant Name */}
+              <div className="p-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Bot className="w-5 h-5 text-text-tertiary" />
+                  <div>
+                    <p className="text-sm font-medium">{t('assistantName' as any) || "Your Assistant's Name"}</p>
+                    <p className="text-xs text-text-tertiary">{t('assistantNameDesc' as any) || 'Give your assistant a personal name'}</p>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={settings.assistant_name}
+                  onChange={(e) => updateField('assistant_name', e.target.value)}
+                  disabled={loading}
+                  placeholder="e.g., Friday, Jarvis, Sophie..."
+                  maxLength={30}
+                  className="text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 w-40 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
+                />
+              </div>
+
               <div className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Globe className="w-5 h-5 text-text-tertiary" />

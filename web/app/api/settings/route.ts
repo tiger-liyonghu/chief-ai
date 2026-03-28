@@ -7,6 +7,7 @@ const ALLOWED_FIELDS = [
   'daily_brief_time',
   'gdpr_data_retention_days',
   'writing_style_notes',
+  'assistant_name',
 ] as const
 
 type SettingsField = typeof ALLOWED_FIELDS[number]
@@ -18,7 +19,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('timezone, language, daily_brief_time, gdpr_data_retention_days, writing_style_notes')
+    .select('timezone, language, daily_brief_time, gdpr_data_retention_days, writing_style_notes, assistant_name')
     .eq('id', user.id)
     .single()
 
@@ -72,6 +73,16 @@ export async function PATCH(request: NextRequest) {
     if (typeof tz !== 'string' || tz.length === 0 || tz.length > 50) {
       return NextResponse.json(
         { error: 'Invalid timezone' },
+        { status: 400 }
+      )
+    }
+  }
+
+  if ('assistant_name' in updates) {
+    const name = updates.assistant_name as string
+    if (typeof name !== 'string' || name.length > 30) {
+      return NextResponse.json(
+        { error: 'assistant_name must be a string up to 30 characters' },
         { status: 400 }
       )
     }

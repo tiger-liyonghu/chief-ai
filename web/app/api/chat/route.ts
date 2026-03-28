@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createUserAIClient, getUserLLMConfig } from '@/lib/ai/unified-client'
-import { CHAT_SYSTEM_PROMPT, CHAT_SYSTEM_PROMPT_FALLBACK } from '@/lib/ai/prompts/chat'
+import { getChatSystemPrompt, getChatSystemPromptFallback } from '@/lib/ai/prompts/chat'
 import { gatherUserContext } from '@/lib/ai/context'
 import { parseActions, executeActions, executeToolCall } from '@/lib/ai/actions'
 import { CHIEF_TOOLS, supportsTools } from '@/lib/ai/tools'
@@ -29,6 +29,14 @@ export async function POST(request: NextRequest) {
 
   const admin = createAdminClient()
 
+  // Fetch assistant name from profile
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('assistant_name')
+    .eq('id', user.id)
+    .single()
+  const assistantName = profile?.assistant_name || 'Chief'
+
   // Determine provider capabilities
   const llmConfig = await getUserLLMConfig(user.id)
   const useTools = supportsTools(llmConfig.provider)
@@ -37,7 +45,7 @@ export async function POST(request: NextRequest) {
   const { contextBlock, alertsBlock } = await gatherUserContext(admin, user.id)
 
   // Pick the right system prompt based on tool support
-  const systemPrompt = useTools ? CHAT_SYSTEM_PROMPT : CHAT_SYSTEM_PROMPT_FALLBACK
+  const systemPrompt = useTools ? getChatSystemPrompt(assistantName) : getChatSystemPromptFallback(assistantName)
 
   // Build messages array
   const messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [

@@ -32,7 +32,7 @@ import { AlertsBanner } from '@/components/dashboard/AlertsBanner'
 import { DepartureReminder } from '@/components/dashboard/DepartureReminder'
 import { OnboardingProgress } from '@/components/dashboard/OnboardingProgress'
 import Recommendations from '@/components/dashboard/Recommendations'
-import { AgentStatusPanel } from '@/components/dashboard/AgentStatusPanel'
+import { AssistantStatusCard } from '@/components/dashboard/AssistantStatusCard'
 import { cn } from '@/lib/utils'
 import { requestNotificationPermission, sendOverdueEmailNotification } from '@/lib/notifications'
 
@@ -1601,8 +1601,12 @@ export default function DashboardPage() {
               <Recommendations />
             </div>
 
-            {/* AI Agents Status */}
-            <AgentStatusPanel />
+            {/* Assistant Status */}
+            <AssistantStatusCard
+              signals={data.pendingReplies.length}
+              meetingsPrepped={data.todayEvents.length}
+              followUpsTracked={data.followUps.length}
+            />
 
             {/* Tabs */}
             <div className="flex items-center gap-2 mb-6">

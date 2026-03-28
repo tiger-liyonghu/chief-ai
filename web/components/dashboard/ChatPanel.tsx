@@ -5,10 +5,17 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   MessageCircle, X, Send, Loader2, Sparkles,
   CheckCircle2, Mail, Search, Calendar, Forward, AlertTriangle,
-  ExternalLink, XCircle,
+  ExternalLink, XCircle, Mic,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
+
+declare global {
+  interface Window {
+    SpeechRecognition: any
+    webkitSpeechRecognition: any
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -263,13 +270,37 @@ function ActionCard({ action }: { action: ActionResult }) {
 // ---------------------------------------------------------------------------
 
 export function ChatPanel() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  const [assistantName, setAssistantName] = useState('Chief')
+  const [isListening, setIsListening] = useState(false)
+  const [interimText, setInterimText] = useState('')
+  const recognitionRef = useRef<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Check for speech recognition support
+  const hasSpeechRecognition = typeof window !== 'undefined' &&
+    (window.SpeechRecognition || window.webkitSpeechRecognition)
+
+  // Fetch assistant name
+  useEffect(() => {
+    async function fetchName() {
+      try {
+        const res = await fetch('/api/settings')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.assistant_name) setAssistantName(data.assistant_name)
+        }
+      } catch {
+        // use default
+      }
+    }
+    fetchName()
+  }, [])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -284,6 +315,58 @@ export function ChatPanel() {
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [isOpen])
+
+  const toggleListening = useCallback(() => {
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+      setInterimText('')
+      return
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SpeechRecognition) return
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.lang = locale === 'zh' ? 'zh-CN' : locale === 'ms' ? 'ms-MY' : 'en-US'
+
+    recognition.onresult = (event: any) => {
+      let interim = ''
+      let final = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript
+        if (event.results[i].isFinal) {
+          final += transcript
+        } else {
+          interim += transcript
+        }
+      }
+      if (final) {
+        setInput((prev) => prev + final)
+        setInterimText('')
+      } else {
+        setInterimText(interim)
+      }
+    }
+
+    recognition.onend = () => {
+      setIsListening(false)
+      setInterimText('')
+      recognitionRef.current = null
+    }
+
+    recognition.onerror = () => {
+      setIsListening(false)
+      setInterimText('')
+      recognitionRef.current = null
+    }
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setIsListening(true)
+  }, [isListening, locale])
 
   const handleSend = async () => {
     const text = input.trim()
@@ -439,7 +522,7 @@ export function ChatPanel() {
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                   <Sparkles className="w-4 h-4 text-white" />
                 </div>
-                <span className="font-semibold text-sm text-text-primary">{t('chiefAI')}</span>
+                <span className="font-semibold text-sm text-text-primary">{assistantName}</span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
@@ -457,7 +540,7 @@ export function ChatPanel() {
                   <div className="w-12 h-12 bg-primary-light rounded-xl flex items-center justify-center mb-3">
                     <Sparkles className="w-6 h-6 text-primary" />
                   </div>
-                  <p className="text-sm font-medium text-text-primary mb-1">{t('chiefAI')}</p>
+                  <p className="text-sm font-medium text-text-primary mb-1">{assistantName}</p>
                   <p className="text-xs text-text-tertiary mb-4">Ask me anything about your tasks, emails, or schedule.</p>
                   <div className="flex flex-wrap justify-center gap-2">
                     {[
@@ -533,16 +616,38 @@ export function ChatPanel() {
             {/* Input */}
             <div className="p-3 border-t border-border bg-white shrink-0">
               <div className="flex items-center gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={t('typeMessage')}
-                  disabled={isStreaming}
-                  className="flex-1 px-3.5 py-2.5 bg-surface-secondary rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 disabled:opacity-50"
-                />
+                <div className="relative flex-1">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={t('typeMessage')}
+                    disabled={isStreaming}
+                    className="w-full px-3.5 py-2.5 bg-surface-secondary rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-200 disabled:opacity-50"
+                  />
+                  {interimText && (
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-text-tertiary/50 pointer-events-none">
+                      {input}{interimText}
+                    </span>
+                  )}
+                </div>
+                {hasSpeechRecognition && (
+                  <button
+                    onClick={toggleListening}
+                    disabled={isStreaming}
+                    className={cn(
+                      'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0',
+                      isListening
+                        ? 'bg-red-500 text-white animate-pulse'
+                        : 'bg-surface-secondary text-text-tertiary hover:bg-surface-secondary/80'
+                    )}
+                    aria-label={isListening ? 'Stop recording' : 'Start voice input'}
+                  >
+                    <Mic className="w-4 h-4" />
+                  </button>
+                )}
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || isStreaming}

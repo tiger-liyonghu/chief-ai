@@ -353,6 +353,15 @@ const en = {
   noMessages: 'No messages yet',
   noMessagesHint: 'Sync your email or connect WhatsApp to see messages here.',
 
+  // Assistant personalization
+  assistantName: "Your Assistant's Name",
+  assistantNameDesc: 'Give your assistant a personal name',
+  assistantWatching: 'is watching over your inbox',
+  assistantAllClear: 'All clear. Nothing needs your attention right now.',
+  assistantSignals: '{n} signal(s) detected',
+  assistantMeetings: '{n} meeting(s) prepped',
+  assistantFollowUps: '{n} follow-up(s) tracked',
+
   // Empty state onboarding
   welcomeTitle: 'Welcome to Chief',
   welcomeStep1: 'Connect your Gmail',
@@ -695,6 +704,15 @@ const zh: typeof en = {
   noMessages: '暂无消息',
   noMessagesHint: '同步邮件或连接 WhatsApp 以查看消息。',
 
+  // Assistant personalization
+  assistantName: '助手名字',
+  assistantNameDesc: '给你的助手起一个名字',
+  assistantWatching: '正在守护你的收件箱',
+  assistantAllClear: '一切正常，暂无需要你关注的事项。',
+  assistantSignals: '{n}个信号',
+  assistantMeetings: '{n}个会议已准备',
+  assistantFollowUps: '{n}个跟进追踪中',
+
   // Empty state onboarding
   welcomeTitle: '欢迎使用 Chief',
   welcomeStep1: '连接 Gmail',
@@ -1034,6 +1052,15 @@ const ms: typeof en = {
   unifiedInbox: 'Peti Masuk',
   noMessages: 'Tiada mesej lagi',
   noMessagesHint: 'Segerakkan e-mel atau sambung WhatsApp untuk melihat mesej di sini.',
+
+  // Assistant personalization
+  assistantName: 'Nama Pembantu',
+  assistantNameDesc: 'Berikan nama peribadi kepada pembantu anda',
+  assistantWatching: 'sedang mengawasi peti masuk anda',
+  assistantAllClear: 'Semua terkawal. Tiada yang memerlukan perhatian anda.',
+  assistantSignals: '{n} isyarat dikesan',
+  assistantMeetings: '{n} mesyuarat disediakan',
+  assistantFollowUps: '{n} susulan dijejaki',
 
   // Empty state onboarding
   welcomeTitle: 'Selamat Datang ke Chief',
