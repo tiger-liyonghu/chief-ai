@@ -140,9 +140,12 @@ function ActionCard({ action }: { action: ActionResult }) {
             {subjectMatch && (
               <p className="text-xs text-emerald-700 leading-snug pl-5">{subjectMatch[1]}</p>
             )}
-            <button className="mt-1.5 ml-5 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 flex items-center gap-1 transition-colors">
+            <a
+              href="/dashboard/inbox"
+              className="mt-1.5 ml-5 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 flex items-center gap-1 transition-colors"
+            >
               Review in Inbox <ExternalLink className="w-3 h-3" />
-            </button>
+            </a>
           </>
         )
       }
