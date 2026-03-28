@@ -35,9 +35,9 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 pt-12 sm:pt-20 pb-10 sm:pb-16 text-center">
         <motion.div {...fadeUp} transition={{ duration: 0.5 }}>
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary-light rounded-full text-primary text-sm font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-primary-light rounded-full text-primary text-sm font-medium mb-4 sm:mb-6">
             <Sparkles className="w-4 h-4" />
             {t('aiPoweredProductivity')}
           </div>
@@ -46,7 +46,7 @@ export default function LandingPage() {
         <motion.h1
           {...fadeUp}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-5xl md:text-6xl font-bold text-text-primary leading-tight mb-6"
+          className="text-3xl sm:text-5xl md:text-6xl font-bold text-text-primary leading-tight mb-4 sm:mb-6"
         >
           {t('heroTitle1')}
           <span className="text-primary"> {t('heroTitle2')}</span>
@@ -55,7 +55,7 @@ export default function LandingPage() {
         <motion.p
           {...fadeUp}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-lg text-text-secondary max-w-2xl mx-auto mb-10 leading-relaxed"
+          className="text-base sm:text-lg text-text-secondary max-w-2xl mx-auto mb-6 sm:mb-10 leading-relaxed px-2"
         >
           {t('heroSubtitle')}
         </motion.p>

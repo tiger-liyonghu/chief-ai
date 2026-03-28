@@ -6,10 +6,8 @@ import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
 import { Locale, localeNames } from '@/lib/i18n/translations'
 import {
-  LayoutDashboard,
+  Sun,
   Mail,
-  CheckSquare,
-  Calendar,
   Users,
   Settings,
   Sparkles,
@@ -18,12 +16,9 @@ import {
 } from 'lucide-react'
 
 const navKeys = [
-  { href: '/dashboard', key: 'home' as const, icon: LayoutDashboard },
+  { href: '/dashboard', key: 'todayNav' as const, icon: Sun },
   { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
-  { href: '/dashboard/tasks', key: 'tasks' as const, icon: CheckSquare },
-  { href: '/dashboard/calendar', key: 'calendar' as const, icon: Calendar },
-  { href: '/dashboard/contacts', key: 'contacts' as const, icon: Users },
-  { href: '/dashboard/settings', key: 'settings' as const, icon: Settings },
+  { href: '/dashboard/contacts', key: 'people' as const, icon: Users },
 ]
 
 const locales: Locale[] = ['en', 'zh', 'ms']
@@ -69,6 +64,21 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
 
       {/* Bottom */}
       <div className="px-3 py-4 border-t border-border space-y-2">
+        {/* Settings */}
+        <Link
+          href="/dashboard/settings"
+          onClick={onNavigate}
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+            pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/')
+              ? 'bg-primary-light text-primary'
+              : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+          )}
+        >
+          <Settings className="w-5 h-5" />
+          {t('settings')}
+        </Link>
+
         {/* Language Switcher */}
         <div className="flex items-center gap-1 px-3 py-1.5">
           <Globe className="w-4 h-4 text-text-tertiary shrink-0" />

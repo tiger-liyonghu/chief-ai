@@ -1,6 +1,6 @@
 'use client'
 
-import { RefreshCw, Search } from 'lucide-react'
+import { RefreshCw, Search, MessageCircle } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { GlobalSearch } from '@/components/dashboard/GlobalSearch'
 import { useI18n } from '@/lib/i18n/context'
@@ -24,7 +24,24 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
   const [syncError, setSyncError] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [lastSyncLabel, setLastSyncLabel] = useState('')
+  const [assistantName, setAssistantName] = useState('Chief')
   const hasSynced = useRef(false)
+
+  // Fetch assistant name for the chat button
+  useEffect(() => {
+    async function fetchName() {
+      try {
+        const res = await fetch('/api/settings')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.assistant_name) setAssistantName(data.assistant_name)
+        }
+      } catch {
+        // use default
+      }
+    }
+    fetchName()
+  }, [])
 
   // Update the "last synced" label every 30s
   const updateLastSyncLabel = useCallback(() => {
@@ -109,10 +126,14 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoSync])
 
+  const openChat = () => {
+    window.dispatchEvent(new CustomEvent('chief-open-chat'))
+  }
+
   return (
-    <header className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5 border-b border-border bg-white/80 backdrop-blur-sm sticky top-0 z-10">
-      <div className="min-w-0">
-        <h1 className="text-lg sm:text-xl font-semibold text-text-primary truncate">{title}</h1>
+    <header className="flex items-center justify-between pl-14 lg:pl-8 pr-4 sm:pr-8 py-4 sm:py-5 border-b border-border bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+      <div className="min-w-0 flex-1 mr-2">
+        <h1 className="text-base sm:text-xl font-semibold text-text-primary truncate">{title}</h1>
         {subtitle && <p className="text-xs sm:text-sm text-text-tertiary mt-0.5 truncate">{subtitle}</p>}
       </div>
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -141,6 +162,15 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
           )}
           <span className="hidden sm:inline">{syncing ? t('syncing') : t('syncNow')}</span>
+        </button>
+
+        {/* Ask Assistant button — desktop only */}
+        <button
+          onClick={openChat}
+          className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary rounded-xl px-4 py-2 text-sm font-medium hover:bg-primary/20 transition-all duration-200"
+        >
+          <MessageCircle className="w-4 h-4" />
+          <span>{t('askAssistant' as any, { name: assistantName })}</span>
         </button>
       </div>
 

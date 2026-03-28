@@ -316,6 +316,13 @@ export function ChatPanel() {
     }
   }, [isOpen])
 
+  // Listen for global open-chat event (from TopBar / bottom tab)
+  useEffect(() => {
+    const handler = () => setIsOpen(true)
+    window.addEventListener('chief-open-chat', handler)
+    return () => window.removeEventListener('chief-open-chat', handler)
+  }, [])
+
   const toggleListening = useCallback(() => {
     if (isListening && recognitionRef.current) {
       recognitionRef.current.stop()
