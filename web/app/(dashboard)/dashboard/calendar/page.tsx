@@ -2,7 +2,8 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
-import { Calendar, Users, MapPin, Video, ChevronLeft, ChevronRight, Loader2, Plus, X, Pencil, Trash2, Sparkles, ExternalLink } from 'lucide-react'
+import { Calendar, Users, MapPin, Video, ChevronLeft, ChevronRight, Loader2, Plus, X, Pencil, Trash2, Sparkles, ExternalLink, Brain } from 'lucide-react'
+import { MeetingContextCard } from '@/components/dashboard/MeetingContextCard'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -335,6 +336,8 @@ function EventCard({
   onToggle,
   onEdit,
   onDelete,
+  contextOpen = false,
+  onToggleContext,
 }: {
   event: CalendarEvent
   colorIndex: number
@@ -343,6 +346,8 @@ function EventCard({
   onToggle?: () => void
   onEdit?: () => void
   onDelete?: () => void
+  contextOpen?: boolean
+  onToggleContext?: () => void
 }) {
   const start = new Date(event.start_time)
   const end = new Date(event.end_time)
@@ -460,6 +465,20 @@ function EventCard({
                     Delete
                   </button>
                 )}
+                {onToggleContext && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onToggleContext() }}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                      contextOpen
+                        ? 'bg-primary/10 text-primary border border-primary/20'
+                        : 'text-text-secondary border border-border hover:bg-surface-secondary'
+                    )}
+                  >
+                    <Brain className="w-3.5 h-3.5" />
+                    Context
+                  </button>
+                )}
                 {event.meeting_link && (
                   <a
                     href={event.meeting_link}
@@ -473,6 +492,9 @@ function EventCard({
                   </a>
                 )}
               </div>
+
+              {/* Meeting Context Card */}
+              <MeetingContextCard eventId={event.id} isOpen={contextOpen} />
             </div>
           </motion.div>
         )}
@@ -587,6 +609,8 @@ function DayView({
   onToggleExpand,
   onEdit,
   onDelete,
+  contextOpenId,
+  onToggleContext,
 }: {
   events: CalendarEvent[]
   date: Date
@@ -594,6 +618,8 @@ function DayView({
   onToggleExpand: (id: string) => void
   onEdit: (event: CalendarEvent) => void
   onDelete: (event: CalendarEvent) => void
+  contextOpenId: string | null
+  onToggleContext: (id: string) => void
 }) {
   const dayKey = toDateKey(date)
   const dayEvents = events
@@ -645,6 +671,8 @@ function DayView({
                   onToggle={() => onToggleExpand(event.id)}
                   onEdit={() => onEdit(event)}
                   onDelete={() => onDelete(event)}
+                  contextOpen={contextOpenId === event.id}
+                  onToggleContext={() => onToggleContext(event.id)}
                 />
               ))}
               {gap && (
@@ -871,6 +899,9 @@ export default function CalendarPage() {
 
   // Expanded event in day view
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null)
+
+  // Context card open state
+  const [contextOpenId, setContextOpenId] = useState<string | null>(null)
 
   // Delete confirm
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
@@ -1152,9 +1183,17 @@ export default function CalendarPage() {
                   events={events}
                   date={currentDate}
                   expandedId={expandedEventId}
-                  onToggleExpand={(id) => setExpandedEventId(prev => prev === id ? null : id)}
+                  onToggleExpand={(id) => {
+                    setExpandedEventId(prev => {
+                      const next = prev === id ? null : id
+                      if (next !== id) setContextOpenId(null)
+                      return next
+                    })
+                  }}
                   onEdit={openEditModal}
                   onDelete={(event) => setDeleteTarget(event)}
+                  contextOpenId={contextOpenId}
+                  onToggleContext={(id) => setContextOpenId(prev => prev === id ? null : id)}
                 />
               )}
               {view === 'week' && <WeekView events={events} weekStart={weekStart} onDayClick={handleDayClick} />}
