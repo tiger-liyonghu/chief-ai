@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
 import { Calendar, Users, MapPin, Video, ChevronLeft, ChevronRight, Loader2, Plus, X, Pencil, Trash2, Sparkles, ExternalLink, Brain } from 'lucide-react'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 import { MeetingContextCard } from '@/components/dashboard/MeetingContextCard'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
@@ -507,10 +508,12 @@ function EventCard({
 
 function EmptyState({ message, hint }: { message: string; hint?: string }) {
   return (
-    <div className="text-center py-16">
-      <Calendar className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
-      <p className="text-text-secondary font-medium">{message}</p>
-      {hint && <p className="text-sm text-text-tertiary mt-1">{hint}</p>}
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+        <Calendar className="w-8 h-8 text-blue-500" />
+      </div>
+      <p className="text-lg font-medium text-text-primary mb-1">{message}</p>
+      {hint && <p className="text-sm text-text-tertiary max-w-xs">{hint}</p>}
     </div>
   )
 }
@@ -1168,9 +1171,8 @@ export default function CalendarPage() {
 
         {/* Content */}
         {loading ? (
-          <div className="text-center py-16">
-            <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin" />
-            <p className="text-sm text-text-tertiary mt-3">Loading calendar...</p>
+          <div className="space-y-3">
+            {[1, 2].map((i) => <SkeletonCard key={i} lines={2} />)}
           </div>
         ) : (
           <AnimatePresence mode="wait">

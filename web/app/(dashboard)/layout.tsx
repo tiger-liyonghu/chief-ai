@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatPanel } from '@/components/dashboard/ChatPanel'
 import { SyncManager } from '@/components/dashboard/SyncManager'
@@ -70,7 +71,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <main className="lg:ml-64 pb-20 lg:pb-0">
-        {children}
+        <motion.div
+          key={pathname}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          {children}
+        </motion.div>
       </main>
 
       {/* Mobile bottom tab bar */}

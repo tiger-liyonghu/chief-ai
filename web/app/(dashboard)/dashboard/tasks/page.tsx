@@ -25,6 +25,7 @@ import {
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 
 type MainTab = 'tasks' | 'followUps' | 'meetings'
 const taskFilters = ['All', 'Urgent', 'This Week', 'Later', 'Done'] as const
@@ -299,9 +300,8 @@ function TasksTab() {
       )}
 
       {loading ? (
-        <div className="text-center py-16">
-          <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin" />
-          <p className="text-sm text-text-tertiary mt-3">{t('loadingTasks')}</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} lines={2} />)}
         </div>
       ) : (
         <>
@@ -360,10 +360,15 @@ function TasksTab() {
           </motion.div>
 
           {filteredTasks.length === 0 && (
-            <div className="text-center py-16">
-              <CheckSquare className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
-              <p className="text-text-secondary font-medium">{t('noTasksHere')}</p>
-              <p className="text-sm text-text-tertiary mt-1">{t('syncToGetTasks')}</p>
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+                <Sparkles className="w-8 h-8 text-emerald-500" />
+              </div>
+              <p className="text-lg font-medium text-text-primary mb-1">No tasks yet</p>
+              <p className="text-sm text-text-tertiary max-w-xs mb-4">Connect your email and your assistant will extract tasks automatically.</p>
+              <button onClick={() => setShowAddForm(true)} className="px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium">
+                Add a task manually
+              </button>
             </div>
           )}
         </>
@@ -440,9 +445,8 @@ function FollowUpsTab() {
       )}
 
       {loading ? (
-        <div className="text-center py-16">
-          <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin" />
-          <p className="text-sm text-text-tertiary mt-3">{t('loadingFollowUps')}</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} lines={2} />)}
         </div>
       ) : (
         <>
@@ -580,17 +584,16 @@ function MeetingsTab() {
       )}
 
       {loading ? (
-        <div className="text-center py-16">
-          <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin" />
-          <p className="text-sm text-text-tertiary mt-3">Loading meetings...</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} lines={2} />)}
         </div>
       ) : events.length === 0 ? (
-        <div className="text-center py-16">
-          <Calendar className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
-          <p className="text-text-secondary font-medium">No upcoming meetings</p>
-          <p className="text-sm text-text-tertiary mt-1">
-            Click &quot;Sync now&quot; to pull your Google Calendar events
-          </p>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+            <Calendar className="w-8 h-8 text-blue-500" />
+          </div>
+          <p className="text-lg font-medium text-text-primary mb-1">No upcoming meetings</p>
+          <p className="text-sm text-text-tertiary max-w-xs">Connect Google Calendar to see your schedule and get meeting prep.</p>
         </div>
       ) : (
         <div className="space-y-8">

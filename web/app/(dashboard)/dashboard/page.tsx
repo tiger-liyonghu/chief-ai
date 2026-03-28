@@ -8,7 +8,6 @@ import {
   Calendar,
   AlertCircle,
   Sparkles,
-  Loader2,
   RefreshCw,
   ArrowRight,
   Reply,
@@ -20,6 +19,7 @@ import {
   Inbox,
   Radio,
 } from 'lucide-react'
+import { SkeletonBriefing } from '@/components/ui/Skeleton'
 import Link from 'next/link'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useI18n } from '@/lib/i18n/context'
@@ -74,64 +74,28 @@ function getGapMinutes(endTime: string, nextStartTime: string): number {
 /* ─── WelcomeCard (preserved for first-time users) ─── */
 
 function WelcomeCard({ t, onSync }: { t: (key: any, params?: Record<string, string | number>) => string; onSync: () => void }) {
-  const steps = [
-    { num: 1, label: t('welcomeStep1' as any), icon: Mail, done: false },
-    { num: 2, label: t('welcomeStep2' as any), icon: RefreshCw, done: false },
-    { num: 3, label: t('welcomeStep3' as any), icon: Sparkles, done: false },
-  ]
-
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-3xl mb-8"
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="flex flex-col sm:flex-row items-center gap-4 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl px-6 py-4 mb-8"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-purple-600 to-violet-700" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.12),transparent_50%)]" />
-
-      <div className="relative p-6 sm:p-8 lg:p-10">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-11 h-11 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <h2 className="font-bold text-xl text-white">{t('welcomeTitle' as any)}</h2>
+      <div className="flex items-center gap-3 flex-1">
+        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
+          <Mail className="w-4.5 h-4.5 text-white" />
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          {steps.map((step) => {
-            const StepIcon = step.icon
-            return (
-              <div key={step.num} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0">
-                  {step.num}
-                </div>
-                <div className="flex items-center gap-2">
-                  <StepIcon className="w-4 h-4 text-white/70" />
-                  <span className="text-sm text-white/90 font-medium">{step.label}</span>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/settings"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 rounded-xl text-sm font-semibold hover:bg-white/90 transition-colors shadow-lg shadow-indigo-900/20"
-          >
-            <Mail className="w-4 h-4" />
-            {t('connectGmailShort' as any)}
-          </Link>
-          <button
-            onClick={onSync}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm rounded-xl text-sm font-medium text-white transition-all duration-200"
-          >
-            <RefreshCw className="w-4 h-4" />
-            {t('syncNow')}
-          </button>
-        </div>
+        <p className="text-sm sm:text-base font-medium text-white">
+          Connect your Gmail to get started
+        </p>
       </div>
+      <Link
+        href="/api/auth/login"
+        className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 rounded-xl text-sm font-semibold hover:bg-white/90 transition-colors shadow-lg shadow-indigo-900/20 shrink-0"
+      >
+        <Mail className="w-4 h-4" />
+        Connect Gmail
+      </Link>
     </motion.div>
   )
 }
@@ -485,10 +449,7 @@ export default function DashboardPage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {loading ? (
-          <div className="text-center py-24">
-            <Loader2 className="w-10 h-10 text-primary mx-auto animate-spin" />
-            <p className="text-sm text-text-tertiary mt-4">{t('loadingDashboard')}</p>
-          </div>
+          <SkeletonBriefing />
         ) : !hasData ? (
           <WelcomeCard t={t} onSync={() => {
             fetch('/api/sync', { method: 'POST' }).then(() => {

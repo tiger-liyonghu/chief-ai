@@ -5,12 +5,12 @@ import { TopBar } from '@/components/layout/TopBar'
 import {
   Users,
   Building2,
-  Loader2,
   AlertTriangle,
   Thermometer,
   Search,
   ChevronRight,
 } from 'lucide-react'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
@@ -428,24 +428,21 @@ export default function ContactsPage() {
 
         {/* Contact List */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <span className="ml-2 text-sm text-text-tertiary">Loading contacts...</span>
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => <SkeletonCard key={i} lines={1} />)}
           </div>
         ) : sortedContacts.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-20"
-          >
-            <Users className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
-            <p className="text-sm text-text-secondary font-medium">No contacts found</p>
-            <p className="text-xs text-text-tertiary mt-1">
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 bg-purple-50 rounded-full flex items-center justify-center mb-4">
+              <Users className="w-8 h-8 text-purple-500" />
+            </div>
+            <p className="text-lg font-medium text-text-primary mb-1">Your network starts here</p>
+            <p className="text-sm text-text-tertiary max-w-xs">
               {contacts.length === 0
-                ? 'Sync your emails to detect contacts automatically.'
+                ? 'Your assistant builds your contact book automatically from your conversations.'
                 : 'Try adjusting your search or filter.'}
             </p>
-          </motion.div>
+          </div>
         ) : (
           <div className="space-y-2">
             <AnimatePresence mode="popLayout">

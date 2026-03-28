@@ -11,7 +11,9 @@ import {
   ChevronRight,
   Loader2,
   Inbox,
+  CheckCircle,
 } from 'lucide-react'
+import { SkeletonCard } from '@/components/ui/Skeleton'
 import { cn } from '@/lib/utils'
 
 /* ─── Types ─── */
@@ -222,15 +224,16 @@ export default function InboxPage() {
 
         {/* Message list */}
         {loading ? (
-          <div className="text-center py-24">
-            <Loader2 className="w-8 h-8 text-primary mx-auto animate-spin" />
-            <p className="text-sm text-text-tertiary mt-4">{t('loading')}</p>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => <SkeletonCard key={i} lines={2} />)}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="text-center py-24">
-            <Inbox className="w-14 h-14 text-text-tertiary mx-auto mb-4" />
-            <p className="text-text-secondary font-medium">{t('noMessages' as any)}</p>
-            <p className="text-sm text-text-tertiary mt-1">{t('noMessagesHint' as any)}</p>
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+            <p className="text-lg font-medium text-text-primary mb-1">All caught up!</p>
+            <p className="text-sm text-text-tertiary max-w-xs">Your assistant will notify you when something needs your attention.</p>
           </div>
         ) : (
           <div className="space-y-2">
