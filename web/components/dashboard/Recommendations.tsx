@@ -303,8 +303,12 @@ export default function Recommendations() {
 
       const res = await fetch(`/api/recommendations?${params.toString()}`)
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${res.status}`)
+        if (res.status === 401 || res.status === 403) {
+          // Not authenticated — silently hide recommendations
+          setData(null)
+          return
+        }
+        throw new Error('Failed to load recommendations')
       }
       setData(await res.json())
     } catch (err: any) {

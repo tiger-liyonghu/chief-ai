@@ -510,7 +510,7 @@ function SettingsContent() {
         <div className="space-y-8">
           {/* Connected Accounts Section */}
           <section>
-            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">Connected Accounts</h2>
+            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">{t('connectedAccounts' as any)}</h2>
 
             {/* Account message */}
             {accountMessage && (
@@ -773,7 +773,7 @@ function SettingsContent() {
 
           {/* Preferences Section */}
           <section>
-            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">Preferences</h2>
+            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">{t('preferences')}</h2>
             <div className="bg-white rounded-2xl border border-border divide-y divide-border">
               <div className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -820,8 +820,8 @@ function SettingsContent() {
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-5 h-5 flex items-center justify-center text-text-tertiary text-xs font-bold">Aa</div>
                   <div>
-                    <p className="text-sm font-medium">Writing Style Notes</p>
-                    <p className="text-xs text-text-tertiary">Tone and style preferences for AI-drafted replies</p>
+                    <p className="text-sm font-medium">{t('writingStyleNotes' as any)}</p>
+                    <p className="text-xs text-text-tertiary">{t('writingStyleNotesDesc' as any)}</p>
                   </div>
                 </div>
                 <textarea
@@ -838,7 +838,7 @@ function SettingsContent() {
 
           {/* Digest Section */}
           <section>
-            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">Daily Digest Email</h2>
+            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">{t('dailyDigestEmail' as any)}</h2>
             <div className="bg-white rounded-2xl border border-border divide-y divide-border">
               {/* Toggle */}
               <div className="p-5 flex items-center justify-between">
@@ -992,7 +992,7 @@ function SettingsContent() {
 
           {/* Privacy Section */}
           <section>
-            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">Privacy & Data</h2>
+            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">{t('privacyData')}</h2>
             <div className="bg-white rounded-2xl border border-border divide-y divide-border">
               <div className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1032,7 +1032,7 @@ function SettingsContent() {
 
           {/* Danger Zone */}
           <section>
-            <h2 className="text-sm font-semibold text-danger uppercase tracking-wider mb-4">Danger Zone</h2>
+            <h2 className="text-sm font-semibold text-danger uppercase tracking-wider mb-4">{t('dangerZone')}</h2>
             <div className="bg-white rounded-2xl border border-red-200">
               <div className="p-5 flex items-center justify-between">
                 <div className="flex items-center gap-3">

@@ -10,10 +10,10 @@ const SYNC_COOLDOWN = 5 * 60 * 1000 // 5 minutes
 function formatLastSync(ts: number): string {
   if (!ts) return ''
   const diff = Math.floor((Date.now() - ts) / 1000)
-  if (diff < 60) return 'Just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h`
+  return `${Math.floor(diff / 86400)}d`
 }
 
 export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
@@ -118,7 +118,7 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
         {lastSyncLabel && (
           <span className="hidden md:inline text-xs text-text-tertiary">
-            Synced {lastSyncLabel}
+            {t('synced' as any)} {lastSyncLabel}
           </span>
         )}
         <button
@@ -140,7 +140,7 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
           {syncError && (
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
           )}
-          <span className="hidden sm:inline">{syncing ? 'Syncing...' : 'Sync now'}</span>
+          <span className="hidden sm:inline">{syncing ? t('syncing') : t('syncNow')}</span>
         </button>
       </div>
 

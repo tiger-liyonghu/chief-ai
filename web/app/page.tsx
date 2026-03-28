@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Mail, Calendar, CheckSquare, Sparkles, Shield, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/context'
+import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -22,12 +23,15 @@ export default function LandingPage() {
           </div>
           <span className="font-bold text-xl text-text-primary">Chief</span>
         </div>
-        <Link
-          href="/login"
-          className="px-5 py-2.5 bg-primary text-white rounded-xl font-medium text-sm hover:bg-primary-hover transition-all duration-200 shadow-sm hover:shadow-md"
-        >
-          {t('getStarted')}
-        </Link>
+        <div className="flex items-center gap-4">
+          <LanguageSwitcher compact />
+          <Link
+            href="/login"
+            className="px-5 py-2.5 bg-primary text-white rounded-xl font-medium text-sm hover:bg-primary-hover transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            {t('getStarted')}
+          </Link>
+        </div>
       </nav>
 
       {/* Hero */}

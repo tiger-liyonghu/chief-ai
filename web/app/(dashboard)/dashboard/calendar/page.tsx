@@ -6,6 +6,7 @@ import { Calendar, Users, MapPin, Video, ChevronLeft, ChevronRight, Loader2, Plu
 import { MeetingContextCard } from '@/components/dashboard/MeetingContextCard'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n/context'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -49,10 +50,10 @@ const EMPTY_FORM: EventFormData = {
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8) // 8 AM – 7 PM
 const COLORS = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-cyan-500']
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const VIEW_TABS: { key: ViewMode; label: string }[] = [
-  { key: 'day', label: 'Day' },
-  { key: 'week', label: 'Week' },
-  { key: 'month', label: 'Month' },
+const VIEW_TAB_KEYS: { key: ViewMode; labelKey: string }[] = [
+  { key: 'day', labelKey: 'day' },
+  { key: 'week', labelKey: 'week' },
+  { key: 'month', labelKey: 'month' },
 ]
 
 // ─── Date helpers ────────────────────────────────────────────────────────────
@@ -113,6 +114,7 @@ function EventModal({
   editEventId: string | null
   submitting: boolean
 }) {
+  const { t } = useI18n()
   const [form, setForm] = useState<EventFormData>(initialData)
 
   useEffect(() => {
@@ -144,7 +146,7 @@ function EventModal({
           >
             <div className="flex items-center justify-between p-5 border-b border-border">
               <h2 className="text-lg font-semibold text-text-primary">
-                {editEventId ? 'Edit Event' : 'New Event'}
+                {editEventId ? t('editEvent' as any) : t('newEvent' as any)}
               </h2>
               <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-secondary transition-colors">
                 <X className="w-5 h-5 text-text-tertiary" />
@@ -882,6 +884,7 @@ function MonthView({ events, month, onDayClick }: { events: CalendarEvent[]; mon
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const { t } = useI18n()
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>('day')
@@ -1105,14 +1108,14 @@ export default function CalendarPage() {
             <button
               onClick={goPrev}
               className="p-2 hover:bg-surface-secondary rounded-lg transition-colors"
-              aria-label="Previous"
+              aria-label={t('previous' as any)}
             >
               <ChevronLeft className="w-5 h-5 text-text-secondary" />
             </button>
             <button
               onClick={goNext}
               className="p-2 hover:bg-surface-secondary rounded-lg transition-colors"
-              aria-label="Next"
+              aria-label={t('next' as any)}
             >
               <ChevronRight className="w-5 h-5 text-text-secondary" />
             </button>
@@ -1141,11 +1144,11 @@ export default function CalendarPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              New Event
+              {t('newEvent' as any)}
             </button>
 
             <div className="flex items-center bg-surface-secondary rounded-lg p-0.5">
-              {VIEW_TABS.map(tab => (
+              {VIEW_TAB_KEYS.map(tab => (
                 <button
                   key={tab.key}
                   onClick={() => setView(tab.key)}
@@ -1156,7 +1159,7 @@ export default function CalendarPage() {
                       : 'text-text-tertiary hover:text-text-secondary'
                   )}
                 >
-                  {tab.label}
+                  {t(tab.labelKey as any)}
                 </button>
               ))}
             </div>

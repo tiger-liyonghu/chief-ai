@@ -276,6 +276,79 @@ const en = {
   departingSoon: 'Departing Soon',
   checkingPreFlight: 'Checking pre-flight items...',
   noPreFlightItems: 'All clear before departure',
+
+  // Task form
+  addTask: 'Add Task',
+  cancel: 'Cancel',
+  taskTitle: 'Task title',
+  taskTitlePlaceholder: 'What needs to be done?',
+  priority: 'Priority',
+  dueDate: 'Due date',
+  noteOptional: 'Note (optional)',
+  notePlaceholder: 'Why is this important?',
+  saving: 'Saving...',
+
+  // Agent panel
+  aiAgents: 'AI Agents',
+  agentActive: 'Active',
+  agentLocked: 'Planned',
+  agentRadar: 'Radar',
+  agentPrep: 'Prep',
+  agentGhostwriter: 'Ghostwriter',
+  agentCloser: 'Closer',
+  agentWeaver: 'Weaver',
+  agentTravelBrain: 'Travel Brain',
+  agentDebrief: 'Debrief',
+  agentRadarDesc: 'Scanning signals',
+  agentPrepDesc: 'Meeting briefings',
+  agentGhostwriterDesc: 'Ready',
+  agentCloserDesc: 'Tracking follow-ups',
+  agentWeaverDesc: 'Nurturing contacts',
+  agentTravelBrainDesc: 'Managing trips',
+  agentDebriefDesc: 'Ready',
+  agentSignals: '{n} signal(s)',
+  agentOverdueFollowUps: '{n} overdue',
+  agentContactsToNurture: '{n} to nurture',
+  agentActiveTrips: '{n} active trip(s)',
+  agentBriefingsGenerated: '{n} briefing(s) generated',
+
+  // TopBar
+  lastSynced: 'Last synced',
+  synced: 'Synced',
+
+  // Calendar
+  day: 'Day',
+  week: 'Week',
+  month: 'Month',
+  previous: 'Previous',
+  next: 'Next',
+  newEvent: 'New Event',
+  editEvent: 'Edit Event',
+
+  // Settings sections
+  connectedAccounts: 'Connected Accounts',
+  dailyDigestEmail: 'Daily Digest Email',
+  writingStyleNotes: 'Writing Style Notes',
+  writingStyleNotesDesc: 'Tone and style preferences for AI-drafted replies',
+
+  // Home / Inbox
+  home: 'Home',
+
+  // Unified Inbox
+  allChannels: 'All',
+  emailChannel: 'Email',
+  whatsappChannel: 'WhatsApp',
+  unifiedInbox: 'Inbox',
+  noMessages: 'No messages yet',
+  noMessagesHint: 'Sync your email or connect WhatsApp to see messages here.',
+
+  // Empty state onboarding
+  welcomeTitle: 'Welcome to Chief',
+  welcomeStep1: 'Connect your Gmail',
+  welcomeStep2: 'Wait for sync',
+  welcomeStep3: 'View your briefing',
+  addManually: 'Add manually',
+  connectGmailShort: 'Connect Gmail',
 }
 
 const zh: typeof en = {
@@ -534,6 +607,79 @@ const zh: typeof en = {
   departingSoon: '即将出发',
   checkingPreFlight: '正在检查出发前事项...',
   noPreFlightItems: '出发前一切就绪',
+
+  // Task form
+  addTask: '添加任务',
+  cancel: '取消',
+  taskTitle: '任务标题',
+  taskTitlePlaceholder: '需要做什么？',
+  priority: '优先级',
+  dueDate: '截止日期',
+  noteOptional: '备注（可选）',
+  notePlaceholder: '为什么重要？',
+  saving: '保存中...',
+
+  // Agent panel
+  aiAgents: 'AI 智能体',
+  agentActive: '运行中',
+  agentLocked: '规划中',
+  agentRadar: '雷达',
+  agentPrep: '会前准备',
+  agentGhostwriter: '代笔人',
+  agentCloser: '闭环追踪',
+  agentWeaver: '关系织网',
+  agentTravelBrain: '商旅大脑',
+  agentDebrief: '复盘助手',
+  agentRadarDesc: '扫描信号中',
+  agentPrepDesc: '会议简报',
+  agentGhostwriterDesc: '就绪',
+  agentCloserDesc: '追踪跟进',
+  agentWeaverDesc: '维护联系人',
+  agentTravelBrainDesc: '管理行程',
+  agentDebriefDesc: '就绪',
+  agentSignals: '{n}个信号',
+  agentOverdueFollowUps: '{n}个逾期',
+  agentContactsToNurture: '{n}个待维护',
+  agentActiveTrips: '{n}个活跃行程',
+  agentBriefingsGenerated: '{n}个简报已生成',
+
+  // TopBar
+  lastSynced: '上次同步',
+  synced: '已同步',
+
+  // Calendar
+  day: '日',
+  week: '周',
+  month: '月',
+  previous: '上一个',
+  next: '下一个',
+  newEvent: '新事件',
+  editEvent: '编辑事件',
+
+  // Settings sections
+  connectedAccounts: '已连接账户',
+  dailyDigestEmail: '每日摘要邮件',
+  writingStyleNotes: '写作风格备注',
+  writingStyleNotesDesc: 'AI 起草回复的语气和风格偏好',
+
+  // Home / Inbox
+  home: '首页',
+
+  // Unified Inbox
+  allChannels: '全部',
+  emailChannel: '邮件',
+  whatsappChannel: 'WhatsApp',
+  unifiedInbox: '收件箱',
+  noMessages: '暂无消息',
+  noMessagesHint: '同步邮件或连接 WhatsApp 以查看消息。',
+
+  // Empty state onboarding
+  welcomeTitle: '欢迎使用 Chief',
+  welcomeStep1: '连接 Gmail',
+  welcomeStep2: '等待同步',
+  welcomeStep3: '查看简报',
+  addManually: '手动添加',
+  connectGmailShort: '连接 Gmail',
 }
 
 const ms: typeof en = {
@@ -790,6 +936,79 @@ const ms: typeof en = {
   departingSoon: 'Akan Berlepas',
   checkingPreFlight: 'Menyemak item pra-penerbangan...',
   noPreFlightItems: 'Semua selesai sebelum berlepas',
+
+  // Task form
+  addTask: 'Tambah Tugas',
+  cancel: 'Batal',
+  taskTitle: 'Tajuk tugas',
+  taskTitlePlaceholder: 'Apa yang perlu dilakukan?',
+  priority: 'Keutamaan',
+  dueDate: 'Tarikh akhir',
+  noteOptional: 'Nota (pilihan)',
+  notePlaceholder: 'Mengapa ini penting?',
+  saving: 'Menyimpan...',
+
+  // Agent panel
+  aiAgents: 'Ejen AI',
+  agentActive: 'Aktif',
+  agentLocked: 'Dirancang',
+  agentRadar: 'Radar',
+  agentPrep: 'Persediaan',
+  agentGhostwriter: 'Penulis',
+  agentCloser: 'Penjejak',
+  agentWeaver: 'Penenun',
+  agentTravelBrain: 'Otak Perjalanan',
+  agentDebrief: 'Taklimat',
+  agentRadarDesc: 'Mengimbas isyarat',
+  agentPrepDesc: 'Taklimat mesyuarat',
+  agentGhostwriterDesc: 'Sedia',
+  agentCloserDesc: 'Menjejak susulan',
+  agentWeaverDesc: 'Memupuk kenalan',
+  agentTravelBrainDesc: 'Mengurus perjalanan',
+  agentDebriefDesc: 'Sedia',
+  agentSignals: '{n} isyarat',
+  agentOverdueFollowUps: '{n} tertunggak',
+  agentContactsToNurture: '{n} perlu dipupuk',
+  agentActiveTrips: '{n} perjalanan aktif',
+  agentBriefingsGenerated: '{n} taklimat dijana',
+
+  // TopBar
+  lastSynced: 'Segerak terakhir',
+  synced: 'Disegerakkan',
+
+  // Calendar
+  day: 'Hari',
+  week: 'Minggu',
+  month: 'Bulan',
+  previous: 'Sebelumnya',
+  next: 'Seterusnya',
+  newEvent: 'Acara Baharu',
+  editEvent: 'Edit Acara',
+
+  // Settings sections
+  connectedAccounts: 'Akaun Tersambung',
+  dailyDigestEmail: 'E-mel Ringkasan Harian',
+  writingStyleNotes: 'Nota Gaya Penulisan',
+  writingStyleNotesDesc: 'Keutamaan nada dan gaya untuk draf balasan AI',
+
+  // Home / Inbox
+  home: 'Laman Utama',
+
+  // Unified Inbox
+  allChannels: 'Semua',
+  emailChannel: 'E-mel',
+  whatsappChannel: 'WhatsApp',
+  unifiedInbox: 'Peti Masuk',
+  noMessages: 'Tiada mesej lagi',
+  noMessagesHint: 'Segerakkan e-mel atau sambung WhatsApp untuk melihat mesej di sini.',
+
+  // Empty state onboarding
+  welcomeTitle: 'Selamat Datang ke Chief',
+  welcomeStep1: 'Sambung Gmail anda',
+  welcomeStep2: 'Tunggu penyegerakan',
+  welcomeStep3: 'Lihat ringkasan anda',
+  addManually: 'Tambah secara manual',
+  connectGmailShort: 'Sambung Gmail',
 }
 
 export const translations: Record<Locale, typeof en> = { en, zh, ms }
@@ -797,7 +1016,10 @@ export const translations: Record<Locale, typeof en> = { en, zh, ms }
 export type TranslationKey = keyof typeof en
 
 export function t(locale: Locale, key: TranslationKey, params?: Record<string, string | number>): string {
-  let text = translations[locale][key] || translations.en[key] || key
+  const resolved = translations[locale]?.[key] ?? translations.en?.[key]
+  // Return empty string for unknown keys so that || fallback in callers works
+  if (resolved === undefined) return ''
+  let text = resolved
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v))

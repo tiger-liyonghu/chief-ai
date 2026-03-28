@@ -10,17 +10,17 @@ import {
   Heart,
   Plane,
   BookOpen,
-  Lock,
 } from 'lucide-react'
+import { useI18n } from '@/lib/i18n/context'
 
 /* ─── Types ─── */
 
 interface AgentDef {
   id: string
-  name: string
+  nameKey: string
+  descKey: string
   icon: React.ElementType
   active: boolean
-  description: string
   /** Fetched at runtime for active agents */
   metric?: string
 }
@@ -28,13 +28,13 @@ interface AgentDef {
 /* ─── Static definitions ─── */
 
 const AGENTS_TEMPLATE: Omit<AgentDef, 'metric'>[] = [
-  { id: 'radar',       name: 'Radar',        icon: Eye,      active: true,  description: 'Scanning signals' },
-  { id: 'prep',        name: 'Prep',         icon: Brain,    active: true,  description: 'Meeting briefings' },
-  { id: 'ghostwriter', name: 'Ghostwriter',  icon: PenTool,  active: true,  description: 'Ready' },
-  { id: 'closer',      name: 'Closer',       icon: Target,   active: false, description: 'Coming soon' },
-  { id: 'weaver',      name: 'Weaver',       icon: Heart,    active: false, description: 'Coming soon' },
-  { id: 'travel',      name: 'Travel Brain', icon: Plane,    active: false, description: 'Coming soon' },
-  { id: 'debrief',     name: 'Debrief',      icon: BookOpen, active: false, description: 'Coming soon' },
+  { id: 'radar',       nameKey: 'agentRadar',       icon: Eye,      active: true,  descKey: 'agentRadarDesc' },
+  { id: 'prep',        nameKey: 'agentPrep',        icon: Brain,    active: true,  descKey: 'agentPrepDesc' },
+  { id: 'ghostwriter', nameKey: 'agentGhostwriter', icon: PenTool,  active: true,  descKey: 'agentGhostwriterDesc' },
+  { id: 'closer',      nameKey: 'agentCloser',      icon: Target,   active: true,  descKey: 'agentCloserDesc' },
+  { id: 'weaver',      nameKey: 'agentWeaver',      icon: Heart,    active: true,  descKey: 'agentWeaverDesc' },
+  { id: 'travel',      nameKey: 'agentTravelBrain', icon: Plane,    active: true,  descKey: 'agentTravelBrainDesc' },
+  { id: 'debrief',     nameKey: 'agentDebrief',     icon: BookOpen, active: true,  descKey: 'agentDebriefDesc' },
 ]
 
 /* ─── Animation variants ─── */
@@ -54,6 +54,7 @@ const card = {
 /* ─── Component ─── */
 
 export function AgentStatusPanel() {
+  const { t } = useI18n()
   const [agents, setAgents] = useState<AgentDef[]>(
     AGENTS_TEMPLATE.map((a) => ({ ...a })),
   )
@@ -63,30 +64,45 @@ export function AgentStatusPanel() {
 
     async function fetchMetrics() {
       try {
-        const [alertsRes, meetingsRes] = await Promise.allSettled([
+        const [alertsRes, meetingsRes, closerRes, weaverRes, travelRes] = await Promise.allSettled([
           fetch('/api/alerts').then((r) => (r.ok ? r.json() : null)),
           fetch('/api/meetings').then((r) => (r.ok ? r.json() : null)),
+          fetch('/api/agents/closer').then((r) => (r.ok ? r.json() : null)),
+          fetch('/api/agents/weaver').then((r) => (r.ok ? r.json() : null)),
+          fetch('/api/agents/travel-brain').then((r) => (r.ok ? r.json() : null)),
         ])
 
         if (cancelled) return
 
         const alertsData = alertsRes.status === 'fulfilled' ? alertsRes.value : null
         const meetingsData = meetingsRes.status === 'fulfilled' ? meetingsRes.value : null
+        const closerData = closerRes.status === 'fulfilled' ? closerRes.value : null
+        const weaverData = weaverRes.status === 'fulfilled' ? weaverRes.value : null
+        const travelData = travelRes.status === 'fulfilled' ? travelRes.value : null
 
         const signalCount =
           alertsData?.alerts?.length ?? alertsData?.length ?? 0
         const briefingCount =
           meetingsData?.meetings?.length ?? meetingsData?.length ?? 0
+        const overdueFollowUps =
+          closerData?.overdue_count ?? closerData?.count ?? 0
+        const contactsToNurture =
+          weaverData?.contacts_count ?? weaverData?.count ?? 0
+        const activeTrips =
+          travelData?.active_trips ?? travelData?.count ?? 0
 
         setAgents((prev) =>
           prev.map((a) => {
             if (a.id === 'radar')
-              return { ...a, metric: `${signalCount} signal${signalCount !== 1 ? 's' : ''}` }
+              return { ...a, metric: t('agentSignals' as any, { n: signalCount }) }
             if (a.id === 'prep')
-              return {
-                ...a,
-                metric: `${briefingCount} briefing${briefingCount !== 1 ? 's' : ''} generated`,
-              }
+              return { ...a, metric: t('agentBriefingsGenerated' as any, { n: briefingCount }) }
+            if (a.id === 'closer' && overdueFollowUps > 0)
+              return { ...a, metric: t('agentOverdueFollowUps' as any, { n: overdueFollowUps }) }
+            if (a.id === 'weaver' && contactsToNurture > 0)
+              return { ...a, metric: t('agentContactsToNurture' as any, { n: contactsToNurture }) }
+            if (a.id === 'travel' && activeTrips > 0)
+              return { ...a, metric: t('agentActiveTrips' as any, { n: activeTrips }) }
             return a
           }),
         )
@@ -99,12 +115,12 @@ export function AgentStatusPanel() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   return (
     <section className="mb-8">
       <h2 className="text-lg font-semibold text-text-primary mb-4">
-        AI Agents
+        {t('aiAgents' as any)}
       </h2>
 
       <motion.div
@@ -120,48 +136,32 @@ export function AgentStatusPanel() {
               key={agent.id}
               variants={card}
               whileHover={{ y: -2, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}
-              className={`
-                relative rounded-2xl border bg-white p-4 transition-colors
-                ${agent.active
-                  ? 'border-border hover:border-primary/30'
-                  : 'border-border/60 opacity-60'}
-              `}
+              className="relative rounded-2xl border bg-white p-4 transition-colors border-border hover:border-primary/30"
             >
               {/* Status dot */}
               <div className="flex items-center gap-2 mb-2">
-                {agent.active ? (
-                  <span className="relative flex h-2.5 w-2.5">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  </span>
-                ) : (
-                  <Lock className="h-3 w-3 text-text-tertiary" />
-                )}
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
                 <span className="text-xs font-medium text-text-secondary">
-                  {agent.active ? 'Active' : 'Locked'}
+                  {t('agentActive' as any)}
                 </span>
               </div>
 
               {/* Icon + Name */}
               <div className="flex items-center gap-2 mb-1.5">
-                <div
-                  className={`
-                    flex h-8 w-8 items-center justify-center rounded-lg
-                    ${agent.active
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-surface-secondary text-text-tertiary'}
-                  `}
-                >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Icon className="h-4 w-4" />
                 </div>
                 <span className="text-sm font-semibold text-text-primary">
-                  {agent.name}
+                  {t(agent.nameKey as any)}
                 </span>
               </div>
 
               {/* Description / Metric */}
               <p className="text-xs text-text-secondary leading-relaxed pl-10">
-                {agent.metric ?? agent.description}
+                {agent.metric ?? t(agent.descKey as any)}
               </p>
             </motion.div>
           )

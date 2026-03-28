@@ -14,16 +14,16 @@ interface SearchResults {
   total: number
 }
 
-function timeAgo(dateStr: string): string {
+function timeAgo(dateStr: string, t: (key: any, params?: Record<string, string | number>) => string): string {
   const now = Date.now()
   const then = new Date(dateStr).getTime()
   const diffMs = now - then
   const mins = Math.floor(diffMs / 60000)
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 60) return t('mAgo', { n: mins })
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return t('hAgo', { n: hours })
   const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  return t('dAgo', { n: days })
 }
 
 function formatDateTime(dateStr: string): string {
@@ -296,7 +296,7 @@ export function GlobalSearch({ open, onClose }: { open: boolean; onClose: () => 
                                   {email.from_name || email.from_address}
                                 </span>
                                 <span className="text-xs text-text-tertiary shrink-0">
-                                  {timeAgo(email.received_at)}
+                                  {timeAgo(email.received_at, t)}
                                 </span>
                               </div>
                               <p className="text-sm text-text-secondary truncate">{email.subject}</p>

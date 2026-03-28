@@ -7,6 +7,7 @@ import { useI18n } from '@/lib/i18n/context'
 import { Locale, localeNames } from '@/lib/i18n/translations'
 import {
   LayoutDashboard,
+  Mail,
   CheckSquare,
   Calendar,
   Users,
@@ -17,7 +18,8 @@ import {
 } from 'lucide-react'
 
 const navKeys = [
-  { href: '/dashboard', key: 'inbox' as const, icon: LayoutDashboard },
+  { href: '/dashboard', key: 'home' as const, icon: LayoutDashboard },
+  { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
   { href: '/dashboard/tasks', key: 'tasks' as const, icon: CheckSquare },
   { href: '/dashboard/calendar', key: 'calendar' as const, icon: Calendar },
   { href: '/dashboard/contacts', key: 'contacts' as const, icon: Users },
@@ -31,7 +33,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const { t, locale, setLocale } = useI18n()
 
   return (
-    <aside className="w-64 h-screen bg-white border-r border-border flex flex-col fixed left-0 top-0">
+    <aside className="w-64 h-full bg-white border-r border-border flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-6 py-5 border-b border-border">
         <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -43,8 +45,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {navKeys.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const isActive = item.href === '/dashboard'
+            ? pathname === '/dashboard'
+            : pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link
               key={item.href}
