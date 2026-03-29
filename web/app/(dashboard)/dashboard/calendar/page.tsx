@@ -1201,7 +1201,7 @@ export default function CalendarPage() {
                   onToggleContext={(id) => setContextOpenId(prev => prev === id ? null : id)}
                 />
               )}
-              {view === 'week' && <WeekView events={events} weekStart={weekStart} onDayClick={handleDayClick} />}
+              {view === 'week' && <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"><WeekView events={events} weekStart={weekStart} onDayClick={handleDayClick} /></div>}
               {view === 'month' && <MonthView events={events} month={currentDate} onDayClick={handleDayClick} />}
             </motion.div>
           </AnimatePresence>

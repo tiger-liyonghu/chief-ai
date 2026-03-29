@@ -408,7 +408,7 @@ export default function ContactsPage() {
               className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
           </div>
-          <div className="flex items-center gap-1 bg-white border border-border rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-white border border-border rounded-xl p-1 overflow-x-auto">
             {filters.map((f) => (
               <button
                 key={f.key}

@@ -121,11 +121,13 @@ export default function InboxPage() {
   }
 
   for (const msg of waMessages) {
-    if (msg.direction !== 'inbound') continue
+    const isOutbound = msg.direction === 'outbound'
     unified.push({
       id: `wa-${msg.id}`,
       channel: 'whatsapp',
-      sender: msg.from_name || msg.from_number,
+      sender: isOutbound
+        ? `To: ${msg.to_number}`
+        : (msg.from_name || msg.from_number),
       subject: '',
       preview: msg.body || `[${msg.message_type}]`,
       timestamp: msg.received_at,
@@ -187,7 +189,7 @@ export default function InboxPage() {
 
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Filter tabs */}
-        <div className="flex items-center gap-2 mb-6">
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
           {filterTabs.map((tab) => {
             const count =
               tab.key === 'all'

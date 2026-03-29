@@ -503,7 +503,7 @@ function SettingsContent() {
     <div>
       <TopBar title="Settings" />
 
-      <div className="p-8 max-w-2xl">
+      <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
         {/* Save indicator */}
         <div className="h-6 mb-2">
           {saveStatus === 'saving' && (

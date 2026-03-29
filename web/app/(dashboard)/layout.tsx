@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatPanel } from '@/components/dashboard/ChatPanel'
 import { SyncManager } from '@/components/dashboard/SyncManager'
-import { Sun, Mail, Users, MessageCircle } from 'lucide-react'
+import { Sun, Mail, Users, MessageCircle, CalendarDays, Menu } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
@@ -70,6 +70,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar onNavigate={() => setSidebarOpen(false)} />
       </div>
 
+      {/* Mobile hamburger button */}
+      <button
+        onClick={() => setSidebarOpen(true)}
+        className="fixed top-4 left-4 z-40 lg:hidden bg-white rounded-xl shadow-sm border border-border p-2"
+      >
+        <Menu className="w-5 h-5 text-text-secondary" />
+      </button>
+
       <main className="lg:ml-64 pb-20 lg:pb-0">
         <motion.div
           key={pathname}
@@ -97,15 +105,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             active={pathname === '/dashboard/inbox' || pathname.startsWith('/dashboard/inbox/')}
           />
           <BottomTabItem
-            href="/dashboard/contacts"
+            href="/dashboard/tasks"
             icon={Users}
-            label={t('people' as any)}
-            active={pathname === '/dashboard/contacts' || pathname.startsWith('/dashboard/contacts/')}
+            label={t('tasks')}
+            active={pathname === '/dashboard/tasks'}
           />
           <BottomTabItem
-            icon={MessageCircle}
-            label={t('chat' as any)}
-            onClick={openChat}
+            href="/dashboard/calendar"
+            icon={CalendarDays}
+            label={t('calendar')}
+            active={pathname === '/dashboard/calendar'}
           />
         </div>
       </div>

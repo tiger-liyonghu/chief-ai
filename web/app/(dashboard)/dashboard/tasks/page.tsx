@@ -857,7 +857,7 @@ export default function TasksPage() {
 
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Main Tabs */}
-        <div className="flex items-center gap-2 mb-6 border-b border-border pb-4">
+        <div className="flex items-center gap-2 mb-6 border-b border-border pb-4 flex-wrap">
           {mainTabs.map((tab) => {
             const Icon = tab.icon
             return (

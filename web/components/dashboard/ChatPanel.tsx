@@ -508,7 +508,7 @@ export function ChatPanel() {
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: 'spring', stiffness: 260, damping: 20 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-8 right-8 z-50 w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
+            className="fixed bottom-24 lg:bottom-8 right-6 lg:right-8 z-50 w-14 h-14 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200"
             aria-label="Open chat"
           >
             <MessageCircle className="w-6 h-6" />
@@ -524,7 +524,7 @@ export function ChatPanel() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className="fixed bottom-8 right-8 z-50 w-[min(400px,calc(100vw-2rem))] h-[min(500px,calc(100vh-6rem))] bg-white rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
+            className="fixed bottom-24 lg:bottom-8 right-4 lg:right-8 z-50 w-[min(400px,calc(100vw-2rem))] h-[min(500px,calc(100vh-8rem))] bg-white rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-white shrink-0">
