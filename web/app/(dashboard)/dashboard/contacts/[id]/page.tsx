@@ -18,7 +18,7 @@ import {
   Thermometer,
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, fixDoubleUtf8 } from '@/lib/utils'
 import { formatRelativeTime } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
 import Link from 'next/link'
@@ -336,7 +336,7 @@ function InteractionTimeline({ items }: { items: TimelineItem[] }) {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-text-primary truncate">
                 {item.type === 'email'
-                  ? (item.data as EmailItem).subject || '(No subject)'
+                  ? fixDoubleUtf8((item.data as EmailItem).subject || '(No subject)')
                   : (item.data as WhatsAppMessage).body
                 }
               </p>

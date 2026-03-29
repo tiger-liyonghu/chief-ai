@@ -43,6 +43,34 @@ function stripActionBlocks(text: string): string {
   return text.replace(/\[ACTION:\w+\][\s\S]*?\[\/ACTION\]/g, '').trim()
 }
 
+/** Render simple markdown (bold, italic, numbered lists) to JSX */
+function SimpleMarkdown({ text }: { text: string }) {
+  const lines = text.split('\n')
+  return (
+    <>
+      {lines.map((line, i) => {
+        // Process inline formatting: **bold** and *italic*
+        const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
+        const rendered = parts.map((part, j) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={j}>{part.slice(2, -2)}</strong>
+          }
+          if (part.startsWith('*') && part.endsWith('*')) {
+            return <em key={j}>{part.slice(1, -1)}</em>
+          }
+          return part
+        })
+        return (
+          <span key={i}>
+            {i > 0 && <br />}
+            {rendered}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
 /** Parse SSE lines from a raw chunk. Handles partial lines across chunks. */
 function parseSSELines(
   buffer: string,
@@ -596,7 +624,11 @@ export function ChatPanel() {
                             : 'bg-surface-secondary text-text-primary rounded-bl-md'
                         )}
                       >
-                        {displayText || (
+                        {displayText ? (
+                          msg.role === 'assistant'
+                            ? <SimpleMarkdown text={displayText} />
+                            : displayText
+                        ) : (
                           msg.role === 'assistant' && !actions?.length ? (
                             <div className="flex items-center gap-1.5">
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />

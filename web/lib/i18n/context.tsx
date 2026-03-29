@@ -16,11 +16,17 @@ const I18nContext = createContext<I18nContextType>({
 })
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>('zh')
+  const [locale, setLocaleState] = useState<Locale>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chief-locale') as Locale
+      if (saved && ['en', 'zh', 'ms'].includes(saved)) return saved
+    }
+    return 'en'
+  })
 
   useEffect(() => {
     const saved = localStorage.getItem('chief-locale') as Locale
-    if (saved && ['en', 'zh', 'ms'].includes(saved)) {
+    if (saved && ['en', 'zh', 'ms'].includes(saved) && saved !== locale) {
       setLocaleState(saved)
     }
   }, [])

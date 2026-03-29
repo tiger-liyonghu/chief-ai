@@ -14,7 +14,7 @@ import {
   CheckCircle,
 } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui/Skeleton'
-import { cn } from '@/lib/utils'
+import { cn, fixDoubleUtf8 } from '@/lib/utils'
 
 /* ─── Types ─── */
 
@@ -285,7 +285,7 @@ export default function InboxPage() {
                           )}
                         </div>
                         {item.subject && (
-                          <p className="text-sm text-text-secondary truncate">{item.subject}</p>
+                          <p className="text-sm text-text-secondary truncate">{fixDoubleUtf8(item.subject)}</p>
                         )}
                         <p className="text-xs text-text-tertiary truncate mt-0.5">{item.preview}</p>
                       </div>

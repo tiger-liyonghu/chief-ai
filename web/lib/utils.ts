@@ -20,6 +20,23 @@ export function formatRelativeTime(date: Date | string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+/** Fix double-encoded UTF-8 strings (e.g. "Ã¤Â½Â " → "你") */
+export function fixDoubleUtf8(str: string): string {
+  // Detect mojibake: Ã (U+00C3) followed by a char in 0x80-0xBF range is classic double-UTF8
+  if (!/\u00C3[\u0080-\u00BF]/.test(str)) return str
+  try {
+    const bytes = new Uint8Array([...str].map(c => c.charCodeAt(0) & 0xFF))
+    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+    // Sanity check: decoded should be shorter and contain fewer replacement chars than original
+    if (decoded.length < str.length && (decoded.match(/\uFFFD/g) || []).length < str.length * 0.3) {
+      return decoded
+    }
+    return str
+  } catch {
+    return str
+  }
+}
+
 export function formatTime(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date
   return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
