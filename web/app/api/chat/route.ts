@@ -8,11 +8,17 @@ import { parseActions, executeActions, executeToolCall } from '@/lib/ai/actions'
 import { CHIEF_TOOLS, supportsTools } from '@/lib/ai/tools'
 import type OpenAI from 'openai'
 
-/** Strip DeepSeek internal DSML tags that leak into text content */
+/** Strip DeepSeek internal DSML tags that leak into text content.
+ *  Once a DSML tag is detected, everything after it is tool markup — strip it all. */
 function sanitizeContent(text: string): string {
-  return text
-    .replace(/<[｜|]DSML[｜|][^>]*>[\s\S]*?<[｜|]\/[^>]*>/g, '')
-    .replace(/<[｜|][^>]*[｜|]>/g, '')
+  // Find first DSML tag occurrence and truncate everything from there
+  const dsmlIdx = text.indexOf('<\uFF5CDSML')  // ｜ = U+FF5C
+  if (dsmlIdx === -1) {
+    const dsmlIdx2 = text.indexOf('<|DSML')  // fallback: ASCII pipe
+    if (dsmlIdx2 === -1) return text
+    return text.slice(0, dsmlIdx2).trim()
+  }
+  return text.slice(0, dsmlIdx).trim()
 }
 
 export async function POST(request: NextRequest) {

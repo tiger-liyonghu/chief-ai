@@ -40,11 +40,13 @@ interface Message {
 
 /** Strip [ACTION:TYPE]{...}[/ACTION] blocks from display text */
 function stripActionBlocks(text: string): string {
-  return text
-    .replace(/\[ACTION:\w+\][\s\S]*?\[\/ACTION\]/g, '')
-    .replace(/<[｜|]DSML[｜|][^>]*>[\s\S]*?<[｜|]\/[^>]*>/g, '')
-    .replace(/<[｜|][^>]*[｜|]>/g, '')
-    .trim()
+  let cleaned = text.replace(/\[ACTION:\w+\][\s\S]*?\[\/ACTION\]/g, '')
+  // Strip DSML tags and everything after them (DeepSeek function call markup)
+  const dsmlIdx = cleaned.indexOf('<\uFF5CDSML')
+  if (dsmlIdx !== -1) cleaned = cleaned.slice(0, dsmlIdx)
+  const dsmlIdx2 = cleaned.indexOf('<|DSML')
+  if (dsmlIdx2 !== -1) cleaned = cleaned.slice(0, dsmlIdx2)
+  return cleaned.trim()
 }
 
 /** Render simple markdown (bold, italic, numbered lists) to JSX */
