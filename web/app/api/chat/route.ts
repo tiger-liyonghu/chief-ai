@@ -8,6 +8,13 @@ import { parseActions, executeActions, executeToolCall } from '@/lib/ai/actions'
 import { CHIEF_TOOLS, supportsTools } from '@/lib/ai/tools'
 import type OpenAI from 'openai'
 
+/** Strip DeepSeek internal DSML tags that leak into text content */
+function sanitizeContent(text: string): string {
+  return text
+    .replace(/<[｜|]DSML[｜|][^>]*>[\s\S]*?<[｜|]\/[^>]*>/g, '')
+    .replace(/<[｜|][^>]*[｜|]>/g, '')
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -107,19 +114,25 @@ async function handleWithTools(
         })
 
         let fullContent = ''
+        let sanitizedSent = 0
         const toolCalls: Map<number, { id: string; name: string; args: string }> = new Map()
 
         for await (const chunk of stream) {
           const choice = chunk.choices[0]
           if (!choice) continue
 
-          // Stream text content to client immediately
+          // Stream text content to client (sanitized to remove DSML leaks)
           const content = choice.delta?.content
           if (content) {
             fullContent += content
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
-            )
+            const clean = sanitizeContent(fullContent)
+            if (clean.length > sanitizedSent) {
+              const newText = clean.slice(sanitizedSent)
+              sanitizedSent = clean.length
+              controller.enqueue(
+                encoder.encode(`data: ${JSON.stringify({ content: newText })}\n\n`)
+              )
+            }
           }
 
           // Accumulate tool calls
@@ -201,12 +214,20 @@ async function handleWithTools(
               max_tokens: 1024,
             })
 
+            let followContent = ''
+            let followSent = 0
             for await (const chunk of followUp) {
               const content = chunk.choices[0]?.delta?.content
               if (content) {
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
-                )
+                followContent += content
+                const clean = sanitizeContent(followContent)
+                if (clean.length > followSent) {
+                  const newText = clean.slice(followSent)
+                  followSent = clean.length
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ content: newText })}\n\n`)
+                  )
+                }
               }
             }
           } catch {

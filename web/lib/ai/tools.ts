@@ -179,6 +179,70 @@ export const CHIEF_TOOLS: ChiefTool[] = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'create_expense',
+      description: 'Log a travel or business expense',
+      parameters: {
+        type: 'object',
+        properties: {
+          category: {
+            type: 'string',
+            enum: ['flight', 'hotel', 'transport', 'meal', 'other'],
+            description: 'Expense category',
+          },
+          merchant_name: {
+            type: 'string',
+            description: 'Name of merchant or vendor',
+          },
+          amount: { type: 'number', description: 'Amount spent' },
+          currency: {
+            type: 'string',
+            description: 'Currency code (e.g. SGD, USD, JPY)',
+          },
+          expense_date: {
+            type: 'string',
+            description: 'Date of expense (YYYY-MM-DD)',
+          },
+          notes: { type: 'string', description: 'Optional notes' },
+        },
+        required: ['category', 'merchant_name', 'amount', 'currency', 'expense_date'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_relationships',
+      description:
+        'Check relationship health — which contacts are going cold, who needs attention',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_debrief',
+      description:
+        'Run a structured retrospective/review for a time period',
+      parameters: {
+        type: 'object',
+        properties: {
+          period: {
+            type: 'string',
+            enum: ['week', 'month'],
+            description: 'Time period to review (default: week)',
+          },
+        },
+        required: [],
+      },
+    },
+  },
 ]
 
 /**
@@ -193,6 +257,9 @@ export const TOOL_TO_ACTION_TYPE: Record<string, string> = {
   search: 'SEARCH',
   create_event: 'CREATE_EVENT',
   recommend_place: 'RECOMMEND_PLACE',
+  create_expense: 'CREATE_EXPENSE',
+  query_relationships: 'QUERY_RELATIONSHIPS',
+  run_debrief: 'RUN_DEBRIEF',
 }
 
 /**

@@ -40,7 +40,11 @@ interface Message {
 
 /** Strip [ACTION:TYPE]{...}[/ACTION] blocks from display text */
 function stripActionBlocks(text: string): string {
-  return text.replace(/\[ACTION:\w+\][\s\S]*?\[\/ACTION\]/g, '').trim()
+  return text
+    .replace(/\[ACTION:\w+\][\s\S]*?\[\/ACTION\]/g, '')
+    .replace(/<[｜|]DSML[｜|][^>]*>[\s\S]*?<[｜|]\/[^>]*>/g, '')
+    .replace(/<[｜|][^>]*[｜|]>/g, '')
+    .trim()
 }
 
 /** Render simple markdown (bold, italic, numbered lists) to JSX */

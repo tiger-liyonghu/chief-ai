@@ -1876,8 +1876,10 @@ export function getPlacesByArea(area: string): Place[] {
 }
 
 export function getPlacesByAreaWithAdjacent(area: string): Place[] {
-  const normalizedArea = area.toLowerCase()
-  const adjacent = ADJACENT_AREAS[area] || []
+  const canonicalKey = Object.keys(ADJACENT_AREAS).find(
+    k => k.toLowerCase() === area.toLowerCase()
+  )
+  const adjacent = canonicalKey ? ADJACENT_AREAS[canonicalKey] : []
   const allAreas = [area, ...adjacent].map(a => a.toLowerCase())
   return SINGAPORE_PLACES.filter(p => allAreas.includes(p.area.toLowerCase()))
 }

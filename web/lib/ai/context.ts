@@ -96,7 +96,7 @@ export async function gatherUserContext(
   try {
     alertResult = await detectAlerts(admin, userId)
     if (alertResult.alerts.length > 0) {
-      alertsBlock = `\n\n--- ${formatAlertsForPrompt(alertResult)} ---`
+      alertsBlock = `\n\n--- BACKGROUND ALERTS (only mention if directly relevant to user's question) ---\n${formatAlertsForPrompt(alertResult)}\n--- END BACKGROUND ALERTS ---`
     }
   } catch {
     // Alert detection is best-effort

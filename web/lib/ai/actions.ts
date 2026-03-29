@@ -162,24 +162,52 @@ export async function executeActions(
         }
         case 'SEARCH': {
           const { query } = action.params
-          const [emails, tasks] = await Promise.all([
+          const q = `%${query}%`
+          const [emails, tasks, events, contacts, followUps] = await Promise.all([
             admin
               .from('emails')
-              .select('subject, from_name, snippet')
+              .select('subject, from_name, from_address, snippet, received_at')
               .eq('user_id', userId)
-              .ilike('subject', `%${query}%`)
-              .limit(3),
+              .or(`subject.ilike.${q},snippet.ilike.${q},from_name.ilike.${q}`)
+              .order('received_at', { ascending: false })
+              .limit(5),
             admin
               .from('tasks')
-              .select('title, status')
+              .select('title, status, priority, due_date')
               .eq('user_id', userId)
-              .ilike('title', `%${query}%`)
-              .limit(3),
+              .ilike('title', q)
+              .limit(5),
+            admin
+              .from('calendar_events')
+              .select('title, start_time, end_time, location')
+              .eq('user_id', userId)
+              .or(`title.ilike.${q},location.ilike.${q}`)
+              .order('start_time', { ascending: false })
+              .limit(5),
+            admin
+              .from('contacts')
+              .select('name, email, company, relationship, importance, last_contact_at')
+              .eq('user_id', userId)
+              .or(`name.ilike.${q},email.ilike.${q},company.ilike.${q}`)
+              .limit(5),
+            admin
+              .from('follow_ups')
+              .select('type, contact_name, subject, commitment_text, due_date, status')
+              .eq('user_id', userId)
+              .or(`contact_name.ilike.${q},subject.ilike.${q},commitment_text.ilike.${q}`)
+              .limit(5),
           ])
+          const searchResults: Record<string, any[]> = {}
+          if (emails.data?.length) searchResults.emails = emails.data
+          if (tasks.data?.length) searchResults.tasks = tasks.data
+          if (events.data?.length) searchResults.calendar_events = events.data
+          if (contacts.data?.length) searchResults.contacts = contacts.data
+          if (followUps.data?.length) searchResults.follow_ups = followUps.data
+          const total = Object.values(searchResults).reduce((s, a) => s + a.length, 0)
           results.push({
             type: 'SEARCH',
             status: 'ok',
-            detail: `Found ${(emails.data?.length || 0) + (tasks.data?.length || 0)} results`,
+            detail: JSON.stringify({ query, total, results: searchResults }),
           })
           break
         }
@@ -301,6 +329,68 @@ export async function executeActions(
               detail: err.message,
             })
           }
+          break
+        }
+        case 'CREATE_EXPENSE': {
+          const { category, merchant_name, amount, currency, expense_date, notes } = action.params
+          if (!category || !merchant_name || !amount || !currency || !expense_date) {
+            results.push({ type: 'CREATE_EXPENSE', status: 'error', detail: 'Missing required fields' })
+            break
+          }
+          const { error: expError } = await admin.from('trip_expenses').insert({
+            user_id: userId,
+            trip_id: null,
+            category,
+            merchant_name,
+            amount: parseFloat(amount),
+            currency: currency.toUpperCase(),
+            amount_base: parseFloat(amount),
+            base_currency: currency.toUpperCase(),
+            expense_date,
+            notes: notes || null,
+            status: 'pending',
+          })
+          results.push({
+            type: 'CREATE_EXPENSE',
+            status: expError ? 'error' : 'ok',
+            detail: expError ? expError.message : `${currency.toUpperCase()} ${amount} at ${merchant_name}`,
+          })
+          break
+        }
+        case 'QUERY_RELATIONSHIPS': {
+          const { data: relContacts } = await admin
+            .from('contacts')
+            .select('name, email, company, relationship, importance, last_contact_at')
+            .eq('user_id', userId)
+            .in('importance', ['vip', 'high', 'normal'])
+            .order('last_contact_at', { ascending: true, nullsFirst: true })
+            .limit(10)
+          const relDetail = (relContacts || []).map(c => {
+            const daysSince = c.last_contact_at
+              ? Math.floor((Date.now() - new Date(c.last_contact_at).getTime()) / 86400000)
+              : null
+            return { name: c.name || c.email, importance: c.importance, days_since_contact: daysSince, company: c.company }
+          })
+          results.push({ type: 'QUERY_RELATIONSHIPS', status: 'ok', detail: JSON.stringify(relDetail) })
+          break
+        }
+        case 'RUN_DEBRIEF': {
+          const period = action.params.period || 'week'
+          const days = period === 'month' ? 30 : 7
+          const since = new Date(Date.now() - days * 86400000).toISOString()
+          const [debEmails, debTasks, debEvents] = await Promise.all([
+            admin.from('emails').select('subject, from_name, received_at, is_reply_needed').eq('user_id', userId).gte('received_at', since),
+            admin.from('tasks').select('title, status, priority, created_at').eq('user_id', userId).gte('created_at', since),
+            admin.from('calendar_events').select('title, start_time').eq('user_id', userId).gte('start_time', since),
+          ])
+          const stats = {
+            emails: debEmails.data?.length || 0,
+            emails_needing_reply: debEmails.data?.filter(e => e.is_reply_needed).length || 0,
+            tasks_created: debTasks.data?.length || 0,
+            tasks_done: debTasks.data?.filter(t => t.status === 'done').length || 0,
+            meetings: debEvents.data?.length || 0,
+          }
+          results.push({ type: 'RUN_DEBRIEF', status: 'ok', detail: JSON.stringify({ period, stats, recent_emails: (debEmails.data || []).slice(0, 5).map(e => e.subject), recent_meetings: (debEvents.data || []).slice(0, 5).map(e => e.title) }) })
           break
         }
         default:
