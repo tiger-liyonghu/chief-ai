@@ -365,7 +365,7 @@ export async function executeActions(
             .in('importance', ['vip', 'high', 'normal'])
             .order('last_contact_at', { ascending: true, nullsFirst: true })
             .limit(10)
-          const relDetail = (relContacts || []).map(c => {
+          const relDetail = (relContacts || []).map((c: any) => {
             const daysSince = c.last_contact_at
               ? Math.floor((Date.now() - new Date(c.last_contact_at).getTime()) / 86400000)
               : null
@@ -385,12 +385,12 @@ export async function executeActions(
           ])
           const stats = {
             emails: debEmails.data?.length || 0,
-            emails_needing_reply: debEmails.data?.filter(e => e.is_reply_needed).length || 0,
+            emails_needing_reply: debEmails.data?.filter((e: any) => e.is_reply_needed).length || 0,
             tasks_created: debTasks.data?.length || 0,
-            tasks_done: debTasks.data?.filter(t => t.status === 'done').length || 0,
+            tasks_done: debTasks.data?.filter((t: any) => t.status === 'done').length || 0,
             meetings: debEvents.data?.length || 0,
           }
-          results.push({ type: 'RUN_DEBRIEF', status: 'ok', detail: JSON.stringify({ period, stats, recent_emails: (debEmails.data || []).slice(0, 5).map(e => e.subject), recent_meetings: (debEvents.data || []).slice(0, 5).map(e => e.title) }) })
+          results.push({ type: 'RUN_DEBRIEF', status: 'ok', detail: JSON.stringify({ period, stats, recent_emails: (debEmails.data || []).slice(0, 5).map((e: any) => e.subject), recent_meetings: (debEvents.data || []).slice(0, 5).map((e: any) => e.title) }) })
           break
         }
         default:
