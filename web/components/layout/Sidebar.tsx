@@ -5,10 +5,16 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
 import { Locale, localeNames } from '@/lib/i18n/translations'
+import { createClient } from '@/lib/supabase/client'
 import {
   Sun,
   Mail,
   Users,
+  CheckSquare,
+  CalendarDays,
+  Briefcase,
+  Plane,
+  Receipt,
   Settings,
   Sparkles,
   LogOut,
@@ -18,7 +24,12 @@ import {
 const navKeys = [
   { href: '/dashboard', key: 'todayNav' as const, icon: Sun },
   { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
+  { href: '/dashboard/tasks', key: 'tasks' as const, icon: CheckSquare },
+  { href: '/dashboard/calendar', key: 'calendar' as const, icon: CalendarDays },
+  { href: '/dashboard/meetings', key: 'meetings' as const, icon: Briefcase },
   { href: '/dashboard/contacts', key: 'people' as const, icon: Users },
+  { href: '/dashboard/trips', key: 'trips' as const, icon: Plane },
+  { href: '/dashboard/expenses', key: 'expenses' as const, icon: Receipt },
 ]
 
 const locales: Locale[] = ['en', 'zh', 'ms']
@@ -26,6 +37,12 @@ const locales: Locale[] = ['en', 'zh', 'ms']
 export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname()
   const { t, locale, setLocale } = useI18n()
+
+  const handleSignOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
 
   return (
     <aside className="w-64 h-full bg-white border-r border-border flex flex-col">
@@ -38,7 +55,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navKeys.map((item) => {
           const isActive = item.href === '/dashboard'
             ? pathname === '/dashboard'
@@ -100,7 +117,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
           </div>
         </div>
 
-        <button className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-text-tertiary hover:text-danger hover:bg-red-50 transition-all duration-200 w-full">
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-text-tertiary hover:text-danger hover:bg-red-50 transition-all duration-200 w-full"
+        >
           <LogOut className="w-5 h-5" />
           {t('signOut')}
         </button>

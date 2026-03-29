@@ -20,6 +20,10 @@ export function SyncManager() {
     try {
       // Phase 1: metadata sync
       const res = await fetch('/api/sync', { method: 'POST' })
+      if (res.status === 401) {
+        // Session expired, stop retrying
+        return
+      }
       if (res.ok) {
         localStorage.setItem('chief-last-sync', Date.now().toString())
         // Notify listeners that sync completed

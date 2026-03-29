@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatPanel } from '@/components/dashboard/ChatPanel'
 import { SyncManager } from '@/components/dashboard/SyncManager'
-import { Sun, Mail, Users, MessageCircle, CalendarDays, Menu } from 'lucide-react'
+import { Sun, Mail, CheckSquare, MessageCircle, CalendarDays, Menu } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
@@ -106,7 +106,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
           <BottomTabItem
             href="/dashboard/tasks"
-            icon={Users}
+            icon={CheckSquare}
             label={t('tasks')}
             active={pathname === '/dashboard/tasks'}
           />

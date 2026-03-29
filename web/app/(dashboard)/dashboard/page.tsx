@@ -213,6 +213,7 @@ export default function DashboardPage() {
   const [briefing, setBriefing] = useState<string | null>(null)
   const [briefingLoading, setBriefingLoading] = useState(false)
   const [assistantName, setAssistantName] = useState('Chief')
+  const [userName, setUserName] = useState('')
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [detectedTimezone, setDetectedTimezone] = useState('')
   const [detectedLanguage, setDetectedLanguage] = useState('en')
@@ -321,6 +322,7 @@ export default function DashboardPage() {
       if (res.ok) {
         const data = await res.json()
         if (data.assistant_name) setAssistantName(data.assistant_name)
+        if (data.full_name) setUserName(data.full_name)
       }
     } catch { /* use default */ }
   }, [])
@@ -467,7 +469,7 @@ export default function DashboardPage() {
             {/* ─── 1. Greeting ─── */}
             <motion.div variants={fadeUp}>
               <p className="text-2xl sm:text-3xl font-semibold text-text-primary leading-snug">
-                {assistantName}: {greeting}, Tiger. {t('heresYourDay' as any)}
+                {assistantName}: {greeting}{userName ? `, ${userName}` : ''}. {t('heresYourDay' as any)}
               </p>
             </motion.div>
 
