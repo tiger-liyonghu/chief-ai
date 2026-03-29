@@ -103,7 +103,7 @@ export default function LandingPage() {
                     </div>
                     <span className="font-semibold text-sm text-text-primary">Chief</span>
                   </div>
-                  {['Daily Brief', 'Inbox', 'Tasks', 'Calendar'].map((item, i) => (
+                  {[t('dailyBrief'), t('inbox'), t('tasks'), t('calendar')].map((item, i) => (
                     <div key={item} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs mb-1 ${i === 0 ? 'bg-primary/10 text-primary font-medium' : 'text-text-secondary'}`}>
                       <div className={`w-3.5 h-3.5 rounded ${i === 0 ? 'bg-primary/20' : 'bg-gray-200'}`} />
                       {item}
@@ -114,17 +114,17 @@ export default function LandingPage() {
                 <div className="flex-1 p-5">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <div className="text-sm font-semibold text-text-primary">Good morning</div>
-                      <div className="text-xs text-text-tertiary">3 tasks, 5 emails, 2 meetings today</div>
+                      <div className="text-sm font-semibold text-text-primary">{t('goodMorning')}</div>
+                      <div className="text-xs text-text-tertiary">{t('mockSummary', { tasks: 3, emails: 5, meetings: 2 })}</div>
                     </div>
-                    <div className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-lg">Sync now</div>
+                    <div className="px-3 py-1.5 bg-primary/10 text-primary text-xs font-medium rounded-lg">{t('syncNow')}</div>
                   </div>
                   {/* Stat cards */}
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     {[
-                      { label: 'Pending Tasks', value: '7', color: 'text-emerald-600' },
-                      { label: 'Needs Reply', value: '5', color: 'text-blue-600' },
-                      { label: 'Meetings', value: '2', color: 'text-amber-600' },
+                      { label: t('pendingTasks'), value: '7', color: 'text-emerald-600' },
+                      { label: t('needsReply'), value: '5', color: 'text-blue-600' },
+                      { label: t('meetings'), value: '2', color: 'text-amber-600' },
                     ].map((stat) => (
                       <div key={stat.label} className="bg-gray-50 rounded-xl p-3">
                         <div className={`text-lg font-bold ${stat.color}`}>{stat.value}</div>
@@ -134,7 +134,7 @@ export default function LandingPage() {
                   </div>
                   {/* Task rows */}
                   <div className="space-y-2">
-                    {['Review partnership proposal', 'Prepare investor update', 'Reply to Sarah re: Q1 report'].map((task, i) => (
+                    {[t('mockTask1'), t('mockTask2'), t('mockTask3')].map((task, i) => (
                       <div key={task} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
                         <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-red-400' : i === 1 ? 'bg-orange-400' : 'bg-yellow-400'}`} />
                         <span className="text-xs text-text-primary">{task}</span>

@@ -37,7 +37,7 @@ function Reveal({
 // ---------------------------------------------------------------------------
 function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-6">
+    <section className="relative min-h-[80vh] sm:min-h-screen flex items-center justify-center overflow-hidden px-6">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0f0f23] to-[#1a1a3e]" />
 
@@ -133,15 +133,15 @@ const problems = [
 
 function Problem() {
   return (
-    <section className="relative py-32 px-6 bg-[#0f0f23]">
+    <section className="relative py-16 sm:py-32 px-6 bg-[#0f0f23]">
       <div className="max-w-5xl mx-auto">
         <Reveal>
-          <h2 className="text-4xl sm:text-5xl font-bold text-white text-center tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white text-center tracking-tight">
             The $2.8B Problem
           </h2>
         </Reveal>
 
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="mt-10 sm:mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
           {problems.map((p, i) => (
             <Reveal key={i} delay={i * 0.15}>
               <div className="group rounded-2xl border border-white/[0.06] bg-white/[0.03] p-8 text-center transition-colors hover:bg-white/[0.06]">
@@ -180,17 +180,17 @@ const steps = [
 
 function HowItWorks() {
   return (
-    <section className="py-32 px-6 bg-white">
+    <section className="py-16 sm:py-32 px-6 bg-white">
       <div className="max-w-5xl mx-auto">
         <Reveal>
-          <h2 className="text-4xl sm:text-5xl font-bold text-[#0f0f23] text-center tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0f0f23] text-center tracking-tight">
             One inbox. Seven agents.
             <br />
             Zero missed items.
           </h2>
         </Reveal>
 
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div className="mt-10 sm:mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-12">
           {steps.map((s, i) => (
             <Reveal key={i} delay={i * 0.15}>
               <div className="relative">
@@ -253,15 +253,15 @@ const agents = [
 
 function AgentShowcase() {
   return (
-    <section className="py-32 px-6 bg-[#0f0f23]">
+    <section className="py-16 sm:py-32 px-6 bg-[#0f0f23]">
       <div className="max-w-6xl mx-auto">
         <Reveal>
-          <h2 className="text-4xl sm:text-5xl font-bold text-white text-center tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white text-center tracking-tight">
             Meet Your Agents
           </h2>
         </Reveal>
 
-        <div className="mt-20 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="mt-10 sm:mt-20 grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {agents.map((a, i) => (
             <Reveal key={i} delay={i * 0.08}>
               <motion.div
@@ -296,15 +296,15 @@ const numbers = [
 
 function Numbers() {
   return (
-    <section className="py-32 px-6 bg-white">
+    <section className="py-16 sm:py-32 px-6 bg-white">
       <div className="max-w-5xl mx-auto">
         <Reveal>
-          <h2 className="text-4xl sm:text-5xl font-bold text-[#0f0f23] text-center tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0f0f23] text-center tracking-tight">
             Built for Scale
           </h2>
         </Reveal>
 
-        <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+        <div className="mt-10 sm:mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 md:gap-12">
           {numbers.map((n, i) => (
             <Reveal key={i} delay={i * 0.12} className="text-center">
               <p className="text-5xl sm:text-6xl font-bold text-[#0f0f23]">
@@ -329,7 +329,7 @@ function Numbers() {
 // ---------------------------------------------------------------------------
 function CTA() {
   return (
-    <section className="relative py-32 px-6 overflow-hidden">
+    <section className="relative py-16 sm:py-32 px-6 overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#0f0f23] via-[#1a1a3e] to-[#0f0f23]" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_50%,rgba(99,102,241,0.1),transparent)]" />
@@ -343,18 +343,12 @@ function CTA() {
         </Reveal>
 
         <Reveal delay={0.2}>
-          <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="mt-12 flex items-center justify-center">
             <Link
               href="/login"
               className="inline-flex items-center justify-center rounded-full bg-indigo-500 px-8 py-3.5 text-base font-medium text-white transition-colors hover:bg-indigo-400 min-w-[180px]"
             >
               Try the Demo
-            </Link>
-            <Link
-              href="/pitch/deck"
-              className="inline-flex items-center justify-center rounded-full border border-white/20 px-8 py-3.5 text-base font-medium text-white transition-colors hover:border-white/40 hover:bg-white/[0.05] min-w-[180px]"
-            >
-              Read the Deck
             </Link>
           </div>
         </Reveal>

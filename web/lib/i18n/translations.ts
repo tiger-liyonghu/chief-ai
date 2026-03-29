@@ -177,6 +177,12 @@ const en = {
   gmailCalendar: 'Gmail & Google Calendar',
   footerText: '© {year} Chief. Built for founders who move fast.',
 
+  // Landing mock dashboard
+  mockSummary: '{tasks} tasks, {emails} emails, {meetings} meetings today',
+  mockTask1: 'Review partnership proposal',
+  mockTask2: 'Prepare investor update',
+  mockTask3: 'Reply to Sarah re: Q1 report',
+
   // Login page
   welcomeBack: 'Welcome to Chief',
   signInSubtitle: 'Your AI-powered productivity hub for email, tasks, and calendar',
@@ -557,6 +563,11 @@ const zh: typeof en = {
   gmailCalendar: 'Gmail 和 Google 日历',
   footerText: '© {year} Chief。为行动派创始人而生。',
 
+  mockSummary: '{tasks} 个任务、{emails} 封邮件、{meetings} 场会议',
+  mockTask1: '审阅合作提案',
+  mockTask2: '准备投资人汇报',
+  mockTask3: '回复 Sarah：Q1 报告',
+
   welcomeBack: '欢迎使用 Chief',
   signInSubtitle: '你的 AI 驱动的邮件、任务和日历效率中心',
   continueWithGoogle: '使用 Google 登录',
@@ -934,6 +945,11 @@ const ms: typeof en = {
   realTimeSync: 'Segerak Masa Nyata',
   gmailCalendar: 'Gmail & Google Kalendar',
   footerText: '© {year} Chief. Dibina untuk pengasas yang bergerak pantas.',
+
+  mockSummary: '{tasks} tugasan, {emails} e-mel, {meetings} mesyuarat hari ini',
+  mockTask1: 'Semak cadangan kerjasama',
+  mockTask2: 'Sediakan kemas kini pelabur',
+  mockTask3: 'Balas Sarah: laporan S1',
 
   welcomeBack: 'Selamat Datang ke Chief',
   signInSubtitle: 'Hab produktiviti dikuasakan AI untuk e-mel, tugasan dan kalendar anda',

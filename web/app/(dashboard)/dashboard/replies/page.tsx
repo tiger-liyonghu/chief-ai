@@ -7,7 +7,7 @@ export default function RepliesPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/dashboard')
+    router.replace('/dashboard/inbox')
   }, [router])
 
   return null

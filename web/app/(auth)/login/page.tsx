@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
+import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/context'
 
 export default function LoginPage() {
@@ -19,12 +20,12 @@ export default function LoginPage() {
         className="w-full max-w-sm"
       >
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <Link href="/" className="flex items-center justify-center gap-2 mb-8 hover:opacity-80 transition-opacity">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <span className="font-bold text-2xl text-text-primary">Chief</span>
-        </div>
+        </Link>
 
         {/* Card */}
         <div className="bg-white rounded-2xl border border-border p-8 shadow-sm">

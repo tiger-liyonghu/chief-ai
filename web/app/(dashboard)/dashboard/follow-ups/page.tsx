@@ -7,7 +7,7 @@ export default function FollowUpsPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/dashboard/tasks')
+    router.replace('/dashboard/tasks?tab=followUps')
   }, [router])
 
   return null

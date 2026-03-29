@@ -23,6 +23,7 @@ import {
   X,
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
 import { SkeletonCard } from '@/components/ui/Skeleton'
@@ -843,7 +844,11 @@ function MeetingsTab() {
 /* ─── Main Tasks Page ─── */
 export default function TasksPage() {
   const { t } = useI18n()
-  const [mainTab, setMainTab] = useState<MainTab>('tasks')
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams.get('tab') as MainTab) || 'tasks'
+  const [mainTab, setMainTab] = useState<MainTab>(
+    ['tasks', 'followUps', 'meetings'].includes(initialTab) ? initialTab : 'tasks'
+  )
 
   const mainTabs: { key: MainTab; label: string; icon: any }[] = [
     { key: 'tasks', label: t('tasks'), icon: CheckSquare },
