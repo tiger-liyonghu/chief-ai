@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
               snippet: emailRow.snippet || '',
               to_address: emailRow.to_address || '',
               is_outbound: emailRow.is_outbound || false,
-            }, profile?.email)
+            }, user.email || undefined)
 
             if (preFilter.skip) {
               // Mark as processed but don't call LLM
