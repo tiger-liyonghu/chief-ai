@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const hours = body.hours || 24 // scan last N hours
+  const rawHours = Number(body.hours)
+  const hours = Number.isFinite(rawHours) && rawHours > 0 ? Math.min(rawHours, 168) : 24
   const since = new Date(Date.now() - hours * 3600000).toISOString()
 
   // 1. Get recent emails not yet scanned
@@ -134,6 +135,7 @@ export async function POST(req: NextRequest) {
         .from('emails')
         .update({ commitment_scanned: true })
         .eq('id', email.id)
+        .eq('user_id', user.id)
     }
   }
 

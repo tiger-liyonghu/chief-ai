@@ -121,6 +121,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('Onboarding error:', error)
-    return NextResponse.json({ error: error.message || 'Onboarding failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Onboarding failed' }, { status: 500 })
   }
 }

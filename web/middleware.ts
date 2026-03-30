@@ -25,19 +25,35 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Unauthenticated users accessing /dashboard/* → redirect to /login
-  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+  // Unauthenticated users accessing /dashboard/* or /onboarding → redirect to /login
+  if (!user && (request.nextUrl.pathname.startsWith('/dashboard') || request.nextUrl.pathname === '/onboarding')) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Authenticated users on /login → redirect to /dashboard
-  if (user && request.nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  // Authenticated users on /login or /dashboard → check onboarding
+  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname.startsWith('/dashboard'))) {
+    // Server-side onboarding check via Supabase (tamper-proof, not cookie-based)
+    const profileCheck = await supabase
+      .from('profiles')
+      .select('onboarding_completed_at')
+      .eq('id', user.id)
+      .single()
+
+    const needsOnboarding = !profileCheck.data?.onboarding_completed_at
+
+    if (needsOnboarding && !request.nextUrl.pathname.startsWith('/dashboard/settings')) {
+      // Allow settings access for WhatsApp QR scan during onboarding
+      if (request.nextUrl.pathname !== '/onboarding') {
+        return NextResponse.redirect(new URL('/onboarding', request.url))
+      }
+    } else if (request.nextUrl.pathname === '/login') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return response
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard/:path*', '/login', '/onboarding'],
 }
