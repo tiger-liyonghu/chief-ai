@@ -417,6 +417,10 @@ export async function processMessageWithAI(
       ? VISION_MODEL
       : (process.env.LLM_MODEL || 'deepseek-chat')
 
+    if (hasImage) {
+      console.log(`[Apple] Vision call: model=${model}, imageSize=${message.imageBase64?.length || 0} chars, hasKey=${!!process.env.SILICONFLOW_API_KEY}`)
+    }
+
     // First LLM call — may include tool calls
     let completion = await client.chat.completions.create({
       model,

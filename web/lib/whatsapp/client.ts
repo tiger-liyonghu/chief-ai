@@ -352,6 +352,29 @@ function setupMessageHandler(userId: string) {
         continue
       }
 
+      // DB-level dedup: check if we already replied to this message
+      const { data: existingReply } = await supabase
+        .from('whatsapp_messages')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('from_name', 'Apple')
+        .gt('received_at', new Date(Date.now() - 120000).toISOString()) // last 2 min
+        .limit(1)
+        .maybeSingle()
+
+      // If Apple replied very recently, skip to avoid storm
+      const recentAppleReplies = await supabase
+        .from('whatsapp_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('from_name', 'Apple')
+        .gt('received_at', new Date(Date.now() - 10000).toISOString()) // last 10 sec
+
+      if ((recentAppleReplies.count || 0) >= 3) {
+        console.log('[WA] Rate limit: Apple sent 3+ replies in 10s, skipping to prevent loop')
+        continue
+      }
+
       // Send to Apple AI
       if (isFromMe) {
         const { processMessageWithAI } = await import('@/lib/whatsapp/ai-handler')
