@@ -30,11 +30,28 @@ Q2 — AGENCY TEST: Is this an active, deliberate commitment?
    FAIL: Auto-reply template ("I will respond when I return")
    FAIL: Conditional/tentative ("probably", "might", "if no one else", "depends on")
    FAIL: Vague intention ("we should catch up sometime")
+   FAIL: Company-wide policies ("All employees will submit...")
+   FAIL: Job descriptions ("The candidate will be responsible for...")
+   FAIL: Meeting agendas ("We will discuss...")
+   FAIL: Hypothetical scenarios ("If we launch in Q2, we would need...")
+   FAIL: Historical summaries ("Last quarter, the team delivered...")
 
 Q3 — TRACKING VALUE TEST: Is this worth tracking as a separate item?
    PASS: Has a clear deliverable or action (send document, complete task, make payment)
    FAIL: Routine activity (attend daily standup, reply to already-handled email)
    FAIL: Too trivial ("I'll take a look" with no concrete output)
+
+═══ DIRECTION RULES ═══
+
+The message includes From and To fields. Use them to determine commitment type:
+- If the SENDER made a promise → type depends on perspective:
+  - Outbound email (user is sender): sender's promise = "i_promised"
+  - Inbound email (user is recipient): sender's promise = "waiting_on_them"
+- If the SENDER requests something from the RECIPIENT:
+  - Outbound email: request to recipient = "waiting_on_them"
+  - Inbound email: request to user = "i_promised" (user's obligation)
+
+When you see "From:" and "To:" in the message, use them. If the message says "This email was SENT BY the user" or "RECEIVED BY the user", that tells you the direction.
 
 ═══ EXPLICIT NON-COMMITMENTS (never extract these) ═══
 
@@ -46,6 +63,53 @@ Q3 — TRACKING VALUE TEST: Is this worth tracking as a separate item?
 - "As discussed..." / "Per our conversation..." → summary of past event, not new commitment
 - Calendar invitations / system notifications / newsletters → auto-generated content
 - "Happy birthday" / "Congratulations" / greeting messages → social courtesy
+- "好的我知道了" / "收到" / "没问题" → acknowledgment, not commitment
+- Company policy descriptions: "所有员工需要在..." → policy, not personal commitment
+- Meeting agenda: "我们将讨论..." → agenda item, not commitment
+- Past tense: "已经发了" / "上周已完成" → already done, not commitment
+
+═══ CONTRASTIVE EXAMPLES (learn the boundary) ═══
+
+Example 1a — IS a commitment:
+Email: "Hi David, I'll send you the full proposal with pricing by this Friday."
+→ {"type":"i_promised","title":"Send full proposal with pricing by Friday","confidence":0.95}
+
+Example 1b — NOT a commitment (near miss):
+Email: "Hi David, thanks for sending the proposal on Friday. It looks great."
+→ Rejected: past tense, already completed (Q3). "Sending" already happened.
+
+Example 2a — IS a commitment (Chinese):
+Email: "张总，合同修改稿我周三前发给您。"
+→ {"type":"i_promised","title":"发送合同修改稿","due_date":"Wednesday","confidence":0.95}
+
+Example 2b — NOT a commitment (Chinese near miss):
+Email: "张总，好的收到，我知道了。"
+→ Rejected: acknowledgment only (Q2). No specific action or deliverable.
+
+Example 3a — IS a commitment (they promised):
+Email from vendor: "We will deliver the enterprise license agreement for your signature by Monday."
+→ {"type":"waiting_on_them","title":"Deliver enterprise license agreement by Monday","confidence":0.95}
+
+Example 3b — NOT a commitment (describes policy, not promise):
+Email: "All employees will submit expense reports within 5 business days of travel."
+→ Rejected: company policy, not personal commitment (Q2).
+
+Example 4a — IS a commitment (request = user's obligation):
+Email from boss: "Tiger, please prepare the Q1 board deck by Thursday EOD."
+→ {"type":"i_promised","title":"Prepare Q1 board deck by Thursday EOD","confidence":0.95}
+
+Example 4b — NOT a commitment (meeting agenda):
+Email: "In Thursday's meeting, we will review the Q1 results and discuss next steps."
+→ Rejected: agenda item, not a personal commitment to deliver something (Q2).
+
+Example 5a — IS a commitment (multi-item, extract the core ones):
+Email: "I'll handle the following: 1) revenue model 2) architecture doc 3) hiring plan. Will have everything ready by Monday."
+→ {"type":"i_promised","title":"Prepare revenue model, architecture doc, and hiring plan by Monday","confidence":0.95}
+Note: Group related items into ONE commitment, not three separate ones.
+
+Example 5b — NOT a commitment (hypothetical):
+Email: "If we secure Series A funding, we would need to hire 5 engineers and expand to Jakarta."
+→ Rejected: hypothetical scenario, conditional on future event (Q2).
 
 ═══ OUTPUT FORMAT ═══
 
@@ -74,18 +138,19 @@ Respond in JSON:
 
 - Only output commitments that pass ALL three gates
 - confidence < 0.7 → put in rejected, not commitments
-- Max 4 commitments per message (more than 4 likely means over-extraction)
+- Max 6 commitments per message (more than 6 likely means over-extraction)
 - Preserve the original language in title (Chinese email → Chinese title, English → English, mixed → mixed)
 - Be conservative: when in doubt, reject. A missed commitment can be added manually; a false commitment erodes trust.`
 
 export const COMMITMENT_EXTRACTION_USER = (message: {
+  from?: string
   to: string
   subject: string
   body: string
   date: string
   channel: 'email' | 'whatsapp'
 }) => `Channel: ${message.channel}
-To: ${message.to}
+${message.from ? `From: ${message.from}\n` : ''}To: ${message.to}
 Subject: ${message.subject}
 Date: ${message.date}
 

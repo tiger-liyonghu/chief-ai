@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createUserAIClient } from '@/lib/ai/unified-client'
 
 /**
@@ -24,6 +25,16 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error || !commitment) return NextResponse.json({ error: 'Commitment not found' }, { status: 404 })
+
+  // Resolve the user's primary email for the "from" field
+  const admin = createAdminClient()
+  const { data: primaryAccount } = await admin
+    .from('google_accounts')
+    .select('google_email')
+    .eq('user_id', user.id)
+    .eq('is_primary', true)
+    .single()
+  const fromEmail = primaryAccount?.google_email || null
 
   switch (action) {
     case 'mark_done': {
@@ -63,7 +74,7 @@ export async function POST(req: NextRequest) {
         The email should be professional but warm. Keep it concise.
         ${commitment.description ? `Context: ${commitment.description}` : ''}`
       )
-      return NextResponse.json({ success: true, action: 'draft_reply', draft })
+      return NextResponse.json({ success: true, action: 'draft_reply', draft, fromEmail })
     }
 
     case 'send_nudge': {
@@ -92,7 +103,7 @@ export async function POST(req: NextRequest) {
         last_nudge_at: new Date().toISOString(),
       }).eq('id', id)
 
-      return NextResponse.json({ success: true, action: 'send_nudge', draft, tone })
+      return NextResponse.json({ success: true, action: 'send_nudge', draft, tone, fromEmail })
     }
 
     case 'escalate': {
@@ -105,7 +116,7 @@ export async function POST(req: NextRequest) {
         2. A brief suggestion of alternative approaches if they can't deliver
         Keep it professional but firm.`
       )
-      return NextResponse.json({ success: true, action: 'escalate', draft })
+      return NextResponse.json({ success: true, action: 'escalate', draft, fromEmail })
     }
 
     default:

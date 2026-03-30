@@ -10,6 +10,155 @@ import { APPLE_TOOLS, executeTool, getUserTimezone } from './tools/registry'
 import { getLLMClient } from './tools/types'
 import { preFetchPersonContext } from './tools/pre-fetch'
 
+// ── Commitment Quick-Reply Actions ──
+
+const COMMITMENT_ACTIONS: Array<{ pattern: RegExp; action: string }> = [
+  { pattern: /^完成\s*([a-f0-9]{4,8})/i, action: 'mark_done' },
+  { pattern: /^done\s*([a-f0-9]{4,8})/i, action: 'mark_done' },
+  { pattern: /^起草\s*([a-f0-9]{4,8})/i, action: 'draft_reply' },
+  { pattern: /^draft\s*([a-f0-9]{4,8})/i, action: 'draft_reply' },
+  { pattern: /^延期\s*([a-f0-9]{4,8})/i, action: 'postpone' },
+  { pattern: /^postpone\s*([a-f0-9]{4,8})/i, action: 'postpone' },
+  { pattern: /^催\s*([a-f0-9]{4,8})/i, action: 'send_nudge' },
+  { pattern: /^nudge\s*([a-f0-9]{4,8})/i, action: 'send_nudge' },
+  { pattern: /^升级\s*([a-f0-9]{4,8})/i, action: 'escalate' },
+]
+
+async function handleCommitmentAction(
+  userId: string,
+  body: string,
+  sendReply: (jid: string, text: string) => Promise<void>,
+  remoteJid: string,
+): Promise<boolean> {
+  const trimmed = body.trim()
+
+  for (const { pattern, action } of COMMITMENT_ACTIONS) {
+    const match = trimmed.match(pattern)
+    if (!match) continue
+
+    const shortId = match[1]
+
+    // Find commitment by ID prefix
+    const { data: commitments } = await supabase
+      .from('commitments')
+      .select('id, contact_name, contact_email, title, description, type, deadline, status')
+      .eq('user_id', userId)
+      .like('id', `${shortId}%`)
+      .limit(1)
+
+    if (!commitments || commitments.length === 0) {
+      await sendReply(remoteJid, `找不到编号 ${shortId} 的承诺事项。`)
+      return true
+    }
+
+    const commitment = commitments[0]
+    const contactName = commitment.contact_name || commitment.contact_email || '对方'
+    const title = commitment.title || commitment.description || '(无标题)'
+
+    switch (action) {
+      case 'mark_done': {
+        await supabase
+          .from('commitments')
+          .update({ status: 'done', completed_at: new Date().toISOString() })
+          .eq('id', commitment.id)
+        await sendReply(remoteJid, `已标记完成：「${title}」 ✓`)
+        return true
+      }
+
+      case 'postpone': {
+        const currentDeadline = commitment.deadline
+          ? new Date(commitment.deadline)
+          : new Date()
+        const newDeadline = new Date(currentDeadline.getTime() + 7 * 86400000)
+        const newDeadlineStr = newDeadline.toISOString().split('T')[0]
+
+        await supabase
+          .from('commitments')
+          .update({ deadline: newDeadlineStr, status: 'pending' })
+          .eq('id', commitment.id)
+        await sendReply(remoteJid, `已延期：「${title}」→ ${newDeadlineStr}`)
+        return true
+      }
+
+      case 'draft_reply': {
+        const client = getLLMClient()
+        const draftPrompt = commitment.type === 'i_promised'
+          ? `你是老板的AI秘书。老板答应了${contactName}要做「${title}」，请帮老板起草一封简短的邮件，告知对方进展或交付。语气专业但亲切。只输出邮件Subject和Body，不要解释。格式：\nSubject: ...\n\n正文内容`
+          : `你是老板的AI秘书。老板需要催促${contactName}完成承诺的「${title}」。请起草一封简短催促邮件，语气礼貌但坚定。只输出邮件Subject和Body，不要解释。格式：\nSubject: ...\n\n正文内容`
+
+        try {
+          const completion = await client.chat.completions.create({
+            model: process.env.LLM_MODEL || 'deepseek-chat',
+            messages: [
+              { role: 'system', content: '你是一个专业的商务邮件助手。' },
+              { role: 'user', content: draftPrompt },
+            ],
+            temperature: 0.5,
+            max_tokens: 512,
+          })
+
+          const draft = completion.choices[0]?.message?.content?.trim() || ''
+          await sendReply(remoteJid, `📝 给${contactName}的邮件草稿：\n\n${draft}\n\n回复「发」确认发送，或告诉我要改什么。`)
+        } catch (err) {
+          console.error('[Apple] Draft generation failed:', err)
+          await sendReply(remoteJid, `起草邮件失败，请稍后再试。`)
+        }
+        return true
+      }
+
+      case 'send_nudge': {
+        const client = getLLMClient()
+        const nudgePrompt = `你是老板的AI秘书。${contactName}答应了「${title}」但还没完成（${commitment.deadline ? '截止' + commitment.deadline : '未设截止日'}）。请起草一封简短的催促邮件，语气礼貌友好但明确表达需要尽快完成。只输出邮件Subject和Body，不要解释。格式：\nSubject: ...\n\n正文内容`
+
+        try {
+          const completion = await client.chat.completions.create({
+            model: process.env.LLM_MODEL || 'deepseek-chat',
+            messages: [
+              { role: 'system', content: '你是一个专业的商务邮件助手。' },
+              { role: 'user', content: nudgePrompt },
+            ],
+            temperature: 0.5,
+            max_tokens: 512,
+          })
+
+          const draft = completion.choices[0]?.message?.content?.trim() || ''
+          await sendReply(remoteJid, `📝 给${contactName}的催促邮件：\n\n${draft}\n\n回复「发」确认发送，或告诉我要改什么。`)
+        } catch (err) {
+          console.error('[Apple] Nudge generation failed:', err)
+          await sendReply(remoteJid, `生成催促邮件失败，请稍后再试。`)
+        }
+        return true
+      }
+
+      case 'escalate': {
+        const client = getLLMClient()
+        const escalatePrompt = `你是老板的AI秘书。${contactName}答应了「${title}」但逾期未完成。老板想换种方式跟进。请提供3个升级跟进建议：\n1. 直接电话沟通的话术要点\n2. 通过其他联系人施压的策略\n3. 设定最后期限的邮件草稿\n\n简洁明了，不超过300字。`
+
+        try {
+          const completion = await client.chat.completions.create({
+            model: process.env.LLM_MODEL || 'deepseek-chat',
+            messages: [
+              { role: 'system', content: '你是一个资深的商务关系管理顾问。' },
+              { role: 'user', content: escalatePrompt },
+            ],
+            temperature: 0.6,
+            max_tokens: 512,
+          })
+
+          const suggestions = completion.choices[0]?.message?.content?.trim() || ''
+          await sendReply(remoteJid, `🔺 关于${contactName}「${title}」的升级跟进建议：\n\n${suggestions}`)
+        } catch (err) {
+          console.error('[Apple] Escalation suggestion failed:', err)
+          await sendReply(remoteJid, `生成跟进建议失败，请稍后再试。`)
+        }
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
 // ── Rate limiting ──
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
@@ -101,6 +250,27 @@ export async function processMessageWithAI(
   const startTime = Date.now()
 
   try {
+    // ── Quick-reply commitment actions (before LLM call) ──
+    if (message.body && message.messageType === 'text') {
+      const handled = await handleCommitmentAction(userId, message.body, sendReply, message.remoteJid)
+      if (handled) {
+        // Store Apple's reply is handled inside handleCommitmentAction via sendReply
+        // Store the user's command message
+        await supabase.from('whatsapp_messages').insert({
+          user_id: userId,
+          wa_message_id: `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          from_number: message.from,
+          from_name: 'User',
+          to_number: 'apple',
+          body: message.body,
+          message_type: 'text',
+          direction: 'outbound',
+          received_at: new Date().toISOString(),
+        })
+        return
+      }
+    }
+
     const tz = await getUserTimezone(userId)
 
     // ── Voice message: transcribe with Whisper ──

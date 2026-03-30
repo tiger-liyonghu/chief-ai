@@ -69,6 +69,13 @@ interface Stats {
   family_compliance_rate: number
   period_total: number
   period_completed: number
+  avg_response_hours: number
+  fastest_response_hours: number
+  completion_sources?: {
+    web: number
+    whatsapp: number
+    auto: number
+  }
 }
 
 /* ─── Helpers ─── */
@@ -88,6 +95,16 @@ function sourceIcon(type: string) {
   }
 }
 
+function formatHours(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)}m`
+  if (hours < 24) return `${Math.round(hours)}h`
+  return `${Math.round(hours / 24)}d`
+}
+
+function hasEscalationSuggestion(description: string | null): boolean {
+  return !!description && description.includes('---ESCALATION---')
+}
+
 function urgencyColor(score: number, days: number | null): string {
   if (days !== null && days < 0) return 'text-red-600 bg-red-50 border-red-200'
   if (days !== null && days === 0) return 'text-orange-600 bg-orange-50 border-orange-200'
@@ -96,15 +113,181 @@ function urgencyColor(score: number, days: number | null): string {
   return 'text-slate-700 bg-white border-slate-200'
 }
 
+/* ─── Draft Email Modal ─── */
+
+interface DraftData {
+  to: string
+  subject: string
+  body: string
+  fromEmail?: string | null
+  tone?: string
+  commitmentId: string
+}
+
+function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose: () => void; onSent: () => void }) {
+  const [to, setTo] = useState(draft.to)
+  const [subject, setSubject] = useState(draft.subject)
+  const [body, setBody] = useState(draft.body)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState(false)
+
+  const handleSend = async () => {
+    if (!to || !subject || !body) return
+    setSending(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/send-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to,
+          subject,
+          body,
+          fromEmail: draft.fromEmail || undefined,
+        }),
+      })
+      if (res.ok) {
+        setSent(true)
+        // Mark commitment as done after sending
+        await fetch('/api/commitments', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: draft.commitmentId, status: 'done' }),
+        })
+        setTimeout(() => {
+          onSent()
+          onClose()
+        }, 1500)
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Failed to send email')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            <Mail className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold">
+              {sent ? 'Email Sent' : 'Review & Send Email'}
+            </h3>
+            {draft.tone && (
+              <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', {
+                'bg-blue-100 text-blue-700': draft.tone === 'gentle',
+                'bg-orange-100 text-orange-700': draft.tone === 'firm',
+                'bg-red-100 text-red-700': draft.tone === 'urgent',
+              })}>
+                {draft.tone}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-100 text-slate-400">
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+
+        {sent ? (
+          <div className="p-8 flex flex-col items-center gap-3">
+            <CheckCircle2 className="w-12 h-12 text-green-500" />
+            <p className="text-sm font-medium text-green-700">Email sent successfully</p>
+          </div>
+        ) : (
+          <>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* To */}
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">To</label>
+                <input
+                  type="email"
+                  value={to}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Subject</label>
+                <input
+                  type="text"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+
+              {/* Body */}
+              <div>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Message</label>
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={8}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                />
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {error}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 bg-slate-50">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSend}
+                disabled={sending || !to || !body}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {sending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {sending ? 'Sending...' : 'Send Email'}
+              </button>
+            </div>
+          </>
+        )}
+      </motion.div>
+    </div>
+  )
+}
+
 /* ─── Commitment Card ─── */
 
-function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeof useI18n>['t']; onUpdate: () => void }) {
+function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnType<typeof useI18n>['t']; onUpdate: () => void; onDraft: (draft: DraftData) => void }) {
   const days = daysUntil(c.deadline)
   const isOverdue = days !== null && days < 0
   const isDueToday = days === 0
   const SourceIcon = sourceIcon(c.source_type)
   const colorClass = urgencyColor(c.urgency_score, days)
   const [showActions, setShowActions] = useState(false)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const handleAction = async (action: string) => {
     setShowActions(false)
@@ -156,6 +339,53 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
         }),
       })
       onUpdate()
+    } else if (action === 'draft_reply') {
+      if (!c.contact_email) return
+      setActionLoading('draft_reply')
+      try {
+        const res = await fetch('/api/commitments/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: c.id, action: 'draft_reply' }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.draft) {
+            onDraft({
+              to: data.draft.to,
+              subject: data.draft.subject,
+              body: data.draft.body,
+              fromEmail: data.fromEmail,
+              commitmentId: c.id,
+            })
+          }
+        }
+      } catch { /* ignore */ }
+      setActionLoading(null)
+    } else if (action === 'send_nudge') {
+      if (!c.contact_email) return
+      setActionLoading('send_nudge')
+      try {
+        const res = await fetch('/api/commitments/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: c.id, action: 'send_nudge' }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.draft) {
+            onDraft({
+              to: data.draft.to,
+              subject: data.draft.subject,
+              body: data.draft.body,
+              fromEmail: data.fromEmail,
+              tone: data.tone,
+              commitmentId: c.id,
+            })
+          }
+        }
+      } catch { /* ignore */ }
+      setActionLoading(null)
     }
   }
 
@@ -212,6 +442,14 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
             )}
           </div>
 
+          {/* Escalation badge */}
+          {hasEscalationSuggestion(c.description) && (
+            <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 bg-orange-100 border border-orange-300 text-orange-700 text-xs font-medium rounded-full">
+              <AlertTriangle className="w-3 h-3" />
+              needs escalation
+            </span>
+          )}
+
           {/* Blocking chain warning */}
           {c.blocked_by && c.blocked_by.length > 0 && (
             <div className="mt-2 flex items-start gap-1.5 px-2 py-1.5 bg-red-50 border border-red-200 rounded-lg">
@@ -231,6 +469,20 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {c.type === 'i_promised' && c.contact_email && (
+            <button
+              onClick={() => handleAction('draft_reply')}
+              disabled={actionLoading === 'draft_reply'}
+              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-50"
+              title="Draft Reply"
+            >
+              {actionLoading === 'draft_reply' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <PenLine className="w-4 h-4" />
+              )}
+            </button>
+          )}
           {c.type === 'i_promised' && (
             <button
               onClick={() => handleAction('done')}
@@ -240,13 +492,18 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
               <CheckCircle2 className="w-4 h-4" />
             </button>
           )}
-          {c.type === 'they_promised' && (
+          {c.type === 'they_promised' && c.contact_email && (
             <button
-              onClick={() => {/* TODO: nudge */}}
-              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
+              onClick={() => handleAction('send_nudge')}
+              disabled={actionLoading === 'send_nudge'}
+              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-50"
               title={t('sendNudge')}
             >
-              <Send className="w-4 h-4" />
+              {actionLoading === 'send_nudge' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </button>
           )}
           <button
@@ -265,7 +522,17 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
 
           {/* Dropdown */}
           {showActions && (
-            <div className="absolute right-4 top-12 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
+            <div className="absolute right-4 top-12 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
+              {c.contact_email && (
+                <button onClick={() => handleAction('draft_reply')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
+                  <PenLine className="w-3.5 h-3.5" /> Draft Reply
+                </button>
+              )}
+              {c.type === 'they_promised' && c.contact_email && (
+                <button onClick={() => handleAction('send_nudge')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center gap-2">
+                  <Send className="w-3.5 h-3.5" /> Send Nudge
+                </button>
+              )}
               <button onClick={() => handleAction('done')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{t('markDone')}</button>
               <button onClick={() => handleAction('postpone')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{t('postpone')}</button>
               <button onClick={() => handleAction('not_a_commitment')} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">Not a commitment</button>
@@ -476,6 +743,7 @@ export default function CommitmentDashboard() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
+  const [draftModal, setDraftModal] = useState<DraftData | null>(null)
 
   const fetchData = useCallback(async () => {
     const [cRes, sRes] = await Promise.all([
@@ -556,6 +824,27 @@ export default function CommitmentDashboard() {
 
         {/* Stats */}
         {!loading && <StatsBanner stats={stats} t={t} />}
+
+        {/* Response metrics — only show if user has completed commitments */}
+        {!loading && stats && stats.avg_response_hours > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Performance</h3>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-lg font-bold text-primary">{formatHours(stats.avg_response_hours)}</p>
+                <p className="text-xs text-slate-400">Avg Response</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-green-600">{stats.completion_sources?.web || 0}</p>
+                <p className="text-xs text-slate-400">Web</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-green-600">{stats.completion_sources?.whatsapp || 0}</p>
+                <p className="text-xs text-slate-400">WhatsApp</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Scanning indicator */}
         {scanning && (
@@ -647,7 +936,7 @@ export default function CommitmentDashboard() {
             </div>
             {overdue.map((c) => (
               <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <CommitmentCard c={c} t={t} onUpdate={fetchData} />
+                <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
               </motion.div>
             ))}
           </div>
@@ -661,7 +950,7 @@ export default function CommitmentDashboard() {
             </div>
             {dueToday.map((c) => (
               <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <CommitmentCard c={c} t={t} onUpdate={fetchData} />
+                <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
               </motion.div>
             ))}
           </div>
@@ -674,7 +963,7 @@ export default function CommitmentDashboard() {
             )}
             {upcoming.map((c) => (
               <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <CommitmentCard c={c} t={t} onUpdate={fetchData} />
+                <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
               </motion.div>
             ))}
           </div>
@@ -692,6 +981,15 @@ export default function CommitmentDashboard() {
 
       {/* Add form modal */}
       {showAddForm && <AddCommitmentForm onClose={() => setShowAddForm(false)} onSaved={fetchData} />}
+
+      {/* Draft email modal */}
+      {draftModal && (
+        <DraftEmailModal
+          draft={draftModal}
+          onClose={() => setDraftModal(null)}
+          onSent={fetchData}
+        />
+      )}
     </div>
   )
 }

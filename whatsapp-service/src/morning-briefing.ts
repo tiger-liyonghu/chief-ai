@@ -32,11 +32,13 @@ export function startMorningBriefingScheduler(): void {
   setInterval(checkAndSendBriefings, 60 * 1000)
   // Check overdue items every 30 minutes
   setInterval(checkAndSendOverdueReminders, 30 * 60 * 1000)
+  // Check commitment alerts every 15 minutes
+  setInterval(checkAndSendCommitmentAlerts, 15 * 60 * 1000)
   // Check for completed trips needing expense summary every hour
   setInterval(checkTripExpenseSummary, 60 * 60 * 1000)
   // Run scheduled custom agents every hour
   setInterval(runScheduledAgents, 60 * 60 * 1000)
-  console.log('[Apple] Morning briefing + overdue reminder + expense + agent scheduler started')
+  console.log('[Apple] Morning briefing + overdue reminder + commitment alerts + expense + agent scheduler started')
 }
 
 async function checkAndSendBriefings(): Promise<void> {
@@ -129,9 +131,12 @@ async function maybeSendBriefing(userId: string, phoneNumber: string): Promise<v
 interface BriefingContext {
   date: string
   todayEvents: Array<{ title: string; start_time: string; end_time: string; location?: string; attendees?: any }>
-  overdueFollowUps: Array<{ contact_name?: string; subject?: string; commitment_text?: string; due_date?: string; type: string }>
+  overdueCommitments: Array<{ contact_name?: string; title?: string; description?: string; deadline?: string; type: string }>
   pendingTasks: Array<{ title: string; priority: number; due_date?: string }>
   emailsNeedReply: Array<{ from_name?: string; from_address: string; subject: string; received_at: string; reply_urgency?: number }>
+  commitmentsDueToday: Array<{ title?: string; contact_name?: string; type: string; deadline?: string }>
+  commitmentsOverdue: Array<{ title?: string; contact_name?: string; type: string; days_overdue: number }>
+  commitmentsThisWeek: number
 }
 
 async function gatherBriefingContext(userId: string, tz: string): Promise<BriefingContext> {
@@ -139,7 +144,13 @@ async function gatherBriefingContext(userId: string, tz: string): Promise<Briefi
   const dayStart = `${todayStr}T00:00:00`
   const dayEnd = `${todayStr}T23:59:59`
 
-  const [eventsRes, followUpsRes, tasksRes, emailsRes] = await Promise.all([
+  // Calculate end of week (Sunday) for this-week query
+  const todayDate = new Date(todayStr)
+  const daysUntilSunday = 7 - todayDate.getDay()
+  const endOfWeek = new Date(todayDate.getTime() + daysUntilSunday * 86400000)
+  const endOfWeekStr = endOfWeek.toISOString().split('T')[0]
+
+  const [eventsRes, commitmentsRes, tasksRes, emailsRes, dueTodayRes, overdueRes, thisWeekRes] = await Promise.all([
     // Today's events
     supabase
       .from('calendar_events')
@@ -149,14 +160,14 @@ async function gatherBriefingContext(userId: string, tz: string): Promise<Briefi
       .lte('start_time', dayEnd)
       .order('start_time'),
 
-    // Overdue follow-ups
+    // Overdue commitments (legacy query for briefing text generation)
     supabase
-      .from('follow_ups')
-      .select('contact_name, contact_email, subject, commitment_text, due_date, type')
+      .from('commitments')
+      .select('contact_name, contact_email, title, description, deadline, type')
       .eq('user_id', userId)
-      .eq('status', 'active')
-      .lte('due_date', todayStr)
-      .order('due_date'),
+      .in('status', ['pending', 'in_progress', 'overdue'])
+      .lte('deadline', todayStr)
+      .order('deadline'),
 
     // Pending tasks (urgent + this week)
     supabase
@@ -176,25 +187,61 @@ async function gatherBriefingContext(userId: string, tz: string): Promise<Briefi
       .eq('is_reply_needed', true)
       .order('reply_urgency', { ascending: false })
       .limit(5),
+
+    // Commitments due today
+    supabase
+      .from('commitments')
+      .select('title, contact_name, type, deadline')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'in_progress'])
+      .eq('deadline', todayStr),
+
+    // Overdue commitments (deadline < today)
+    supabase
+      .from('commitments')
+      .select('title, contact_name, type, deadline')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'in_progress'])
+      .lt('deadline', todayStr),
+
+    // Commitments this week (count)
+    supabase
+      .from('commitments')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['pending', 'in_progress'])
+      .gte('deadline', todayStr)
+      .lte('deadline', endOfWeekStr),
   ])
+
+  // Calculate days_overdue for each overdue commitment
+  const commitmentsOverdue = (overdueRes.data || []).map(c => ({
+    ...c,
+    days_overdue: Math.floor(
+      (new Date(todayStr).getTime() - new Date(c.deadline || todayStr).getTime()) / 86400000
+    ),
+  }))
 
   return {
     date: todayStr,
     todayEvents: eventsRes.data || [],
-    overdueFollowUps: followUpsRes.data || [],
+    overdueCommitments: commitmentsRes.data || [],
     pendingTasks: tasksRes.data || [],
     emailsNeedReply: emailsRes.data || [],
+    commitmentsDueToday: dueTodayRes.data || [],
+    commitmentsOverdue,
+    commitmentsThisWeek: thisWeekRes.count || 0,
   }
 }
 
 async function generateBriefing(context: BriefingContext, tz: string): Promise<string | null> {
   const parts: string[] = [`今天是 ${context.date}，时区 ${tz}。`]
 
-  if (context.overdueFollowUps.length > 0) {
-    parts.push(`\n逾期跟进事项（${context.overdueFollowUps.length}个）：`)
-    for (const f of context.overdueFollowUps) {
-      const icon = f.type === 'i_promised' ? '你承诺的' : '等对方的'
-      parts.push(`- ${icon}: ${f.contact_name || ''} ${f.subject || f.commitment_text || ''} (截止 ${f.due_date})`)
+  if (context.overdueCommitments.length > 0) {
+    parts.push(`\n逾期承诺事项（${context.overdueCommitments.length}个）：`)
+    for (const f of context.overdueCommitments) {
+      const icon = f.type === 'i_promised' ? '你承诺的' : '对方承诺的'
+      parts.push(`- ${icon}: ${f.contact_name || ''} ${f.title || f.description || ''} (截止 ${f.deadline})`)
     }
   }
 
@@ -212,6 +259,26 @@ async function generateBriefing(context: BriefingContext, tz: string): Promise<s
       const ago = Math.floor((Date.now() - new Date(e.received_at).getTime()) / 86400000)
       parts.push(`- ${e.from_name || e.from_address}: "${e.subject}" (${ago}天前)`)
     }
+  }
+
+  if (context.commitmentsDueToday.length > 0) {
+    parts.push(`\n今天到期的承诺（${context.commitmentsDueToday.length}个）：`)
+    for (const c of context.commitmentsDueToday) {
+      const icon = c.type === 'i_promised' ? '你承诺的' : '对方承诺的'
+      parts.push(`- ${icon}: ${c.contact_name || ''} ${c.title || ''}`)
+    }
+  }
+
+  if (context.commitmentsOverdue.length > 0) {
+    parts.push(`\n逾期承诺（${context.commitmentsOverdue.length}个）：`)
+    for (const c of context.commitmentsOverdue) {
+      const icon = c.type === 'i_promised' ? '你承诺的' : '对方承诺的'
+      parts.push(`- ${icon}: ${c.contact_name || ''} ${c.title || ''} (逾期${c.days_overdue}天)`)
+    }
+  }
+
+  if (context.commitmentsThisWeek > 0) {
+    parts.push(`\n本周还有 ${context.commitmentsThisWeek} 个承诺待完成。`)
   }
 
   if (context.pendingTasks.length > 0) {
@@ -306,13 +373,13 @@ async function maybeSendOverdueReminder(userId: string): Promise<void> {
   const windowId = `${todayStr}-${Math.floor(hour / 4)}`
   if (await wasNotificationSent(userId, 'overdue_reminder', windowId, todayStr)) return
 
-  // Check for newly overdue follow-ups (became overdue today)
-  const { data: overdueFollowUps } = await supabase
-    .from('follow_ups')
-    .select('contact_name, subject, commitment_text, due_date, type')
+  // Check for newly overdue commitments (became overdue today)
+  const { data: overdueCommitments } = await supabase
+    .from('commitments')
+    .select('contact_name, title, description, deadline, type')
     .eq('user_id', userId)
-    .eq('status', 'active')
-    .eq('due_date', todayStr)
+    .in('status', ['pending', 'in_progress', 'overdue'])
+    .eq('deadline', todayStr)
 
   // Check for overdue tasks
   const { data: overdueTasks } = await supabase
@@ -324,10 +391,10 @@ async function maybeSendOverdueReminder(userId: string): Promise<void> {
     .not('due_date', 'is', null)
 
   const items: string[] = []
-  if (overdueFollowUps && overdueFollowUps.length > 0) {
-    for (const f of overdueFollowUps) {
-      const icon = f.type === 'i_promised' ? '你答应的' : '等对方的'
-      items.push(`${icon}：${f.contact_name || ''} ${f.subject || f.commitment_text || ''}`)
+  if (overdueCommitments && overdueCommitments.length > 0) {
+    for (const f of overdueCommitments) {
+      const icon = f.type === 'i_promised' ? '你答应的' : '对方承诺的'
+      items.push(`${icon}：${f.contact_name || ''} ${f.title || f.description || ''}`)
     }
   }
   if (overdueTasks && overdueTasks.length > 0) {
@@ -365,6 +432,132 @@ async function maybeSendOverdueReminder(userId: string): Promise<void> {
   })
 
   console.log(`[Apple] Overdue reminder sent to ${userId}: ${items.length} items`)
+}
+
+// ── Commitment Alert Scheduler ──
+
+async function checkAndSendCommitmentAlerts(): Promise<void> {
+  const { data: connections } = await supabase
+    .from('whatsapp_connections')
+    .select('user_id, phone_number')
+    .eq('status', 'active')
+
+  if (!connections) return
+
+  for (const conn of connections) {
+    try {
+      await maybeSendCommitmentAlerts(conn.user_id)
+    } catch (err) {
+      console.error(`[Apple] Commitment alert error for ${conn.user_id}:`, err)
+    }
+  }
+}
+
+async function maybeSendCommitmentAlerts(userId: string): Promise<void> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('timezone, daily_brief_enabled')
+    .eq('id', userId)
+    .single()
+
+  if (!profile || profile.daily_brief_enabled === false) return
+  const tz = profile.timezone || 'Asia/Singapore'
+
+  // Only send during working hours (9-18)
+  const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false })
+  const hour = parseInt(formatter.formatToParts(new Date()).find(p => p.type === 'hour')?.value || '0')
+  if (hour < 9 || hour > 18) return
+
+  const sock = getConnection(userId)
+  if (!sock?.user) return
+
+  const now = new Date()
+  const todayStr = now.toLocaleDateString('en-CA', { timeZone: tz })
+  const tomorrowDate = new Date(now.getTime() + 86400000)
+  const tomorrowStr = tomorrowDate.toLocaleDateString('en-CA', { timeZone: tz })
+
+  // Fetch all active commitments with deadlines
+  const { data: commitments } = await supabase
+    .from('commitments')
+    .select('id, contact_name, contact_email, title, description, type, deadline, status')
+    .eq('user_id', userId)
+    .in('type', ['i_promised', 'they_promised'])
+    .in('status', ['pending', 'in_progress'])
+    .not('deadline', 'is', null)
+
+  if (!commitments || commitments.length === 0) return
+
+  const myNumber = sock.user.id.split(':')[0]
+  const myLid = sock.user.lid?.split(':')[0]
+  const selfJid = myLid ? `${myLid}@lid` : `${myNumber}@s.whatsapp.net`
+
+  for (const c of commitments) {
+    const deadlineStr = c.deadline?.split('T')[0] || c.deadline
+    if (!deadlineStr) continue
+
+    const shortId = c.id.slice(0, 6)
+    const contactName = c.contact_name || c.contact_email || '对方'
+    const title = c.title || c.description || '(无标题)'
+
+    let alertText: string | null = null
+    let dedupKey: string | null = null
+
+    if (deadlineStr === tomorrowStr) {
+      // Due tomorrow — 24h alert
+      dedupKey = `commitment_due_24h_${c.id}`
+      if (await wasNotificationSent(userId, dedupKey, c.id, todayStr)) continue
+
+      if (c.type === 'i_promised') {
+        alertText = `⚠️ 老板，你答应了${contactName}明天前${title}，还剩不到24小时。\n\n回复操作：\n• 完成 ${shortId} → 标记完成\n• 起草 ${shortId} → 帮你起草邮件\n• 延期 ${shortId} → 延期7天`
+      } else {
+        alertText = `📌 提醒：${contactName}答应的「${title}」明天到期。\n\n回复操作：\n• 催 ${shortId} → 帮你发催促邮件\n• 完成 ${shortId} → 对方已完成`
+      }
+    } else if (deadlineStr === todayStr) {
+      // Due today
+      dedupKey = `commitment_due_today_${c.id}`
+      if (await wasNotificationSent(userId, dedupKey, c.id, todayStr)) continue
+
+      if (c.type === 'i_promised') {
+        alertText = `🔴 今天到期：你答应了${contactName}「${title}」\n\n回复操作：\n• 完成 ${shortId} → 标记完成\n• 起草 ${shortId} → 帮你起草邮件`
+      } else {
+        alertText = `🔴 今天到期：${contactName}答应的「${title}」\n\n回复操作：\n• 催 ${shortId} → 帮你发催促邮件\n• 完成 ${shortId} → 对方已完成`
+      }
+    } else if (deadlineStr < todayStr) {
+      // Overdue — send once per 24h
+      dedupKey = `commitment_overdue_${c.id}`
+      if (await wasNotificationSent(userId, dedupKey, c.id, todayStr)) continue
+
+      const daysOverdue = Math.floor(
+        (new Date(todayStr).getTime() - new Date(deadlineStr).getTime()) / 86400000
+      )
+
+      if (c.type === 'i_promised') {
+        alertText = `⚠️ 老板，你答应${contactName}的「${title}」已经逾期${daysOverdue}天了。\n\n回复操作：\n• 完成 ${shortId} → 标记完成\n• 起草 ${shortId} → 帮你起草邮件\n• 延期 ${shortId} → 延期7天`
+      } else {
+        alertText = `📌 ${contactName} 答应的「${title}」已经逾期${daysOverdue}天了。\n\n回复操作：\n• 催 ${shortId} → 帮你发催促邮件\n• 完成 ${shortId} → 对方已完成\n• 升级 ${shortId} → 换种方式跟进`
+      }
+    }
+
+    if (alertText && dedupKey) {
+      await sock.sendMessage(selfJid, { text: alertText })
+      await markNotificationSent(userId, dedupKey, c.id, todayStr)
+
+      // Store in DB
+      await supabase.from('whatsapp_messages').insert({
+        user_id: userId,
+        wa_message_id: `commitment-alert-${c.id.slice(0, 8)}-${Date.now()}`,
+        from_number: 'apple',
+        from_name: 'Apple',
+        to_number: myNumber,
+        body: alertText,
+        message_type: 'text',
+        direction: 'inbound',
+        received_at: now.toISOString(),
+      })
+
+      console.log(`[Apple] Commitment alert sent: ${dedupKey} for ${userId}`)
+    }
+  }
 }
 
 // ── Trip Expense Summary (post-trip) ──
@@ -534,7 +727,7 @@ async function runScheduledAgents(): Promise<void> {
       const { APPLE_TOOLS } = await import('./tools/registry')
       const dataTools = APPLE_TOOLS.filter((t: any) =>
         ['get_today_calendar', 'get_upcoming_events', 'get_pending_emails', 'get_tasks',
-         'get_follow_ups', 'get_contact_info', 'search_company_news'].includes((t as any).function.name)
+         'get_commitments', 'get_contact_info', 'search_company_news'].includes((t as any).function.name)
       )
 
       const OpenAI = (await import('openai')).default

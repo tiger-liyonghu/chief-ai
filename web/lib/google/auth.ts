@@ -38,6 +38,21 @@ export async function getTokensFromCode(code: string, redirectPath = '/api/auth/
 export async function refreshAccessToken(refreshToken: string) {
   const client = getOAuth2Client()
   client.setCredentials({ refresh_token: refreshToken })
-  const { credentials } = await client.refreshAccessToken()
-  return credentials
+  try {
+    const { credentials } = await client.refreshAccessToken()
+    return credentials
+  } catch (err: any) {
+    // Google returns 'invalid_grant' when refresh token is expired/revoked
+    // (e.g. after 6 months of inactivity, password change, or user revoked access)
+    const isGrantError =
+      err?.message?.includes('invalid_grant') ||
+      err?.response?.data?.error === 'invalid_grant'
+    if (isGrantError) {
+      throw new Error(
+        'Google refresh token expired or revoked. User must re-authenticate. ' +
+        '(Original: ' + (err.message || 'invalid_grant') + ')'
+      )
+    }
+    throw err
+  }
 }

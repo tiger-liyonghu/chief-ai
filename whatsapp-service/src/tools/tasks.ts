@@ -54,15 +54,15 @@ export const definitions: ToolDefinition[] = [
   {
     type: 'function',
     function: {
-      name: 'get_follow_ups',
-      description: '查看跟进事项（我承诺的 / 等别人的）',
+      name: 'get_commitments',
+      description: '查看承诺事项（我承诺的 / 对方承诺的）',
       parameters: {
         type: 'object',
         properties: {
           type: {
             type: 'string',
-            enum: ['i_promised', 'waiting_on_them', 'all'],
-            description: 'i_promised=我承诺的, waiting_on_them=等别人的, all=全部',
+            enum: ['i_promised', 'they_promised', 'all'],
+            description: 'i_promised=我承诺的, they_promised=对方承诺的, all=全部',
           },
         },
       },
@@ -127,28 +127,28 @@ export async function execute(ctx: ToolContext, name: string, args: any): Promis
       return `已完成任务「${tasks[0].title}」✓`
     }
 
-    case 'get_follow_ups': {
+    case 'get_commitments': {
       let query = supabase
-        .from('follow_ups')
-        .select('contact_name, contact_email, subject, commitment_text, type, due_date, status')
+        .from('commitments')
+        .select('contact_name, contact_email, title, description, type, deadline, status')
         .eq('user_id', ctx.userId)
-        .eq('status', 'active')
-        .order('due_date', { ascending: true })
+        .in('status', ['pending', 'in_progress'])
+        .order('deadline', { ascending: true })
         .limit(10)
 
       if (args.type === 'i_promised') {
         query = query.eq('type', 'i_promised')
-      } else if (args.type === 'waiting_on_them') {
-        query = query.eq('type', 'waiting_on_them')
+      } else if (args.type === 'they_promised') {
+        query = query.eq('type', 'they_promised')
       }
 
       const { data } = await query
-      if (!data || data.length === 0) return '目前没有活跃的跟进事项。'
+      if (!data || data.length === 0) return '目前没有活跃的承诺事项。'
       return data.map(f => {
-        const icon = f.type === 'i_promised' ? '📤你承诺的' : '📥等对方的'
-        const overdue = f.due_date && new Date(f.due_date) < new Date() ? ' ⚠️已逾期' : ''
-        const due = f.due_date ? ` (截止 ${f.due_date})` : ''
-        return `${icon} ${f.contact_name || f.contact_email}: ${f.subject || f.commitment_text}${due}${overdue}`
+        const icon = f.type === 'i_promised' ? '📤你承诺的' : '📥对方承诺的'
+        const overdue = f.deadline && new Date(f.deadline) < new Date() ? ' ⚠️已逾期' : ''
+        const due = f.deadline ? ` (截止 ${f.deadline})` : ''
+        return `${icon} ${f.contact_name || f.contact_email}: ${f.title || f.description}${due}${overdue}`
       }).join('\n')
     }
 

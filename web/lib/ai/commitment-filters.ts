@@ -125,8 +125,20 @@ const ATTENDANCE_PATTERN_ZH = /^(参加|出席|去|到场)/
 const PLEASANTRY_TITLES = [
   'respond when return', 'get back to you',
   'catch up', 'stay in touch', 'keep in touch',
-  'circle back', 'touch base',
+  'circle back', 'touch base', 'keep you posted',
+  'let you know', 'will update',
 ]
+
+// Patterns that indicate policy/agenda/hypothetical, NOT personal commitments
+const POLICY_PATTERN = /\b(all employees|all staff|the company will|policy requires|must comply|the candidate will|will be responsible for|we will discuss|agenda item|hypothetical|if we were to)\b/i
+const POLICY_PATTERN_ZH = /(所有员工|公司将|政策要求|制度规定|我们将讨论|议程|假设|如果我们)/
+
+// Past tense: already done, not a future commitment
+const PAST_TENSE_PATTERN = /\b(already sent|already submitted|already completed|already done|has been sent|has been delivered|was submitted|were completed)\b/i
+const PAST_TENSE_PATTERN_ZH = /(已经发了|已发送|已提交|已完成|上周已|昨天已)/
+
+// Chinese acknowledgments that are NOT commitments
+const ACKNOWLEDGMENT_PATTERN_ZH = /^(好的|收到|没问题|了解|知道了|OK|嗯嗯|明白)/
 
 export function postFilterCommitments(
   commitments: ExtractedCommitment[],
@@ -136,8 +148,8 @@ export function postFilterCommitments(
   const filtered: Array<ExtractedCommitment & { filtered_reason: string }> = []
 
   for (const c of commitments) {
-    // 1. Confidence threshold (should be handled by LLM, but double-check)
-    if (c.confidence < 0.7) {
+    // 1. Confidence threshold — prefer precision over recall
+    if (c.confidence < 0.8) {
       filtered.push({ ...c, filtered_reason: 'low_confidence' })
       continue
     }
@@ -161,7 +173,25 @@ export function postFilterCommitments(
       continue
     }
 
-    // 5. Title too short (likely noise)
+    // 5. Policy/agenda/hypothetical language
+    if (POLICY_PATTERN.test(c.title) || POLICY_PATTERN_ZH.test(c.title)) {
+      filtered.push({ ...c, filtered_reason: 'policy_or_agenda' })
+      continue
+    }
+
+    // 6. Past tense (already completed)
+    if (PAST_TENSE_PATTERN.test(c.title) || PAST_TENSE_PATTERN_ZH.test(c.title)) {
+      filtered.push({ ...c, filtered_reason: 'past_tense' })
+      continue
+    }
+
+    // 7. Chinese acknowledgment (not a commitment)
+    if (ACKNOWLEDGMENT_PATTERN_ZH.test(c.title)) {
+      filtered.push({ ...c, filtered_reason: 'acknowledgment' })
+      continue
+    }
+
+    // 8. Title too short (likely noise)
     const titleContent = c.title.replace(/\s/g, '')
     if (titleContent.length < 6) {
       filtered.push({ ...c, filtered_reason: 'title_too_short' })
@@ -180,10 +210,10 @@ export function postFilterCommitments(
     passed.push(c)
   }
 
-  // 7. Per-email limit: if too many passed, keep top by confidence
-  if (passed.length > 4) {
+  // Per-email limit: if too many passed, keep top by confidence
+  if (passed.length > 6) {
     passed.sort((a, b) => b.confidence - a.confidence)
-    const dropped = passed.splice(3)
+    const dropped = passed.splice(6)
     for (const d of dropped) {
       filtered.push({ ...d, filtered_reason: 'per_email_limit' })
     }

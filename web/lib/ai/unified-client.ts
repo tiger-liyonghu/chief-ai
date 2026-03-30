@@ -62,6 +62,15 @@ export async function getUserLLMConfig(userId: string): Promise<LLMConfig> {
     }
   }
 
+  // Warn if using the known-invalid shell-leaked key (ends with 6d83)
+  if (apiKey && apiKey.endsWith('6d83')) {
+    console.warn(
+      '[LLM Config] WARNING: DeepSeek API key ends with "6d83" — this is the old invalid key ' +
+      'leaked from shell environment. Ensure .env.local has the correct DEEPSEEK_API_KEY or ' +
+      'start the dev server with the correct key: DEEPSEEK_API_KEY=sk-... npm run dev'
+    )
+  }
+
   return {
     provider,
     apiKey,
