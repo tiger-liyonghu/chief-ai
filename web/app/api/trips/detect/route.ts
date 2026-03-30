@@ -152,6 +152,37 @@ export async function POST() {
           updated_at: new Date().toISOString(),
         }).eq('id', tripId)
       } else {
+        // Detect family conflicts for the new trip
+        let familyConflicts: Array<{ title: string; date: string; family_member?: string; conflict_type: string }> | null = null
+        try {
+          const { data: familyEvents } = await admin
+            .from('family_calendar')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+          if (familyEvents && familyEvents.length > 0) {
+            const conflicts: Array<{ title: string; date: string; family_member?: string; conflict_type: string }> = []
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+              const dateStr = d.toISOString().split('T')[0]
+              const dayOfWeek = d.getDay()
+              for (const fe of familyEvents) {
+                let isConflict = false
+                let conflictType = ''
+                if (fe.recurrence === 'weekly' && fe.recurrence_day === dayOfWeek) { isConflict = true; conflictType = 'weekly_conflict' }
+                if (fe.recurrence === 'none' && fe.start_date <= dateStr && (!fe.end_date || fe.end_date >= dateStr)) { isConflict = true; conflictType = fe.event_type }
+                if (fe.recurrence === 'yearly') {
+                  const feDate = new Date(fe.start_date)
+                  if (d.getMonth() === feDate.getMonth() && d.getDate() === feDate.getDate()) { isConflict = true; conflictType = 'important_date' }
+                }
+                if (isConflict && !conflicts.some(c => c.title === fe.title && c.date === dateStr)) {
+                  conflicts.push({ title: fe.title, date: dateStr, family_member: fe.family_member || undefined, conflict_type: conflictType })
+                }
+              }
+            }
+            if (conflicts.length > 0) familyConflicts = conflicts
+          }
+        } catch { /* non-fatal */ }
+
         // Create new trip
         const { data: newTrip, error: tripError } = await admin
           .from('trips')
@@ -166,6 +197,7 @@ export async function POST() {
             flight_info: flightInfos,
             hotel_info: hotelInfos,
             source_email_ids: sourceEmailIds,
+            family_conflicts: familyConflicts,
           })
           .select('id')
           .single()

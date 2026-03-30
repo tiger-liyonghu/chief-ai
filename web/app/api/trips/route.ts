@@ -105,6 +105,67 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json()
 
+  // Detect family conflicts across all trip dates before inserting
+  const familyConflicts: Array<{ title: string; date: string; family_member?: string; conflict_type: string }> = []
+  if (body.start_date && body.end_date) {
+    try {
+      const { data: familyEvents } = await supabase
+        .from('family_calendar')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+
+      if (familyEvents && familyEvents.length > 0) {
+        const start = new Date(body.start_date)
+        const end = new Date(body.end_date)
+        // Iterate each day of the trip
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const dateStr = d.toISOString().split('T')[0]
+          const dayOfWeek = d.getDay()
+
+          for (const fe of familyEvents) {
+            let isConflict = false
+            let conflictType = ''
+
+            // Weekly recurring
+            if (fe.recurrence === 'weekly' && fe.recurrence_day === dayOfWeek) {
+              isConflict = true
+              conflictType = 'weekly_conflict'
+            }
+            // One-off or date range
+            if (fe.recurrence === 'none' && fe.start_date <= dateStr && (!fe.end_date || fe.end_date >= dateStr)) {
+              isConflict = true
+              conflictType = fe.event_type === 'hard_constraint' ? 'hard_constraint' : fe.event_type
+            }
+            // Yearly recurring (birthdays, anniversaries)
+            if (fe.recurrence === 'yearly') {
+              const feDate = new Date(fe.start_date)
+              if (d.getMonth() === feDate.getMonth() && d.getDate() === feDate.getDate()) {
+                isConflict = true
+                conflictType = 'important_date'
+              }
+            }
+
+            if (isConflict) {
+              // Avoid duplicates
+              const exists = familyConflicts.some(c => c.title === fe.title && c.date === dateStr)
+              if (!exists) {
+                familyConflicts.push({
+                  title: fe.title,
+                  date: dateStr,
+                  family_member: fe.family_member || undefined,
+                  conflict_type: conflictType,
+                })
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // Non-fatal — insert trip anyway
+    }
+  }
+
   const { data: trip, error } = await supabase
     .from('trips')
     .insert({
@@ -118,6 +179,7 @@ export async function POST(request: NextRequest) {
       flight_info: body.flight_info || [],
       hotel_info: body.hotel_info || [],
       notes: body.notes || null,
+      family_conflicts: familyConflicts.length > 0 ? familyConflicts : null,
     })
     .select()
     .single()
