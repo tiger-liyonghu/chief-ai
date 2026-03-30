@@ -12,6 +12,10 @@ export default function LoginPage() {
     window.location.href = '/api/auth/login'
   }
 
+  const handleMicrosoftLogin = () => {
+    window.location.href = '/api/auth/microsoft-login'
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-white flex items-center justify-center px-4">
       <motion.div
@@ -51,10 +55,10 @@ export default function LoginPage() {
             </span>
           </button>
 
-          {/* Microsoft — disabled, requires authenticated session (add-account flow only) */}
-          <div
-            className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-xl opacity-50 cursor-not-allowed font-medium text-sm"
-            title={t('microsoftComingSoon')}
+          {/* Microsoft */}
+          <button
+            onClick={handleMicrosoftLogin}
+            className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-xl hover:bg-surface-secondary transition-all duration-200 font-medium text-sm group"
           >
             <svg className="w-5 h-5" viewBox="0 0 23 23">
               <path fill="#f35325" d="M1 1h10v10H1z"/>
@@ -62,11 +66,10 @@ export default function LoginPage() {
               <path fill="#05a6f0" d="M1 12h10v10H1z"/>
               <path fill="#ffba08" d="M12 12h10v10H12z"/>
             </svg>
-            <span className="text-text-tertiary">
+            <span className="group-hover:translate-x-0.5 transition-transform duration-200">
               {t('continueWithMicrosoft')}
             </span>
-            <span className="text-[10px] text-text-tertiary ml-auto">{t('comingSoon')}</span>
-          </div>
+          </button>
 
           <p className="mt-5 text-xs text-text-tertiary text-center leading-relaxed">
             {t('loginDisclaimer')}
