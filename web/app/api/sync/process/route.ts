@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Query unprocessed emails
     const { data: unprocessedEmails, error: queryErr } = await admin
       .from('emails')
-      .select('id, gmail_message_id, from_address, from_name')
+      .select('id, gmail_message_id, from_address, from_name, subject, snippet, to_address, is_outbound')
       .eq('user_id', user.id)
       .eq('body_processed', false)
       .order('received_at', { ascending: false })
