@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.gstack
+tests
+*.md
+.env.local
+.wa-sessions
+.next 2
