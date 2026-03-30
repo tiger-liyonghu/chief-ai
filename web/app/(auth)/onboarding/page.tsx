@@ -9,18 +9,14 @@ import {
   Bot,
   Plus,
   Check,
-  Loader2,
   ArrowRight,
-  ChevronDown,
   Shield,
   Target,
-  Plane,
-  Heart,
-  QrCode,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
+import { CommitmentDiscovery } from '@/components/dashboard/CommitmentDiscovery'
 
 /* ─── Step definitions ─── */
 
@@ -186,131 +182,13 @@ function AIConfig() {
   )
 }
 
-/* ─── Scanning Step (reuses OnboardingProgress logic) ─── */
-
-function ScanningStep({ onComplete }: { onComplete: (results: Record<string, number>) => void }) {
-  type ScanStatus = 'pending' | 'running' | 'done' | 'warning'
-  const [steps, setSteps] = useState<Array<{ id: string; label: string; done: string; status: ScanStatus; result: number }>>([
-    { id: 'sync', label: '同步邮件中...', done: '已同步 {n} 封邮件', status: 'pending', result: 0 },
-    { id: 'commitments', label: '提取承诺中...', done: '发现 {n} 个承诺', status: 'pending', result: 0 },
-    { id: 'trips', label: '检测出差计划...', done: '检测到 {n} 趟出差', status: 'pending', result: 0 },
-    { id: 'contacts', label: '识别联系人...', done: '识别出 {n} 个联系人', status: 'pending', result: 0 },
-  ])
-
-  const updateStep = (id: string, status: ScanStatus, result?: number) => {
-    setSteps(prev => prev.map(s => s.id === id ? { ...s, status, result: result ?? s.result } : s))
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const lang = navigator.language.startsWith('zh') ? 'zh' : navigator.language.startsWith('ms') ? 'ms' : 'en'
-
-    async function run() {
-      // Step 1: Onboarding API (sync + process + trips + contacts)
-      updateStep('sync', 'running')
-      try {
-        const res = await fetch('/api/onboarding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ timezone: tz, language: lang }),
-        })
-        const data = await res.json()
-        if (cancelled) return
-
-        const emailsSynced = data.results?.sync?.emails_synced ?? 0
-        updateStep('sync', 'done', emailsSynced)
-
-        // Step 2: Commitment scanning
-        updateStep('commitments', 'running')
-        const scanRes = await fetch('/api/commitments/scan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hours: 168 }), // last 7 days
-        })
-        const scanData = await scanRes.json()
-        if (cancelled) return
-        updateStep('commitments', 'done', scanData.found ?? 0)
-
-        // Trips
-        const tripsFound = data.results?.trips?.trips_found ?? 0
-        updateStep('trips', data.results?.trips?.error ? 'warning' : 'done', tripsFound)
-
-        // Contacts
-        const contactsFound = (data.results?.contacts?.contacts_processed ?? 0) + (data.results?.contacts?.new_contacts ?? 0)
-        updateStep('contacts', data.results?.contacts?.error ? 'warning' : 'done', contactsFound)
-
-        if (!cancelled) {
-          onComplete({
-            emails: emailsSynced,
-            commitments: scanData.found ?? 0,
-            trips: tripsFound,
-            contacts: contactsFound,
-          })
-        }
-      } catch {
-        if (!cancelled) {
-          setSteps(prev => prev.map(s => s.status === 'pending' || s.status === 'running' ? { ...s, status: 'warning' as const } : s))
-          onComplete({ emails: 0, commitments: 0, trips: 0, contacts: 0 })
-        }
-      }
-    }
-
-    run()
-    return () => { cancelled = true }
-  }, [onComplete])
-
-  return (
-    <div className="space-y-3">
-      {steps.map((step, i) => (
-        <motion.div
-          key={step.id}
-          initial={{ opacity: 0, x: -12 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.1 }}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-slate-100 shadow-sm"
-        >
-          <div className="w-6 h-6 flex items-center justify-center shrink-0">
-            {step.status === 'done' ? (
-              <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center">
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-              </motion.div>
-            ) : step.status === 'running' ? (
-              <Loader2 className="w-5 h-5 text-primary animate-spin" />
-            ) : step.status === 'warning' ? (
-              <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
-                <span className="text-amber-600 text-xs">!</span>
-              </div>
-            ) : (
-              <div className="w-6 h-6 bg-slate-100 rounded-full" />
-            )}
-          </div>
-          <span className={cn('text-sm font-medium', {
-            'text-slate-900': step.status === 'done',
-            'text-primary': step.status === 'running',
-            'text-amber-600': step.status === 'warning',
-            'text-slate-400': step.status === 'pending',
-          })}>
-            {step.status === 'done' ? step.done.replace('{n}', String(step.result)) : step.label}
-          </span>
-        </motion.div>
-      ))}
-
-      <div className="flex items-center gap-2 px-4 py-2 text-xs text-slate-400">
-        <Shield className="w-3 h-3" />
-        Chief 帮你写，但永远由你决定发不发。
-      </div>
-    </div>
-  )
-}
-
 /* ─── Main Onboarding Page ─── */
 
 export default function OnboardingPage() {
   const router = useRouter()
   const { t } = useI18n()
   const [step, setStep] = useState<Step>('channels')
-  const [scanResults, setScanResults] = useState<Record<string, number> | null>(null)
+  const [commitmentCount, setCommitmentCount] = useState(0)
 
   // Channel connection states
   const [emailConnected, setEmailConnected] = useState(true) // already connected via login
@@ -354,8 +232,20 @@ export default function OnboardingPage() {
     setStep('scanning')
   }
 
-  const handleScanComplete = useCallback((results: Record<string, number>) => {
-    setScanResults(results)
+  const handleDiscoveryComplete = useCallback(async (count: number) => {
+    setCommitmentCount(count)
+    // Call onboarding API to mark onboarding complete
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    const lang = navigator.language.startsWith('zh') ? 'zh' : navigator.language.startsWith('ms') ? 'ms' : 'en'
+    try {
+      await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timezone: tz, language: lang }),
+      })
+    } catch {
+      // Non-blocking: don't prevent user from entering dashboard
+    }
     setStep('ready')
   }, [])
 
@@ -512,39 +402,23 @@ export default function OnboardingPage() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
             >
-              <ScanningStep onComplete={handleScanComplete} />
+              <CommitmentDiscovery onComplete={handleDiscoveryComplete} />
             </motion.div>
           )}
 
           {/* ─── Step: Ready ─── */}
-          {step === 'ready' && scanResults && (
+          {step === 'ready' && (
             <motion.div
               key="ready"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               className="text-center space-y-6"
             >
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <Target className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-blue-700">{scanResults.commitments}</div>
-                  <div className="text-xs text-blue-600">个承诺</div>
-                </div>
-                <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
-                  <Plane className="w-6 h-6 text-sky-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-sky-700">{scanResults.trips}</div>
-                  <div className="text-xs text-sky-600">趟出差</div>
-                </div>
-                <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-                  <Mail className="w-6 h-6 text-violet-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-violet-700">{scanResults.emails}</div>
-                  <div className="text-xs text-violet-600">封邮件</div>
-                </div>
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                  <Heart className="w-6 h-6 text-emerald-600 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-emerald-700">{scanResults.contacts}</div>
-                  <div className="text-xs text-emerald-600">个联系人</div>
-                </div>
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
+                <Target className="w-8 h-8 text-indigo-600 mx-auto mb-3" />
+                <div className="text-3xl font-bold text-indigo-700">{commitmentCount}</div>
+                <div className="text-sm text-indigo-600 mt-1">个承诺已发现</div>
+                <p className="text-xs text-indigo-500 mt-2">Chief 会帮你追踪每一个承诺，不再遗忘</p>
               </div>
 
               <button

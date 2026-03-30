@@ -54,13 +54,13 @@ interface EmailRow {
   gmail_message_id: string | null
   from_address: string | null
   from_name: string | null
-  to_address: string | null
+  to_addresses: string | string[] | null
   subject: string | null
   snippet: string | null
   body_text: string | null
   source_account_email: string | null
-  date: string | null
-  is_outbound: boolean | null
+  received_at: string | null
+  labels: string[] | null
 }
 
 interface StreamCommitment {
@@ -139,10 +139,10 @@ export async function GET(req: NextRequest) {
         // 1. Fetch recent emails
         let query = supabase
           .from('emails')
-          .select('id, gmail_message_id, from_address, from_name, to_address, subject, snippet, body_text, source_account_email, date, is_outbound')
+          .select('id, gmail_message_id, from_address, from_name, to_addresses, subject, snippet, body_text, source_account_email, received_at, labels')
           .eq('user_id', user.id)
-          .gte('date', since)
-          .order('date', { ascending: false })
+          .gte('received_at', since)
+          .order('received_at', { ascending: false })
           .limit(100)
 
         // In normal mode, only unscanned emails
@@ -176,13 +176,15 @@ export async function GET(req: NextRequest) {
             continue
           }
 
+          const toAddr = Array.isArray(email.to_addresses) ? email.to_addresses[0] : (email.to_addresses || '')
+          const isOutbound = Array.isArray(email.labels) && email.labels.includes('SENT')
           const pf = shouldSkipEmail({
             from_address: email.from_address || '',
             from_name: email.from_name || '',
             subject: email.subject || '',
             snippet: email.snippet || '',
-            to_address: email.to_address || '',
-            is_outbound: email.is_outbound || false,
+            to_address: toAddr,
+            is_outbound: isOutbound,
           })
 
           if (pf.skip) {
@@ -242,9 +244,10 @@ export async function GET(req: NextRequest) {
 
               // Determine direction
               const fromLower = (e.from_address || '').toLowerCase()
-              const isOutbound = e.is_outbound || OUTBOUND_PATTERNS.some(p => fromLower.includes(p))
+              const isOutbound = (Array.isArray(e.labels) && e.labels.includes('SENT')) || OUTBOUND_PATTERNS.some(p => fromLower.includes(p))
+              const toAddr = Array.isArray(e.to_addresses) ? e.to_addresses[0] : (e.to_addresses || '')
 
-              return `---\nID: ${e.id}\nFrom: ${e.from_name || e.from_address}\nTo: ${e.to_address}\nSubject: ${e.subject}\nDate: ${e.date}\nDirection: ${isOutbound ? 'OUTBOUND (user sent)' : 'INBOUND (user received)'}\nBody: ${bodyPreview}\n---`
+              return `---\nID: ${e.id}\nFrom: ${e.from_name || e.from_address}\nTo: ${toAddr}\nSubject: ${e.subject}\nDate: ${e.received_at}\nDirection: ${isOutbound ? 'OUTBOUND (user sent)' : 'INBOUND (user received)'}\nBody: ${bodyPreview}\n---`
             }).join('\n\n')
 
             let systemPrompt = `You extract commitments from a batch of emails. For INBOUND emails: ${INBOUND_EXTRACTION_SYSTEM}\nFor OUTBOUND emails: ${COMMITMENT_EXTRACTION_SYSTEM}\n\nReturn JSON: { "results": [{ "email_id": "...", "commitments": [{ "type", "title", "due_date", "confidence" }] }] }`
@@ -280,7 +283,8 @@ export async function GET(req: NextRequest) {
               if (!email) continue
 
               const fromLower = (email.from_address || '').toLowerCase()
-              const isOutbound = email.is_outbound || OUTBOUND_PATTERNS.some(p => fromLower.includes(p))
+              const isOutbound = (Array.isArray(email.labels) && email.labels.includes('SENT')) || OUTBOUND_PATTERNS.some(p => fromLower.includes(p))
+              const emailToAddr = Array.isArray(email.to_addresses) ? email.to_addresses[0] : (email.to_addresses || '')
 
               for (const c of result.commitments || []) {
                 if ((c.confidence || 0) < 0.5) continue
@@ -289,7 +293,7 @@ export async function GET(req: NextRequest) {
                   type: c.type === 'waiting_on_them' ? 'they_promised' : c.type,
                   title: c.title,
                   contact_name: isOutbound ? null : (email.from_name || null),
-                  contact_email: isOutbound ? (email.to_address || '') : (email.from_address || ''),
+                  contact_email: isOutbound ? (emailToAddr || '') : (email.from_address || ''),
                   deadline: c.due_date || null,
                   confidence: c.confidence,
                   source_subject: email.subject || null,

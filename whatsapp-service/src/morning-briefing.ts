@@ -150,7 +150,7 @@ async function gatherBriefingContext(userId: string, tz: string): Promise<Briefi
   const endOfWeek = new Date(todayDate.getTime() + daysUntilSunday * 86400000)
   const endOfWeekStr = endOfWeek.toISOString().split('T')[0]
 
-  const [eventsRes, followUpsRes, tasksRes, emailsRes, dueTodayRes, overdueRes, thisWeekRes] = await Promise.all([
+  const [eventsRes, commitmentsRes, tasksRes, emailsRes, dueTodayRes, overdueRes, thisWeekRes] = await Promise.all([
     // Today's events
     supabase
       .from('calendar_events')
@@ -225,7 +225,7 @@ async function gatherBriefingContext(userId: string, tz: string): Promise<Briefi
   return {
     date: todayStr,
     todayEvents: eventsRes.data || [],
-    overdueCommitments: followUpsRes.data || [],
+    overdueCommitments: commitmentsRes.data || [],
     pendingTasks: tasksRes.data || [],
     emailsNeedReply: emailsRes.data || [],
     commitmentsDueToday: dueTodayRes.data || [],

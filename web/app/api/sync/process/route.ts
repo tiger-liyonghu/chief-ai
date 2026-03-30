@@ -88,13 +88,13 @@ export async function POST(request: NextRequest) {
         batch.map(async (emailRow) => {
           try {
             // Pre-filter: skip emails unlikely to contain commitments
+            const toAddr = (Array.isArray(emailRow.to_addresses) ? emailRow.to_addresses[0] : emailRow.to_addresses) || ''
             const preFilter = shouldSkipEmail({
               from_address: emailRow.from_address || '',
               from_name: emailRow.from_name || '',
               subject: emailRow.subject || '',
               snippet: emailRow.snippet || '',
-              to_address: (Array.isArray(emailRow.to_addresses) ? emailRow.to_addresses[0] : emailRow.to_addresses) || '',
-              is_outbound: false,
+              to_address: toAddr,
             }, user.email || undefined)
 
             if (preFilter.skip) {

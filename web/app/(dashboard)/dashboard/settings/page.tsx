@@ -1059,6 +1059,178 @@ function SettingsContent() {
             </div>
           </section>
 
+          {/* LLM Configuration Section */}
+          <section>
+            <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">AI Model Configuration</h2>
+            <div className="bg-white rounded-2xl border border-border divide-y divide-border">
+              {llmLoading ? (
+                <div className="p-5 text-sm text-text-tertiary animate-pulse">Loading AI config...</div>
+              ) : (
+                <>
+                  {/* Provider */}
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Bot className="w-5 h-5 text-text-tertiary" />
+                      <div>
+                        <p className="text-sm font-medium">Provider</p>
+                        <p className="text-xs text-text-tertiary">Choose your LLM provider</p>
+                      </div>
+                    </div>
+                    <select
+                      value={llmProvider}
+                      onChange={(e) => handleProviderChange(e.target.value)}
+                      className="text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    >
+                      {Object.keys(llmProviders).length > 0 ? (
+                        Object.entries(llmProviders).map(([key]) => (
+                          <option key={key} value={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="deepseek">DeepSeek</option>
+                          <option value="openai">OpenAI</option>
+                          <option value="anthropic">Anthropic</option>
+                          <option value="siliconflow">SiliconFlow</option>
+                          <option value="custom">Custom</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Model */}
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Zap className="w-5 h-5 text-text-tertiary" />
+                      <div>
+                        <p className="text-sm font-medium">Model</p>
+                        <p className="text-xs text-text-tertiary">Select the model to use</p>
+                      </div>
+                    </div>
+                    {llmProviders[llmProvider]?.models?.length ? (
+                      <select
+                        value={llmModel}
+                        onChange={(e) => handleModelChange(e.target.value)}
+                        className="text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 max-w-[200px]"
+                      >
+                        {llmProviders[llmProvider].models.map((m) => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={llmModel}
+                        onChange={(e) => handleModelChange(e.target.value)}
+                        placeholder="e.g. deepseek-chat"
+                        className="text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 w-[200px]"
+                      />
+                    )}
+                  </div>
+
+                  {/* API Key */}
+                  <div className="p-5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Shield className="w-5 h-5 text-text-tertiary" />
+                      <div>
+                        <p className="text-sm font-medium">API Key</p>
+                        <p className="text-xs text-text-tertiary">
+                          {llmHasCustomKey
+                            ? 'Your custom API key is saved (encrypted)'
+                            : 'Using system default key. Add your own for higher limits.'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={llmShowKey ? 'text' : 'password'}
+                          value={llmApiKey}
+                          onChange={(e) => setLlmApiKey(e.target.value)}
+                          onBlur={handleApiKeyBlur}
+                          placeholder={llmHasCustomKey ? 'sk-******* (saved)' : 'sk-... (paste your API key)'}
+                          className="w-full text-sm bg-surface-secondary border border-border rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setLlmShowKey(!llmShowKey)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-secondary"
+                        >
+                          {llmShowKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {llmHasCustomKey && (
+                        <button
+                          onClick={clearApiKey}
+                          className="text-xs font-medium text-red-500 hover:text-red-600 px-2 py-1 whitespace-nowrap"
+                        >
+                          Clear key
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Base URL */}
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Globe className="w-5 h-5 text-text-tertiary" />
+                      <div>
+                        <p className="text-sm font-medium">Base URL</p>
+                        <p className="text-xs text-text-tertiary">API endpoint (auto-set per provider)</p>
+                      </div>
+                    </div>
+                    <input
+                      type="url"
+                      value={llmBaseUrl}
+                      onChange={(e) => handleBaseUrlChange(e.target.value)}
+                      placeholder="https://api.deepseek.com"
+                      className="text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/20 w-[240px]"
+                    />
+                  </div>
+
+                  {/* Test Connection */}
+                  <div className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-text-tertiary" />
+                        <div>
+                          <p className="text-sm font-medium">Test Connection</p>
+                          <p className="text-xs text-text-tertiary">Verify your AI model configuration works</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={testLLMConnection}
+                        disabled={llmTesting}
+                        className="text-sm font-medium text-primary bg-primary/10 px-4 py-2 rounded-xl hover:bg-primary/20 transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {llmTesting ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Zap className="w-3.5 h-3.5" />
+                        )}
+                        {llmTesting ? 'Testing...' : 'Test'}
+                      </button>
+                    </div>
+
+                    {llmTestResult && (
+                      <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-xl text-xs ${
+                        llmTestResult.ok
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'bg-red-50 text-red-700 border border-red-200'
+                      }`}>
+                        {llmTestResult.ok ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        )}
+                        {llmTestResult.message}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+
           {/* Privacy Section */}
           <section>
             <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">{t('privacyData')}</h2>

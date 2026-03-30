@@ -183,10 +183,25 @@ async function refreshIfNeeded(
   const now = new Date()
 
   if (expiry.getTime() - now.getTime() < 5 * 60 * 1000) {
-    const refreshToken = decrypt(refreshTokenEnc)
-    const newCredentials = await refreshAccessToken(refreshToken)
+    let refreshToken: string
+    try {
+      refreshToken = decrypt(refreshTokenEnc)
+    } catch (decryptErr) {
+      throw new Error('Failed to decrypt refresh token — encryption key may have changed')
+    }
 
-    if (!newCredentials.access_token) throw new Error('Failed to refresh token')
+    let newCredentials
+    try {
+      newCredentials = await refreshAccessToken(refreshToken)
+    } catch (refreshErr: any) {
+      // Surface expired/revoked refresh token errors clearly
+      if (refreshErr?.message?.includes('re-authenticate')) {
+        throw refreshErr
+      }
+      throw new Error(`Token refresh failed: ${refreshErr?.message || 'Unknown error'}`)
+    }
+
+    if (!newCredentials.access_token) throw new Error('Failed to refresh token — no access_token returned')
 
     const newExpiry = new Date(newCredentials.expiry_date || Date.now() + 3600000).toISOString()
     await onRefresh(encrypt(newCredentials.access_token), newExpiry)

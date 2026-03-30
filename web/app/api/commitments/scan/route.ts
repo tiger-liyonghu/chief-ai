@@ -52,10 +52,10 @@ export async function POST(req: NextRequest) {
   // 1. Get recent emails not yet scanned
   const { data: emails } = await supabase
     .from('emails')
-    .select('id, from_address, from_name, to_address, subject, snippet, body_text, date, is_outbound, commitment_scanned')
+    .select('id, from_address, from_name, to_addresses, subject, snippet, body_text, received_at, labels, commitment_scanned')
     .eq('user_id', user.id)
-    .gte('date', since)
-    .order('date', { ascending: false })
+    .gte('received_at', since)
+    .order('received_at', { ascending: false })
     .limit(50)
 
   if (!emails || emails.length === 0) {
@@ -65,13 +65,15 @@ export async function POST(req: NextRequest) {
   // Filter to unscanned emails + pre-filter
   const unscanned = emails.filter(e => {
     if (e.commitment_scanned) return false
+    const toAddr = Array.isArray(e.to_addresses) ? e.to_addresses[0] : (e.to_addresses || '')
+    const isOutbound = Array.isArray(e.labels) && e.labels.includes('SENT')
     const pf = shouldSkipEmail({
       from_address: e.from_address || '',
       from_name: e.from_name || '',
       subject: e.subject || '',
       snippet: e.snippet || '',
-      to_address: e.to_address || '',
-      is_outbound: e.is_outbound || false,
+      to_address: toAddr,
+      is_outbound: isOutbound,
     })
     return !pf.skip
   })
@@ -103,7 +105,9 @@ export async function POST(req: NextRequest) {
     const batch = unscanned.slice(i, i + 5)
     const emailSummaries = batch.map(e => {
       const bodyPreview = e.body_text ? e.body_text.slice(0, 1500) : (e.snippet || '').slice(0, 500)
-      return `---\nID: ${e.id}\nFrom: ${e.from_name || e.from_address}\nTo: ${e.to_address}\nSubject: ${e.subject}\nDate: ${e.date}\nDirection: ${e.is_outbound ? 'OUTBOUND (user sent)' : 'INBOUND (user received)'}\nBody: ${bodyPreview}\n---`
+      const toAddr = Array.isArray(e.to_addresses) ? e.to_addresses[0] : (e.to_addresses || '')
+      const isOutbound = Array.isArray(e.labels) && e.labels.includes('SENT')
+      return `---\nID: ${e.id}\nFrom: ${e.from_name || e.from_address}\nTo: ${toAddr}\nSubject: ${e.subject}\nDate: ${e.received_at}\nDirection: ${isOutbound ? 'OUTBOUND (user sent)' : 'INBOUND (user received)'}\nBody: ${bodyPreview}\n---`
     }).join('\n\n')
 
     let systemPrompt = `You extract commitments from a batch of emails. For INBOUND emails: ${INBOUND_EXTRACTION_SYSTEM}\nFor OUTBOUND emails: ${COMMITMENT_EXTRACTION_SYSTEM}\n\nReturn JSON: { "results": [{ "email_id": "...", "commitments": [{ "type", "title", "due_date", "confidence" }] }] }`
@@ -137,8 +141,10 @@ export async function POST(req: NextRequest) {
           newCommitments.push({
             type: c.type === 'waiting_on_them' ? 'they_promised' : c.type,
             title: c.title,
-            contact_email: email.is_outbound ? (email.to_address || '') : (email.from_address || ''),
-            contact_name: email.is_outbound ? null : (email.from_name || null),
+            contact_email: (Array.isArray(email.labels) && email.labels.includes('SENT'))
+              ? (Array.isArray(email.to_addresses) ? email.to_addresses[0] : (email.to_addresses || ''))
+              : (email.from_address || ''),
+            contact_name: (Array.isArray(email.labels) && email.labels.includes('SENT')) ? null : (email.from_name || null),
             deadline: c.due_date || null,
             confidence: c.confidence,
             source_email_id: email.id,

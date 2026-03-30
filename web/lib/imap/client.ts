@@ -353,21 +353,58 @@ export async function fetchImapMessageBody(
     const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
     await client.logout()
 
-    if (!message?.source) return ''
+    if (!message || !(message as any).source) return ''
 
     // Parse the raw email source to extract text body
-    const raw = message.source.toString()
+    const raw = ((message as any).source as Buffer).toString('binary')
+
+    // Helper: extract charset and encoding from a Content-Type + Content-Transfer-Encoding block
+    function extractPartInfo(headerBlock: string): { charset: string; encoding: string } {
+      const charsetMatch = headerBlock.match(/charset\s*=\s*"?([^";\s]+)"?/i)
+      const encodingMatch = headerBlock.match(/Content-Transfer-Encoding:\s*(\S+)/i)
+      return {
+        charset: (charsetMatch?.[1] || 'utf-8').toLowerCase(),
+        encoding: (encodingMatch?.[1] || '7bit').toLowerCase(),
+      }
+    }
+
+    // Helper: decode a body part with charset awareness
+    function decodePart(body: string, charset: string, encoding: string): string {
+      let buf: Buffer
+      if (encoding === 'base64') {
+        buf = Buffer.from(body.replace(/\r?\n/g, ''), 'base64')
+      } else if (encoding === 'quoted-printable') {
+        const cleaned = body.replace(/=\r?\n/g, '')
+        const bytes = cleaned.replace(/=([0-9A-Fa-f]{2})/g, (_, hex) =>
+          String.fromCharCode(parseInt(hex, 16))
+        )
+        buf = Buffer.from(bytes, 'binary')
+      } else {
+        buf = Buffer.from(body, 'binary')
+      }
+      // Decode with charset (Node supports 'utf-8', 'gbk', 'gb2312', 'gb18030', 'big5', etc.)
+      try {
+        const decoder = new TextDecoder(charset === 'gb2312' ? 'gbk' : charset)
+        return decoder.decode(buf)
+      } catch {
+        return buf.toString('utf-8')
+      }
+    }
 
     // Try to extract plain text part
-    const textMatch = raw.match(/Content-Type:\s*text\/plain[\s\S]*?\r\n\r\n([\s\S]*?)(?:\r\n--|\r\n\.\r\n|$)/i)
+    const textMatch = raw.match(/Content-Type:\s*text\/plain[^\r\n]*[\s\S]*?(?:Content-Transfer-Encoding:\s*\S+[^\r\n]*\r?\n)?\r?\n([\s\S]*?)(?:\r\n--|\r\n\.\r\n|$)/i)
     if (textMatch) {
-      return decodeEmailBody(textMatch[1])
+      const headerBlock = raw.slice(raw.lastIndexOf('Content-Type', raw.indexOf(textMatch[1])) - 200, raw.indexOf(textMatch[1]))
+      const { charset, encoding } = extractPartInfo(headerBlock)
+      return decodePart(textMatch[1], charset, encoding)
     }
 
     // Fallback: extract HTML and strip tags
-    const htmlMatch = raw.match(/Content-Type:\s*text\/html[\s\S]*?\r\n\r\n([\s\S]*?)(?:\r\n--|\r\n\.\r\n|$)/i)
+    const htmlMatch = raw.match(/Content-Type:\s*text\/html[^\r\n]*[\s\S]*?(?:Content-Transfer-Encoding:\s*\S+[^\r\n]*\r?\n)?\r?\n([\s\S]*?)(?:\r\n--|\r\n\.\r\n|$)/i)
     if (htmlMatch) {
-      return decodeEmailBody(htmlMatch[1]).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      const headerBlock = raw.slice(raw.lastIndexOf('Content-Type', raw.indexOf(htmlMatch[1])) - 200, raw.indexOf(htmlMatch[1]))
+      const { charset, encoding } = extractPartInfo(headerBlock)
+      return decodePart(htmlMatch[1], charset, encoding).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
     }
 
     // Last resort: return raw body after headers
@@ -383,24 +420,7 @@ export async function fetchImapMessageBody(
   }
 }
 
-/**
- * Decode common email body encodings (quoted-printable, base64).
- */
-function decodeEmailBody(text: string): string {
-  // Check for quoted-printable soft line breaks
-  if (text.includes('=\r\n') || text.includes('=3D')) {
-    return text
-      .replace(/=\r\n/g, '')
-      .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-  }
-  // Check for base64
-  if (/^[A-Za-z0-9+/=\r\n]+$/.test(text.trim())) {
-    try {
-      return Buffer.from(text.replace(/\r?\n/g, ''), 'base64').toString('utf-8')
-    } catch { /* not base64 */ }
-  }
-  return text
-}
+// decodeEmailBody is now inlined in fetchImapMessageBody with charset awareness
 
 /**
  * Send an email via SMTP.
