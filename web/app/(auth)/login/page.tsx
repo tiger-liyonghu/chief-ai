@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { Sparkles, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -7,6 +8,14 @@ import { useSearchParams } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/context'
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
+  )
+}
+
+function LoginContent() {
   const { t } = useI18n()
   const searchParams = useSearchParams()
   const error = searchParams.get('error')
