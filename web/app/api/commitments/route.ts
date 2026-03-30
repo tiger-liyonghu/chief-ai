@@ -1,5 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+
+/**
+ * Compute transitive blocking chains:
+ * If commitment A depends_on commitment B, and B is overdue → A is "blocked".
+ * If A blocks B, and A is overdue → B is also "blocked" (waiting on A).
+ */
+async function computeBlockingChains(
+  userId: string,
+  commitments: any[],
+): Promise<Map<string, { blocked_by: Array<{ id: string; title: string; deadline: string | null; days_overdue: number }> }>> {
+  const admin = createAdminClient()
+  const result = new Map<string, { blocked_by: any[] }>()
+
+  if (commitments.length === 0) return result
+
+  // Fetch all commitment-commitment relations for this user
+  const { data: relations } = await admin
+    .from('relations')
+    .select('from_entity, to_entity, relation')
+    .eq('user_id', userId)
+    .eq('from_type', 'commitment')
+    .eq('to_type', 'commitment')
+    .in('relation', ['depends_on_commitment', 'blocks_commitment'])
+    .eq('is_active', true)
+
+  if (!relations || relations.length === 0) return result
+
+  // Build lookup maps
+  const commitmentMap = new Map<string, any>()
+  for (const c of commitments) commitmentMap.set(c.id, c)
+
+  const now = new Date()
+
+  for (const rel of relations) {
+    if (rel.relation === 'depends_on_commitment') {
+      // A depends_on B → if B is overdue, A is blocked
+      const dependentId = rel.from_entity  // A
+      const dependencyId = rel.to_entity   // B
+      const dependency = commitmentMap.get(dependencyId)
+
+      if (dependency && dependency.deadline) {
+        const daysOverdue = Math.ceil((now.getTime() - new Date(dependency.deadline).getTime()) / 86400000)
+        if (daysOverdue > 0 && dependency.status !== 'done') {
+          if (!result.has(dependentId)) result.set(dependentId, { blocked_by: [] })
+          result.get(dependentId)!.blocked_by.push({
+            id: dependency.id,
+            title: dependency.title,
+            deadline: dependency.deadline,
+            days_overdue: daysOverdue,
+          })
+        }
+      }
+    } else if (rel.relation === 'blocks_commitment') {
+      // A blocks B → if A is overdue, B is blocked
+      const blockerId = rel.from_entity    // A
+      const blockedId = rel.to_entity      // B
+      const blocker = commitmentMap.get(blockerId)
+
+      if (blocker && blocker.deadline) {
+        const daysOverdue = Math.ceil((now.getTime() - new Date(blocker.deadline).getTime()) / 86400000)
+        if (daysOverdue > 0 && blocker.status !== 'done') {
+          if (!result.has(blockedId)) result.set(blockedId, { blocked_by: [] })
+          result.get(blockedId)!.blocked_by.push({
+            id: blocker.id,
+            title: blocker.title,
+            deadline: blocker.deadline,
+            days_overdue: daysOverdue,
+          })
+        }
+      }
+    }
+  }
+
+  return result
+}
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
@@ -37,7 +113,24 @@ export async function GET(req: NextRequest) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  return NextResponse.json(data || [])
+  const commitments = data || []
+
+  // Compute blocking chains (only for active view)
+  if (view !== 'done' && commitments.length > 0) {
+    try {
+      const blockingChains = await computeBlockingChains(user.id, commitments)
+      for (const c of commitments) {
+        const blocking = blockingChains.get(c.id)
+        if (blocking) {
+          (c as any).blocked_by = blocking.blocked_by
+        }
+      }
+    } catch {
+      // Non-fatal — return commitments without blocking info
+    }
+  }
+
+  return NextResponse.json(commitments)
 }
 
 export async function POST(req: NextRequest) {

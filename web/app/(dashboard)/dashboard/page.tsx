@@ -23,6 +23,7 @@ import {
   Search,
   Loader2,
   XCircle,
+  Link2,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
@@ -31,6 +32,13 @@ import { cn } from '@/lib/utils'
 import { BriefingCard } from '@/components/dashboard/BriefingCard'
 
 /* ─── Types ─── */
+
+interface BlockedByInfo {
+  id: string
+  title: string
+  deadline: string | null
+  days_overdue: number
+}
 
 interface Commitment {
   id: string
@@ -48,6 +56,7 @@ interface Commitment {
   status: string
   created_at: string
   contacts?: { id: string; name: string; company: string; email: string; importance: string } | null
+  blocked_by?: BlockedByInfo[]
 }
 
 interface Stats {
@@ -202,6 +211,22 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
               </span>
             )}
           </div>
+
+          {/* Blocking chain warning */}
+          {c.blocked_by && c.blocked_by.length > 0 && (
+            <div className="mt-2 flex items-start gap-1.5 px-2 py-1.5 bg-red-50 border border-red-200 rounded-lg">
+              <Link2 className="w-3 h-3 text-red-500 mt-0.5 shrink-0" />
+              <div className="text-xs text-red-700">
+                <span className="font-medium">Blocked:</span>{' '}
+                {c.blocked_by.map((b, i) => (
+                  <span key={b.id}>
+                    {i > 0 && ', '}
+                    &ldquo;{b.title}&rdquo; ({b.days_overdue}d overdue)
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
