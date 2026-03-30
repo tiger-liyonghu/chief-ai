@@ -44,7 +44,7 @@ export const MEETING_PREP_USER = (params: {
   title: string
   description?: string | null
   start_time: string
-  attendees: Array<{ email: string; name?: string }>
+  attendees: Array<{ email: string; name?: string; company?: string; role?: string; relationship?: string; importance?: string }>
   emailHistory: Array<{
     from_address: string
     from_name: string | null
@@ -52,9 +52,16 @@ export const MEETING_PREP_USER = (params: {
     snippet: string
     received_at: string
   }>
+  companyProfiles?: Record<string, any>
 }) => {
   const attendeeList = params.attendees
-    .map(a => `- ${a.name || a.email} (${a.email})`)
+    .map(a => {
+      let line = `- ${a.name || a.email} (${a.email})`
+      if (a.company) line += ` | ${a.role ? `${a.role} at ` : ''}${a.company}`
+      if (a.relationship) line += ` | ${a.relationship}`
+      if (a.importance === 'vip') line += ' [VIP]'
+      return line
+    })
     .join('\n')
 
   const emailList = params.emailHistory.length > 0
@@ -66,12 +73,19 @@ Preview: ${e.snippet}`)
         .join('\n---\n')
     : 'No email history found with these attendees.'
 
+  let companySection = ''
+  if (params.companyProfiles && Object.keys(params.companyProfiles).length > 0) {
+    companySection = '\n\nCompany Profiles:\n' + Object.entries(params.companyProfiles)
+      .map(([name, p]) => `- ${name}: ${p.notes || p.key_products || p.industry || 'Unknown'}${p.recent_news ? ` | Recent: ${p.recent_news}` : ''}`)
+      .join('\n')
+  }
+
   return `Meeting: ${params.title}
 Time: ${params.start_time}
 ${params.description ? `Description: ${params.description}` : ''}
 
 Attendees:
-${attendeeList}
+${attendeeList}${companySection}
 
 Email History with Attendees:
 ${emailList}`

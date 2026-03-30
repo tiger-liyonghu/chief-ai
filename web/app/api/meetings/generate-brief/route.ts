@@ -56,6 +56,25 @@ export async function POST(request: NextRequest) {
 
     const emailHistory = emails || []
 
+    // Fetch contact details + company enrichment for attendees
+    const { data: contactRecords } = await admin
+      .from('contacts')
+      .select('email, name, company, role, relationship, importance')
+      .eq('user_id', user.id)
+      .in('email', attendeeEmails)
+
+    const companyNames = [...new Set((contactRecords || []).map(c => c.company).filter(Boolean))]
+    const companyProfiles: Record<string, any> = {}
+    for (const name of companyNames.slice(0, 3)) {
+      const { data: org } = await admin
+        .from('organizations')
+        .select('name, industry, size, key_products, recent_news, notes')
+        .eq('user_id', user.id)
+        .ilike('name', name as string)
+        .maybeSingle()
+      if (org) companyProfiles[name as string] = org
+    }
+
     // Call AI to generate the meeting brief
     const { client, model } = await createUserAIClient(user.id)
     const aiResponse = await client.chat.completions.create({
@@ -68,8 +87,18 @@ export async function POST(request: NextRequest) {
             title: event.title,
             description: event.description,
             start_time: event.start_time,
-            attendees,
+            attendees: attendees.map(a => {
+              const contact = (contactRecords || []).find(c => c.email === a.email)
+              return {
+                ...a,
+                company: contact?.company,
+                role: contact?.role,
+                relationship: contact?.relationship,
+                importance: contact?.importance,
+              }
+            }),
             emailHistory,
+            companyProfiles: Object.keys(companyProfiles).length > 0 ? companyProfiles : undefined,
           }),
         },
       ],
