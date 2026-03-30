@@ -10,6 +10,22 @@ import { APPLE_TOOLS, executeTool, getUserTimezone } from './tools/registry'
 import { getLLMClient } from './tools/types'
 import { preFetchPersonContext } from './tools/pre-fetch'
 
+// ── Vision/Audio client (SiliconFlow) ──
+
+function getVisionClient(): OpenAI {
+  const key = process.env.SILICONFLOW_API_KEY
+  if (key) {
+    return new OpenAI({
+      apiKey: key,
+      baseURL: 'https://api.siliconflow.com/v1',
+    })
+  }
+  // Fallback to main LLM client
+  return getLLMClient()
+}
+
+const VISION_MODEL = process.env.LLM_VISION_MODEL || 'Qwen/Qwen3-VL-8B-Instruct'
+
 // ── Commitment Quick-Reply Actions ──
 
 const COMMITMENT_ACTIONS: Array<{ pattern: RegExp; action: string }> = [
@@ -392,10 +408,10 @@ export async function processMessageWithAI(
       msgs.push({ role: 'user', content: message.body })
     }
 
-    const client = getLLMClient()
-    // Use vision-capable model for images, regular model for text
+    // Use SiliconFlow for vision, main LLM for text
+    const client = hasImage ? getVisionClient() : getLLMClient()
     const model = hasImage
-      ? (process.env.LLM_VISION_MODEL || process.env.LLM_MODEL || 'deepseek-chat')
+      ? VISION_MODEL
       : (process.env.LLM_MODEL || 'deepseek-chat')
 
     // First LLM call — may include tool calls
