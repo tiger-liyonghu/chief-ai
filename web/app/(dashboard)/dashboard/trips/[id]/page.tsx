@@ -17,6 +17,9 @@ import {
   Plus,
   CheckCircle2,
   ChevronRight,
+  Sparkles,
+  Loader2,
+  DollarSign,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
@@ -171,17 +174,57 @@ export default function TripDetailPage() {
   const [trip, setTrip] = useState<Trip | null>(null)
   const [timeline, setTimeline] = useState<TimelineEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const [recommendations, setRecommendations] = useState('')
+  const [recsLoading, setRecsLoading] = useState(false)
+  const [showRecs, setShowRecs] = useState(false)
+  const [expenses, setExpenses] = useState<any[]>([])
+
+  const fetchRecommendations = useCallback(async (city: string, country?: string) => {
+    setRecsLoading(true)
+    setRecommendations('')
+    setShowRecs(true)
+    try {
+      const res = await fetch('/api/trips/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city, country }),
+      })
+      if (!res.ok) throw new Error()
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) throw new Error()
+      let acc = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        acc += decoder.decode(value, { stream: true })
+        setRecommendations(acc)
+      }
+    } catch {
+      setRecommendations('Failed to load recommendations.')
+    } finally {
+      setRecsLoading(false)
+    }
+  }, [])
 
   const fetchData = useCallback(async () => {
-    const [tripRes, timelineRes] = await Promise.all([
+    const [tripRes, timelineRes, expRes] = await Promise.all([
       fetch(`/api/trips?id=${tripId}`),
       fetch(`/api/trip-timeline?trip_id=${tripId}`),
+      fetch(`/api/trip-expenses?trip_id=${tripId}`).catch(() => null),
     ])
     if (tripRes.ok) {
       const data = await tripRes.json()
-      setTrip(Array.isArray(data) ? data[0] : data)
+      const t = Array.isArray(data) ? data[0] : data
+      setTrip(t)
+      // Also use expenses from enriched trip data
+      if (t?.expenses) setExpenses(t.expenses)
     }
     if (timelineRes.ok) setTimeline(await timelineRes.json())
+    if (expRes?.ok) {
+      const expData = await expRes.json()
+      if (Array.isArray(expData) && expData.length > 0) setExpenses(expData)
+    }
     setLoading(false)
   }, [tripId])
 
@@ -250,13 +293,70 @@ export default function TripDetailPage() {
             {/* City card */}
             <CityCard trip={trip} />
 
-            {/* Expense summary */}
-            {trip.total_expense > 0 && (
+            {/* Expense breakdown */}
+            {expenses.length > 0 && (
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4" />
+                    Expenses
+                  </h3>
+                  <span className="font-bold text-slate-900">
+                    {expenses[0]?.currency || trip.currency || 'SGD'}{' '}
+                    {expenses.reduce((sum: number, e: any) => sum + parseFloat(e.amount || 0), 0).toLocaleString()}
+                  </span>
+                </div>
+                {/* Group by category */}
+                {(() => {
+                  const byCategory: Record<string, { total: number; count: number }> = {}
+                  for (const e of expenses) {
+                    const cat = e.category || e.type || 'other'
+                    if (!byCategory[cat]) byCategory[cat] = { total: 0, count: 0 }
+                    byCategory[cat].total += parseFloat(e.amount || 0)
+                    byCategory[cat].count++
+                  }
+                  return Object.entries(byCategory).map(([cat, { total, count }]) => (
+                    <div key={cat} className="flex items-center justify-between py-1.5 text-sm border-t border-slate-100 first:border-0">
+                      <span className="text-slate-600 capitalize">{cat} <span className="text-slate-400">({count})</span></span>
+                      <span className="font-medium text-slate-700">{total.toLocaleString()}</span>
+                    </div>
+                  ))
+                })()}
+              </div>
+            )}
+            {!expenses.length && trip.total_expense > 0 && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between">
                 <span className="text-sm text-slate-600">Total expense</span>
                 <span className="font-bold text-slate-900">{trip.currency || 'SGD'} {trip.total_expense.toLocaleString()}</span>
               </div>
             )}
+
+            {/* Local recommendations */}
+            <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-orange-800 flex items-center gap-2">
+                  <UtensilsCrossed className="w-4 h-4" />
+                  Local Recommendations
+                </h3>
+                <button
+                  onClick={() => fetchRecommendations(trip.destination_city, trip.destination_country)}
+                  disabled={recsLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors disabled:opacity-50"
+                >
+                  {recsLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  {showRecs ? 'Refresh' : 'Get Recommendations'}
+                </button>
+              </div>
+              {showRecs && (
+                <div className="text-sm text-orange-900 leading-relaxed whitespace-pre-line">
+                  {recommendations}
+                  {recsLoading && <span className="inline-block w-1.5 h-4 bg-orange-400/60 animate-pulse ml-0.5 align-text-bottom rounded-sm" />}
+                </div>
+              )}
+              {!showRecs && (
+                <p className="text-xs text-orange-600">Click to get dining and experience recommendations for {trip.destination_city}</p>
+              )}
+            </div>
 
             {/* Timeline */}
             <div className="space-y-6">
