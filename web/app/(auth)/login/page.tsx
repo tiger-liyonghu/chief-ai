@@ -1,15 +1,12 @@
 'use client'
 
-import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Sparkles, ChevronDown, Mail } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/context'
-import { cn } from '@/lib/utils'
 
 export default function LoginPage() {
   const { t } = useI18n()
-  const [showOtherEmail, setShowOtherEmail] = useState(false)
 
   const handleGoogleLogin = () => {
     window.location.href = '/api/auth/login'
@@ -54,10 +51,10 @@ export default function LoginPage() {
             </span>
           </button>
 
-          {/* Microsoft */}
-          <a
-            href="/api/accounts/add-outlook"
-            className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-[#0078D4] rounded-xl hover:bg-[#0078D4]/5 transition-all duration-200 font-medium text-sm group"
+          {/* Microsoft — disabled, requires authenticated session (add-account flow only) */}
+          <div
+            className="mt-3 w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-xl opacity-50 cursor-not-allowed font-medium text-sm"
+            title={t('microsoftComingSoon')}
           >
             <svg className="w-5 h-5" viewBox="0 0 23 23">
               <path fill="#f35325" d="M1 1h10v10H1z"/>
@@ -65,50 +62,11 @@ export default function LoginPage() {
               <path fill="#05a6f0" d="M1 12h10v10H1z"/>
               <path fill="#ffba08" d="M12 12h10v10H12z"/>
             </svg>
-            <span className="group-hover:translate-x-0.5 transition-transform duration-200 text-[#0078D4]">
+            <span className="text-text-tertiary">
               {t('continueWithMicrosoft')}
             </span>
-          </a>
-
-          {/* Other email providers */}
-          <button
-            onClick={() => setShowOtherEmail(!showOtherEmail)}
-            className="mt-4 w-full flex items-center justify-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary transition-colors"
-          >
-            其他邮箱
-            <ChevronDown className={cn('w-3 h-3 transition-transform', showOtherEmail && 'rotate-180')} />
-          </button>
-
-          {showOtherEmail && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="mt-3 space-y-2"
-            >
-              {[
-                { name: 'QQ 邮箱', href: '/api/accounts/add-imap?provider=qq' },
-                { name: '163 / 126 邮箱', href: '/api/accounts/add-imap?provider=163' },
-                { name: 'Yahoo Mail', href: '/api/accounts/add-imap?provider=yahoo' },
-                { name: 'iCloud 邮箱', href: '/api/accounts/add-imap?provider=icloud' },
-              ].map((provider) => (
-                <a
-                  key={provider.name}
-                  href={provider.href}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 border border-border rounded-lg hover:bg-surface-secondary transition-colors text-sm text-text-secondary"
-                >
-                  <Mail className="w-4 h-4 text-text-tertiary" />
-                  {provider.name}
-                </a>
-              ))}
-              <a
-                href="/api/accounts/add-imap"
-                className="w-full flex items-center gap-3 px-4 py-2.5 border border-dashed border-border rounded-lg hover:bg-surface-secondary transition-colors text-sm text-text-tertiary"
-              >
-                <Mail className="w-4 h-4" />
-                其他邮箱（输入邮箱地址）
-              </a>
-            </motion.div>
-          )}
+            <span className="text-[10px] text-text-tertiary ml-auto">{t('comingSoon')}</span>
+          </div>
 
           <p className="mt-5 text-xs text-text-tertiary text-center leading-relaxed">
             {t('loginDisclaimer')}

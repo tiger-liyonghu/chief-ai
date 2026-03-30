@@ -136,8 +136,8 @@ export default function LandingPage() {
                   </div>
                   {/* Commitment rows */}
                   <div className="space-y-2">
-                    {['Send proposal to David', 'Follow up with Ben (investor)', 'Emily — weekend zoo trip'].map((task, i) => (
-                      <div key={task} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                    {[t('heroMockTask1'), t('heroMockTask2'), t('heroMockTask3')].map((task, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
                         <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-red-400' : i === 1 ? 'bg-orange-400' : 'bg-pink-400'}`} />
                         <span className="text-xs text-text-primary">{task}</span>
                       </div>
