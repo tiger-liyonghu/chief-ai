@@ -1,0 +1,4 @@
+whatsapp-service/
+*.md
+tests/
+.gstack/
