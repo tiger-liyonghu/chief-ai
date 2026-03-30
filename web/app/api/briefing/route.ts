@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createUserAIClient } from '@/lib/ai/unified-client'
 import { BRIEFING_SYSTEM, buildBriefingUserPrompt } from '@/lib/ai/prompts/briefing'
 import { detectAlerts, formatAlertsForPrompt } from '@/lib/alerts/detect'
+import { resolveContext, contextToPrompt } from '@/lib/ontology/resolve-context'
 
 /**
  * Gather all context needed for the daily briefing from multiple tables.
@@ -254,6 +255,37 @@ export async function GET(request: Request) {
     detectAlerts(admin, user.id).catch(() => null),
   ])
   let userPrompt = buildBriefingUserPrompt(context)
+
+  // Resolve ontology context for top contacts needing reply (max 3)
+  const topContactEmails = context.emailsNeedReply
+    .map((e: any) => e.from_address)
+    .filter(Boolean)
+    .slice(0, 3)
+
+  if (topContactEmails.length > 0) {
+    const ontologyParts: string[] = []
+    for (const email of topContactEmails) {
+      try {
+        const { data: contact } = await admin
+          .from('contacts')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('email', email)
+          .maybeSingle()
+        if (!contact) continue
+        const bundle = await resolveContext(admin, user.id, contact.id, {
+          entityType: 'person',
+          maxHops: 1,
+          hydrateEntities: true,
+        })
+        const prompt = contextToPrompt(bundle, 1)
+        if (prompt) ontologyParts.push(prompt)
+      } catch { /* non-fatal */ }
+    }
+    if (ontologyParts.length > 0) {
+      userPrompt += `\n\n--- Relationship context for key contacts ---\n${ontologyParts.join('\n---\n')}\n--- End relationship context ---`
+    }
+  }
 
   // Append detected issues so the AI naturally mentions conflicts/warnings
   if (alertResult && alertResult.alerts.length > 0) {

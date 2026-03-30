@@ -7,6 +7,7 @@ import {
   REPLY_DRAFT_USER,
   type GhostwriterContext,
 } from '@/lib/ai/prompts/reply-draft'
+import { resolveContext, contextToPrompt } from '@/lib/ontology/resolve-context'
 
 /**
  * Gather Ghostwriter context for a contact in parallel.
@@ -141,9 +142,9 @@ export async function POST(request: NextRequest) {
   const emailMatch = from?.match(/<([^>]+)>/) || [null, from]
   const contactEmail = (emailMatch[1] || from || '').trim().toLowerCase()
 
-  // Gather Ghostwriter context and AI client in parallel
+  // Gather Ghostwriter context, ontology context, and AI client in parallel
   const admin = createAdminClient()
-  const [ghostwriterContext, aiClient] = await Promise.all([
+  const [ghostwriterContext, ontologyContext, aiClient] = await Promise.all([
     contactEmail
       ? gatherGhostwriterContext(admin, user.id, contactEmail).catch(
           (): GhostwriterContext => ({
@@ -156,14 +157,39 @@ export async function POST(request: NextRequest) {
           }),
         )
       : Promise.resolve(null),
+    // Resolve ontology graph context for this contact
+    contactEmail
+      ? (async () => {
+          try {
+            const { data: contact } = await admin
+              .from('contacts')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('email', contactEmail)
+              .maybeSingle()
+            if (!contact) return ''
+            const bundle = await resolveContext(admin, user.id, contact.id, {
+              entityType: 'person',
+              maxHops: 1,
+              hydrateEntities: true,
+            })
+            return contextToPrompt(bundle, 1)
+          } catch {
+            return ''
+          }
+        })()
+      : Promise.resolve(''),
     createUserAIClient(user.id),
   ])
 
   const { client, model } = aiClient
+  const systemPrompt = ontologyContext
+    ? `${REPLY_DRAFT_SYSTEM}\n\n${ontologyContext}`
+    : REPLY_DRAFT_SYSTEM
   const stream = await client.chat.completions.create({
     model,
     messages: [
-      { role: 'system', content: REPLY_DRAFT_SYSTEM },
+      { role: 'system', content: systemPrompt },
       {
         role: 'user',
         content: REPLY_DRAFT_USER({
