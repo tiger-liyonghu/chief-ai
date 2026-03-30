@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { deepseek } from '@/lib/ai/client'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { createUserAIClient } from '@/lib/ai/unified-client'
 
 // ─── GET: Meeting context card ───────────────────────────────────────────────
 
@@ -82,11 +83,11 @@ export async function GET(
               .limit(20)
           : Promise.resolve({ data: [], error: null }),
 
-        // Contacts for phone number mapping
+        // Contacts for phone number mapping + company enrichment
         attendeeEmails.length > 0
           ? supabase
               .from('contacts')
-              .select('email, name, phone')
+              .select('email, name, phone, company, role, relationship, importance')
               .eq('user_id', user.id)
               .in('email', attendeeEmails)
           : Promise.resolve({ data: [], error: null }),
@@ -119,6 +120,26 @@ export async function GET(
 
     // Filter tasks relevant to attendees (by source or general open tasks)
     const relevantTasks = tasksResult.data ?? []
+
+    // Enrich companies: look up organizations for contacts with company fields
+    const admin = createAdminClient()
+    const contactCompanies = (contactsResult.data ?? [])
+      .filter((c: any) => c.company)
+      .map((c: any) => c.company as string)
+    const uniqueCompanies = [...new Set(contactCompanies)].slice(0, 3)
+
+    const companyProfiles: Record<string, any> = {}
+    for (const companyName of uniqueCompanies) {
+      try {
+        const { data: org } = await admin
+          .from('organizations')
+          .select('name, industry, size, hq_city, hq_country, key_products, recent_news, notes')
+          .eq('user_id', user.id)
+          .ilike('name', companyName)
+          .maybeSingle()
+        if (org) companyProfiles[companyName] = org
+      } catch { /* non-fatal */ }
+    }
 
     // 4. Build attendee context cards
     const attendeeContexts = attendees.map(a => {
@@ -158,17 +179,19 @@ export async function GET(
         priority: t.priority,
         due: t.due_date,
       })),
+      company_profiles: Object.keys(companyProfiles).length > 0 ? companyProfiles : undefined,
     }
 
     let briefing = ''
     try {
-      const completion = await deepseek.chat.completions.create({
-        model: 'deepseek-chat',
+      const { client: aiClient, model: aiModel } = await createUserAIClient(user.id)
+      const completion = await aiClient.chat.completions.create({
+        model: aiModel,
         messages: [
           {
             role: 'system',
             content:
-              'You are a concise executive assistant. Given meeting context, write a 3-5 sentence pre-meeting briefing in the user\'s language (detect from meeting title/description). Highlight key discussion points, pending items with attendees, and anything that needs attention. Be direct and actionable.',
+              'You are a concise executive assistant. Given meeting context (including attendee history, company profiles, and pending items), write a 3-5 sentence pre-meeting briefing in the user\'s language (detect from meeting title/description). Highlight: who the attendees are and their companies, key discussion points, pending items with attendees, and anything that needs attention. Be direct and actionable.',
           },
           {
             role: 'user',
