@@ -1,0 +1,29 @@
+{
+  "name": "chief-whatsapp-service",
+  "version": "1.0.0",
+  "description": "Standalone WhatsApp Baileys service for Chief AI",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@supabase/supabase-js": "^2.100.1",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "express": "^5.1.0",
+    "link-preview-js": "^3.2.0",
+    "openai": "^6.33.0",
+    "pdf-parse": "^2.4.5",
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^25.5.0",
+    "@types/qrcode": "^1.5.6",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
