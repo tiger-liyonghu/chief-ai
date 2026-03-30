@@ -47,6 +47,22 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
 
+  // Dedup check: skip if similar active commitment exists
+  if (body.title) {
+    const { data: existing } = await supabase
+      .from('commitments')
+      .select('id, title')
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'in_progress', 'waiting', 'overdue'])
+
+    const isDupe = (existing || []).some(c =>
+      c.title.toLowerCase().trim() === body.title.toLowerCase().trim()
+    )
+    if (isDupe) {
+      return NextResponse.json({ error: 'Similar commitment already exists', duplicate: true }, { status: 409 })
+    }
+  }
+
   const { data, error } = await supabase
     .from('commitments')
     .insert({

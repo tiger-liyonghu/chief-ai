@@ -32,8 +32,9 @@ export async function POST(req: NextRequest) {
 
   const vipEmails = new Set((vipContacts || []).map(c => c.email))
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Use UTC date comparison (deadline is stored as DATE without timezone)
+  const now = new Date()
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   let updated = 0
 
   for (const c of commitments) {
@@ -41,8 +42,9 @@ export async function POST(req: NextRequest) {
 
     // 1. Deadline proximity
     if (c.deadline) {
-      const deadline = new Date(c.deadline)
-      const daysLeft = Math.ceil((deadline.getTime() - today.getTime()) / 86400000)
+      const [y, m, d] = c.deadline.split('-').map(Number)
+      const deadline = new Date(Date.UTC(y, m - 1, d))
+      const daysLeft = Math.round((deadline.getTime() - today.getTime()) / 86400000)
 
       if (daysLeft < 0) {
         // Overdue

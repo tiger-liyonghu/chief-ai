@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Check date range events (school_cycle, etc)
-    if (event.start_date <= date && (!event.end_date || event.end_date >= date)) {
+    // Skip for recurring events — they're handled by the recurrence checks above/below
+    if (event.recurrence === 'none' && event.start_date <= date && (!event.end_date || event.end_date >= date)) {
       if (event.event_type === 'hard_constraint') {
         isConflict = true
         conflictType = 'hard_constraint'
@@ -55,10 +56,18 @@ export async function POST(req: NextRequest) {
         isConflict = true
         conflictType = 'important_date'
       } else if (event.event_type === 'school_cycle') {
-        // School cycles are advisory, not blocking
         isConflict = true
         conflictType = 'advisory'
+      } else if (event.event_type === 'family_commitment') {
+        isConflict = true
+        conflictType = 'family_commitment'
       }
+    }
+
+    // Check date range for school cycles (they span multiple weeks, recurrence=none but cover a range)
+    if (event.event_type === 'school_cycle' && event.start_date <= date && event.end_date && event.end_date >= date) {
+      isConflict = true
+      conflictType = 'advisory'
     }
 
     // Check yearly recurring (birthdays, anniversaries)

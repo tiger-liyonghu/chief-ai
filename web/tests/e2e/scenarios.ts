@@ -21,10 +21,31 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3003'
 
-// Test user ID — uses a dedicated test persona so we never pollute real data
-const TEST_USER_ID = 'e2e-test-user-scenarios'
+// Test user ID — valid UUID format required for FK constraints
+const TEST_USER_ID = '00000000-e2e0-4000-a000-000000000001'
 
 const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+// Ensure test user profile exists (needed for FK constraints on commitments, etc.)
+async function ensureTestProfile() {
+  // Create auth user if not exists (service role can do this)
+  await admin.auth.admin.createUser({
+    id: TEST_USER_ID,
+    email: 'e2e-test@chief-test.local',
+    email_confirm: true,
+    user_metadata: { full_name: 'E2E Test User' },
+  }).catch(() => {}) // ignore if already exists
+
+  await admin.from('profiles').upsert({
+    id: TEST_USER_ID,
+    email: 'e2e-test@chief-test.local',
+    full_name: 'E2E Test User',
+    timezone: 'Asia/Singapore',
+    onboarding_completed_at: new Date().toISOString(),
+  }).then(r => {
+    if (r.error) console.error('  [profile] error:', r.error.message)
+  })
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1010,6 +1031,11 @@ async function main() {
   console.log(`Supabase:  ${SUPABASE_URL}`)
   console.log(`Base URL:  ${BASE_URL}`)
   console.log(`Test User: ${TEST_USER_ID}`)
+  console.log()
+
+  // Ensure test user exists in auth + profiles
+  await ensureTestProfile()
+  console.log('Test profile ready.')
   console.log()
 
   const targets = scenarioArg === 'all'
