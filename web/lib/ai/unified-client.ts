@@ -112,8 +112,17 @@ export async function createTaskAIClient(
   }
 }
 
-// For system-level calls (no user context), use default DeepSeek
-export const systemAIClient = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY!,
-  baseURL: 'https://api.deepseek.com',
+// For system-level calls (no user context), use default DeepSeek (lazy init for build safety)
+let _systemClient: OpenAI | null = null
+export function getSystemAIClient(): OpenAI {
+  if (!_systemClient) {
+    _systemClient = new OpenAI({
+      apiKey: process.env.DEEPSEEK_API_KEY!,
+      baseURL: 'https://api.deepseek.com',
+    })
+  }
+  return _systemClient
+}
+export const systemAIClient = new Proxy({} as OpenAI, {
+  get(_, prop) { return (getSystemAIClient() as any)[prop] },
 })
