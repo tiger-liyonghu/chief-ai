@@ -2,3 +2,4 @@
 web/.env.local
 .wa-sessions/
 .gstack/
+.vercel
