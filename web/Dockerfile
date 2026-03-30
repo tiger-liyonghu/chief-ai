@@ -34,6 +34,7 @@ COPY --from=builder /app/public ./public
 # WhatsApp sessions persist in /data
 RUN mkdir -p /data/.wa-sessions
 ENV WA_SESSIONS_PATH=/data/.wa-sessions
+ENV HOSTNAME=0.0.0.0
 
 EXPOSE 3000
 
