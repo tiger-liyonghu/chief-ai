@@ -9,9 +9,13 @@ import {
   Thermometer,
   Search,
   ChevronRight,
+  Camera,
+  Loader2,
+  CheckCircle,
+  X,
 } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui/Skeleton'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
 import Link from 'next/link'
@@ -307,6 +311,10 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all')
+  const [showScan, setShowScan] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanResult, setScanResult] = useState<any>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -372,6 +380,44 @@ export default function ContactsPage() {
     return (b.email_count || 0) - (a.email_count || 0)
   })
 
+  const handleScanImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setScanning(true)
+    setScanResult(null)
+    setShowScan(true)
+
+    try {
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+
+      const res = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
+      })
+
+      if (!res.ok) throw new Error()
+      const result = await res.json()
+      setScanResult(result)
+
+      // Refresh contacts if a contact was created
+      if (result.actions_taken?.some((a: string) => a.includes('contact'))) {
+        fetchData()
+      }
+    } catch {
+      setScanResult({ error: true, message: 'Scan failed. Please try again.' })
+    } finally {
+      setScanning(false)
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const filters: { key: FilterTab; label: string }[] = [
     { key: 'all', label: `All (${contacts.length})` },
     { key: 'vip', label: 'VIP' },
@@ -396,6 +442,63 @@ export default function ContactsPage() {
         {/* Summary Stats */}
         <SummaryStats summary={weaverData?.summary || null} />
 
+        {/* Scan result panel */}
+        {showScan && (
+          <div className="mb-4 bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-200 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-violet-800 flex items-center gap-2">
+                <Camera className="w-4 h-4" />
+                Scan Result
+              </h3>
+              <button onClick={() => { setShowScan(false); setScanResult(null) }} className="p-1 text-violet-400 hover:text-violet-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {scanning ? (
+              <div className="flex items-center gap-2 py-4">
+                <Loader2 className="w-4 h-4 text-violet-500 animate-spin" />
+                <span className="text-sm text-violet-700">Scanning image...</span>
+              </div>
+            ) : scanResult?.error ? (
+              <p className="text-sm text-red-600">{scanResult.message}</p>
+            ) : scanResult ? (
+              <div className="space-y-2">
+                <p className="text-xs text-violet-600 font-medium uppercase tracking-wide">
+                  Detected: {scanResult.type?.replace('_', ' ')}
+                </p>
+                {scanResult.actions_taken?.length > 0 ? (
+                  <div className="space-y-1">
+                    {scanResult.actions_taken.map((action: string, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-sm text-violet-800">
+                        <CheckCircle className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                        {action}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-violet-700">No actionable items found in this image.</p>
+                )}
+                {scanResult.extracted?.action_items?.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-violet-200">
+                    <p className="text-xs font-medium text-violet-600 mb-1">Action Items:</p>
+                    {scanResult.extracted.action_items.map((item: string, i: number) => (
+                      <p key={i} className="text-sm text-violet-800">• {item}</p>
+                    ))}
+                  </div>
+                )}
+                {scanResult.extracted?.meetings?.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-violet-200">
+                    <p className="text-xs font-medium text-violet-600 mb-1">Meetings Detected:</p>
+                    {scanResult.extracted.meetings.map((m: any, i: number) => (
+                      <p key={i} className="text-sm text-violet-800">• {m.title}{m.date ? ` — ${m.date}` : ''}{m.time ? ` ${m.time}` : ''}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        )}
+
         {/* Search + Filters */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
           <div className="relative flex-1 w-full sm:w-auto">
@@ -408,6 +511,23 @@ export default function ContactsPage() {
               className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
           </div>
+          {/* Scan button */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleScanImage}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={scanning}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100 transition-all disabled:opacity-50"
+          >
+            {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+            Scan
+          </button>
           <div className="flex items-center gap-1 bg-white border border-border rounded-xl p-1 overflow-x-auto">
             {filters.map((f) => (
               <button
