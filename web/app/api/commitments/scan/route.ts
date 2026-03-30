@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
       confidence: c.confidence,
       status: 'pending',
     })
-    existingTitles.add(c.title.toLowerCase())
+    existingTitles.push(c.title)
     inserted++
   }
 
