@@ -8,6 +8,7 @@ import { supabase } from './supabase'
 import OpenAI from 'openai'
 import { APPLE_TOOLS, executeTool, getUserTimezone } from './tools/registry'
 import { getLLMClient } from './tools/types'
+import { preFetchPersonContext } from './tools/pre-fetch'
 
 // ── Rate limiting ──
 
@@ -184,9 +185,22 @@ export async function processMessageWithAI(
       }
     }
 
+    // Pre-fetch context for any persons mentioned in the message
+    let personContext = ''
+    if (message.body && message.messageType === 'text') {
+      try {
+        personContext = await preFetchPersonContext(userId, message.body)
+      } catch (err) {
+        console.error('[Apple] Pre-fetch context failed (non-fatal):', err)
+      }
+    }
+
     // Build messages
+    const systemPrompt = personContext
+      ? getSystemPrompt(tz) + personContext
+      : getSystemPrompt(tz)
     const msgs: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [
-      { role: 'system', content: getSystemPrompt(tz) },
+      { role: 'system', content: systemPrompt },
     ]
 
     // Add recent history (skip last one, that's the current message)

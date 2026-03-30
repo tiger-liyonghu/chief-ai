@@ -192,6 +192,67 @@ export async function POST() {
           .update(updates)
           .eq('id', contact.id)
 
+        // Dual-write: if company detected, populate organization + works_at relation
+        if (cls.company) {
+          try {
+            // Upsert organization
+            const companyName = cls.company.trim()
+            const { data: existingOrg } = await admin
+              .from('organizations')
+              .select('id')
+              .eq('user_id', user.id)
+              .ilike('name', companyName)
+              .limit(1)
+              .single()
+
+            let orgId: string
+            if (existingOrg) {
+              orgId = existingOrg.id
+            } else {
+              const { data: newOrg } = await admin
+                .from('organizations')
+                .insert({
+                  user_id: user.id,
+                  name: companyName,
+                  status: 'active',
+                })
+                .select('id')
+                .single()
+              orgId = newOrg?.id
+            }
+
+            // Create works_at relation if org was found/created
+            if (orgId) {
+              const { data: existingRel } = await admin
+                .from('relations')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('from_entity', contact.id)
+                .eq('relation', 'works_at')
+                .eq('to_entity', orgId)
+                .eq('is_active', true)
+                .limit(1)
+
+              if (!existingRel || existingRel.length === 0) {
+                await admin.from('relations').insert({
+                  user_id: user.id,
+                  from_entity: contact.id,
+                  from_type: 'person',
+                  relation: 'works_at',
+                  to_entity: orgId,
+                  to_type: 'organization',
+                  properties: cls.role ? { role: cls.role } : {},
+                  confidence: 0.8,
+                  source: 'ai_detection',
+                })
+              }
+            }
+          } catch (dualWriteErr) {
+            // Non-fatal: log but don't block contact processing
+            console.error('Dual-write (org+relation) failed for', cls.email, dualWriteErr)
+          }
+        }
+
         contactsProcessed++
       }
     } catch (err) {

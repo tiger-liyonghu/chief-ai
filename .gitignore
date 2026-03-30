@@ -3,3 +3,7 @@ web/.env.local
 .wa-sessions/
 .gstack/
 .vercel
+whatsapp-service/.env
+whatsapp-service/node_modules/
+whatsapp-service/dist/
+whatsapp-service/sessions/
