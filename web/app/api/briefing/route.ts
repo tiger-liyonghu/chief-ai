@@ -21,8 +21,11 @@ async function gatherBriefingContext(userId: string, timezone: string) {
   // Convert back to ISO for DB queries (approximate — good enough for briefing)
   const todayISO = now.toISOString().slice(0, 10)
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
+  const tomorrowISO = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const weekAheadISO = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const fourteenDaysAgoISO = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
 
-  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes, myCommitmentsRes, waMessagesRes, familyEventsRes] = await Promise.all([
+  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes, myCommitmentsRes, waMessagesRes, familyEventsRes, pendingDecisionsRes, horizonEventsRes, staleVipRes] = await Promise.all([
     // Today's calendar events
     admin
       .from('calendar_events')
@@ -108,6 +111,35 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .eq('user_id', userId)
       .eq('is_active', true)
       .or(`start_date.eq.${todayISO},and(start_date.lte.${todayISO},end_date.gte.${todayISO}),recurrence.neq.none`),
+
+    // Pending decisions — commitments due within 7 days, sorted by urgency
+    admin
+      .from('commitments')
+      .select('contact_name, contact_email, title, deadline, type, urgency_score')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'in_progress'])
+      .lte('deadline', weekAheadISO)
+      .order('urgency_score', { ascending: false })
+      .limit(5),
+
+    // Horizon items — calendar events 3-7 days out
+    admin
+      .from('calendar_events')
+      .select('title, start_time')
+      .eq('user_id', userId)
+      .gte('start_time', `${tomorrowISO}T00:00:00`)
+      .lte('start_time', `${weekAheadISO}T23:59:59`)
+      .order('start_time', { ascending: true })
+      .limit(5),
+
+    // Stale VIP relationships — not contacted in 14+ days
+    admin
+      .from('contacts')
+      .select('name, email, last_contact_at, importance')
+      .eq('user_id', userId)
+      .in('importance', ['vip', 'high'])
+      .lt('last_contact_at', fourteenDaysAgoISO)
+      .limit(3),
   ])
 
   // Build VIP contact lookup for enriching email/follow-up context
@@ -206,6 +238,9 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       received_at: m.received_at,
     })),
     familyReminders,
+    pendingDecisions: pendingDecisionsRes.data || [],
+    horizonEvents: horizonEventsRes.data || [],
+    staleVipContacts: staleVipRes.data || [],
     todayDate: now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone }),
     timezone,
   }
@@ -218,6 +253,9 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   const forceRefresh = url.searchParams.get('refresh') === '1'
+  const window = (['morning', 'midday', 'evening'].includes(url.searchParams.get('window') || '')
+    ? url.searchParams.get('window')
+    : 'morning') as 'morning' | 'midday' | 'evening'
 
   const admin = createAdminClient()
 
@@ -230,13 +268,14 @@ export async function GET(request: Request) {
 
   const timezone = profile?.timezone || 'Asia/Singapore'
 
-  // Check cache: look for a briefing generated today
+  // Check cache: look for a briefing generated today for this window
   const todayISO = new Date().toISOString().slice(0, 10)
+  const cacheKey = `${todayISO}_${window}`
   const { data: cached } = await admin
     .from('daily_briefings')
-    .select('briefing, generated_at')
+    .select('briefing, generated_at, score')
     .eq('user_id', user.id)
-    .gte('generated_at', `${todayISO}T00:00:00`)
+    .eq('window_key', cacheKey)
     .order('generated_at', { ascending: false })
     .limit(1)
     .single()
@@ -246,6 +285,7 @@ export async function GET(request: Request) {
       briefing: cached.briefing,
       generated_at: cached.generated_at,
       cached: true,
+      score: cached.score || null,
     })
   }
 
@@ -254,7 +294,38 @@ export async function GET(request: Request) {
     gatherBriefingContext(user.id, timezone),
     detectAlerts(admin, user.id).catch(() => null),
   ])
-  let userPrompt = buildBriefingUserPrompt(context)
+
+  // --- Score calculation ---
+  const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const [completedRes, overdueRes] = await Promise.all([
+    admin.from('commitments')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('status', 'done')
+      .gte('completed_at', thirtyDaysAgoISO),
+    admin.from('commitments')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id).eq('status', 'overdue'),
+  ])
+  const completedCount = completedRes.count || 0
+  const overdueCount = overdueRes.count || 0
+  const totalForRate = completedCount + overdueCount
+  const score = {
+    meetings: context.todayEvents.length,
+    actions_pending: (context.pendingDecisions || []).length,
+    overdue: context.overdueFollowUps.length,
+    compliance_rate: totalForRate > 0 ? Math.round((completedCount / totalForRate) * 100) : 100,
+    trend: 'stable' as 'improving' | 'stable' | 'declining',
+  }
+
+  // --- Window-aware prompt modifiers ---
+  let windowInstruction = ''
+  if (window === 'midday') {
+    windowInstruction = '\n\n[MIDDAY UPDATE] Keep this shorter. Focus on: remaining items for today, any new urgent items that appeared since morning, and quick status check. Skip completed items. 3-5 sentences max.'
+  } else if (window === 'evening') {
+    windowInstruction = '\n\n[EVENING WRAP-UP] Focus on: what was accomplished today, any items that slipped, and a quick preview of tomorrow. Tone should be reflective and forward-looking. 3-5 sentences max.'
+  }
+
+  let userPrompt = buildBriefingUserPrompt(context) + windowInstruction
 
   // Resolve ontology context for top contacts needing reply (max 3)
   const topContactEmails = context.emailsNeedReply
@@ -312,15 +383,20 @@ export async function GET(request: Request) {
       user_id: user.id,
       briefing,
       generated_at,
+      window_key: cacheKey,
+      score,
       context_snapshot: {
         events_count: context.todayEvents.length,
         tasks_count: context.pendingTasks.length,
         emails_needing_reply: context.emailsNeedReply.length,
         overdue_followups: context.overdueFollowUps.length,
+        pending_decisions: context.pendingDecisions.length,
+        horizon_events: context.horizonEvents.length,
+        stale_vip_contacts: context.staleVipContacts.length,
       },
     })
 
-    return NextResponse.json({ briefing, generated_at, cached: false })
+    return NextResponse.json({ briefing, generated_at, cached: false, score })
   } catch (err: any) {
     console.error('Briefing generation failed:', err)
     return NextResponse.json(
