@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { connectWhatsApp } from '@/lib/whatsapp/client'
 
-const SESSIONS_ROOT = process.env.SESSIONS_PATH || path.join(process.cwd(), '.wa-sessions')
+const SESSIONS_ROOT = process.env.WA_SESSIONS_PATH || process.env.SESSIONS_PATH || path.join(process.cwd(), '.wa-sessions')
 
 let reconnected = false
 

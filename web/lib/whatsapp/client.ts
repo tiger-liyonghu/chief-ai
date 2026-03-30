@@ -17,7 +17,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 // ─── Session path management ───
 
-const SESSIONS_ROOT = process.env.SESSIONS_PATH || path.join(process.cwd(), '.wa-sessions')
+const SESSIONS_ROOT = process.env.WA_SESSIONS_PATH || process.env.SESSIONS_PATH || path.join(process.cwd(), '.wa-sessions')
 
 function getSessionPath(userId: string): string {
   const dir = path.join(SESSIONS_ROOT, userId)
