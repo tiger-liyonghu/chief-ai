@@ -7,14 +7,14 @@ import { useI18n } from '@/lib/i18n/context'
 import { Locale, localeNames } from '@/lib/i18n/translations'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Sun,
+  Target,
   Mail,
   Users,
-  CheckSquare,
   CalendarDays,
-  Briefcase,
   Plane,
   Receipt,
+  Heart,
+  TrendingUp,
   Settings,
   Sparkles,
   LogOut,
@@ -22,14 +22,14 @@ import {
 } from 'lucide-react'
 
 const navKeys = [
-  { href: '/dashboard', key: 'todayNav' as const, icon: Sun },
+  { href: '/dashboard', key: 'commitmentsNav' as const, icon: Target },
   { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
-  { href: '/dashboard/tasks', key: 'tasks' as const, icon: CheckSquare },
   { href: '/dashboard/calendar', key: 'calendar' as const, icon: CalendarDays },
-  { href: '/dashboard/meetings', key: 'meetings' as const, icon: Briefcase },
   { href: '/dashboard/contacts', key: 'people' as const, icon: Users },
   { href: '/dashboard/trips', key: 'trips' as const, icon: Plane },
+  { href: '/dashboard/family', key: 'familyNav' as const, icon: Heart },
   { href: '/dashboard/expenses', key: 'expenses' as const, icon: Receipt },
+  { href: '/dashboard/insights', key: 'insightsNav' as const, icon: TrendingUp },
 ]
 
 const locales: Locale[] = ['en', 'zh', 'ms']

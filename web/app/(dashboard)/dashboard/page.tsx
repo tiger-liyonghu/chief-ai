@@ -3,649 +3,626 @@
 import { motion } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
 import {
-  Mail,
+  Target,
   Clock,
-  Calendar,
-  AlertCircle,
+  AlertTriangle,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Heart,
+  Plus,
+  Mail,
+  MessageSquare,
+  Mic,
+  PenLine,
+  TrendingUp,
+  CheckCircle2,
+  Send,
+  MoreHorizontal,
+  Timer,
   Sparkles,
-  RefreshCw,
-  ArrowRight,
-  Reply,
-  Zap,
-  BellOff,
-  Briefcase,
-  Eye,
-  Send as SendIcon,
-  Inbox,
-  Radio,
+  Search,
+  Loader2,
 } from 'lucide-react'
-import { SkeletonBriefing } from '@/components/ui/Skeleton'
 import Link from 'next/link'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useI18n } from '@/lib/i18n/context'
-import { OnboardingProgress } from '@/components/dashboard/OnboardingProgress'
 import { cn } from '@/lib/utils'
-import { requestNotificationPermission, sendOverdueEmailNotification } from '@/lib/notifications'
 
 /* ─── Types ─── */
 
-interface DashboardData {
-  tasks: any[]
-  pendingReplies: any[]
-  followUps: any[]
-  todayEvents: any[]
+interface Commitment {
+  id: string
+  type: 'i_promised' | 'they_promised' | 'family'
+  contact_id: string | null
+  contact_name: string | null
+  contact_email: string | null
+  family_member: string | null
+  title: string
+  description: string | null
+  source_type: string
+  deadline: string | null
+  deadline_fuzzy: string | null
+  urgency_score: number
+  status: string
+  created_at: string
+  contacts?: { id: string; name: string; company: string; email: string; importance: string } | null
 }
 
-/* ─── Animations ─── */
-
-const fadeUp = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] } },
-}
-
-const staggerContainer = {
-  animate: { transition: { staggerChildren: 0.08 } },
+interface Stats {
+  needs_action: number
+  waiting_on_them: number
+  family_active: number
+  due_today: number
+  overdue: number
+  compliance_rate: number
+  family_compliance_rate: number
+  period_total: number
+  period_completed: number
 }
 
 /* ─── Helpers ─── */
 
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `${days}d ago`
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null
+  const diff = new Date(dateStr).getTime() - new Date().getTime()
+  return Math.ceil(diff / 86400000)
 }
 
-function daysAgo(dateStr: string): number {
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+function sourceIcon(type: string) {
+  switch (type) {
+    case 'email': return Mail
+    case 'whatsapp': return MessageSquare
+    case 'voice': return Mic
+    default: return PenLine
+  }
 }
 
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+function urgencyColor(score: number, days: number | null): string {
+  if (days !== null && days < 0) return 'text-red-600 bg-red-50 border-red-200'
+  if (days !== null && days === 0) return 'text-orange-600 bg-orange-50 border-orange-200'
+  if (score >= 5) return 'text-red-600 bg-red-50 border-red-200'
+  if (score >= 3) return 'text-orange-600 bg-orange-50 border-orange-200'
+  return 'text-slate-700 bg-white border-slate-200'
 }
 
-function getGapMinutes(endTime: string, nextStartTime: string): number {
-  return Math.floor((new Date(nextStartTime).getTime() - new Date(endTime).getTime()) / 60000)
-}
+/* ─── Commitment Card ─── */
 
-/* ─── WelcomeCard (preserved for first-time users) ─── */
+function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeof useI18n>['t']; onUpdate: () => void }) {
+  const days = daysUntil(c.deadline)
+  const isOverdue = days !== null && days < 0
+  const isDueToday = days === 0
+  const SourceIcon = sourceIcon(c.source_type)
+  const colorClass = urgencyColor(c.urgency_score, days)
+  const [showActions, setShowActions] = useState(false)
 
-function WelcomeCard({ t, onSync }: { t: (key: any, params?: Record<string, string | number>) => string; onSync: () => void }) {
+  const handleAction = async (action: string) => {
+    setShowActions(false)
+    if (action === 'done') {
+      await fetch('/api/commitments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: c.id, status: 'done' }),
+      })
+      onUpdate()
+    } else if (action === 'postpone') {
+      if (c.type === 'family' && !confirm(t('confirmPostponeFamily'))) return
+      const newDeadline = new Date()
+      newDeadline.setDate(newDeadline.getDate() + 7)
+      await fetch('/api/commitments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: c.id, deadline: newDeadline.toISOString().split('T')[0] }),
+      })
+      onUpdate()
+    }
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="flex flex-col sm:flex-row items-center gap-4 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl px-6 py-4 mb-8"
-    >
-      <div className="flex items-center gap-3 flex-1">
-        <div className="w-9 h-9 bg-white/15 rounded-xl flex items-center justify-center shrink-0">
-          <Mail className="w-4.5 h-4.5 text-white" />
+    <div className={cn('border rounded-xl p-4 transition-all hover:shadow-sm relative', colorClass)}>
+      <div className="flex items-start gap-3">
+        {/* Type indicator */}
+        <div className={cn('mt-0.5 p-1.5 rounded-lg', {
+          'bg-blue-100': c.type === 'i_promised',
+          'bg-amber-100': c.type === 'they_promised',
+          'bg-pink-100': c.type === 'family',
+        })}>
+          {c.type === 'i_promised' && <ArrowUpRight className="w-4 h-4 text-blue-600" />}
+          {c.type === 'they_promised' && <ArrowDownLeft className="w-4 h-4 text-amber-600" />}
+          {c.type === 'family' && <Heart className="w-4 h-4 text-pink-600" />}
         </div>
-        <p className="text-sm sm:text-base font-medium text-white">
-          Connect your Gmail to get started
-        </p>
-      </div>
-      <Link
-        href="/api/auth/login"
-        className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 rounded-xl text-sm font-semibold hover:bg-white/90 transition-colors shadow-lg shadow-indigo-900/20 shrink-0"
-      >
-        <Mail className="w-4 h-4" />
-        Connect Gmail
-      </Link>
-    </motion.div>
-  )
-}
 
-/* ─── Section Components ─── */
-
-function UrgentItem({ text, onReply, onDoNow, onSnooze, t }: {
-  text: string
-  onReply?: () => void
-  onDoNow?: () => void
-  onSnooze?: () => void
-  t: (key: any, params?: Record<string, string | number>) => string
-}) {
-  return (
-    <motion.div
-      variants={fadeUp}
-      className="border-l-4 border-red-400 bg-white rounded-2xl p-5 shadow-sm"
-    >
-      <p className="text-[15px] text-text-primary leading-relaxed mb-3">{text}</p>
-      <div className="flex items-center gap-2">
-        {onReply && (
-          <button
-            onClick={onReply}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors"
-          >
-            <Reply className="w-3.5 h-3.5" />
-            {t('replyAction' as any)}
-          </button>
-        )}
-        {onDoNow && (
-          <button
-            onClick={onDoNow}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-medium hover:bg-amber-100 transition-colors"
-          >
-            <Zap className="w-3.5 h-3.5" />
-            {t('doNowAction' as any)}
-          </button>
-        )}
-        {onSnooze && (
-          <button
-            onClick={onSnooze}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface-secondary text-text-tertiary rounded-lg text-xs font-medium hover:bg-gray-200 transition-colors"
-          >
-            <BellOff className="w-3.5 h-3.5" />
-            {t('snoozeAction' as any)}
-          </button>
-        )}
-      </div>
-    </motion.div>
-  )
-}
-
-function TimelineEvent({ event, t }: { event: any; t: any }) {
-  const startTime = formatTime(event.start_time)
-  const attendees = typeof event.attendees === 'string' ? JSON.parse(event.attendees) : (event.attendees || [])
-
-  return (
-    <motion.div variants={fadeUp} className="flex gap-4 items-start">
-      <div className="w-20 shrink-0 text-right">
-        <span className="text-sm font-semibold text-text-primary">{startTime}</span>
-      </div>
-      <div className="relative flex flex-col items-center">
-        <div className="w-3 h-3 rounded-full bg-primary border-2 border-white shadow-sm shrink-0 mt-1.5" />
-        <div className="w-0.5 flex-1 bg-border" />
-      </div>
-      <div className="flex-1 pb-8">
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-border">
-          <div className="flex items-center justify-between">
-            <p className="text-[15px] font-medium text-text-primary">{event.title}</p>
-            <Link
-              href="/dashboard/calendar"
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition-colors"
-            >
-              <Briefcase className="w-3.5 h-3.5" />
-              {t('prepAction' as any)}
-            </Link>
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-sm truncate">
+              {c.type === 'family' ? c.family_member : (c.contacts?.name || c.contact_name || c.contact_email)}
+            </span>
+            {c.contacts?.company && (
+              <span className="text-xs text-slate-500 truncate">@ {c.contacts.company}</span>
+            )}
           </div>
-          {event.location && (
-            <p className="text-xs text-text-tertiary mt-1">{event.location}</p>
+          <p className="text-sm text-slate-800 mb-2 line-clamp-2 break-words">{c.title}</p>
+
+          {/* Meta row */}
+          <div className="flex items-center gap-3 text-xs text-slate-500">
+            <span className="flex items-center gap-1">
+              <SourceIcon className="w-3 h-3" />
+              {c.source_type === 'email' ? t('sourceEmail') :
+               c.source_type === 'whatsapp' ? t('sourceWhatsapp') :
+               c.source_type === 'voice' ? t('sourceVoice') : t('sourceManual')}
+            </span>
+            {c.deadline && (
+              <span className={cn('flex items-center gap-1', {
+                'text-red-600 font-medium': isOverdue,
+                'text-orange-600 font-medium': isDueToday,
+              })}>
+                <Timer className="w-3 h-3" />
+                {isOverdue ? t('daysOverdue', { n: String(Math.abs(days!)) }) :
+                 isDueToday ? t('dueToday') :
+                 `${days}d`}
+              </span>
+            )}
+            {c.deadline_fuzzy && !c.deadline && (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {c.deadline_fuzzy}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {c.type === 'i_promised' && (
+            <button
+              onClick={() => handleAction('done')}
+              className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 transition-colors"
+              title={t('markDone')}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+            </button>
           )}
-          {attendees.length > 0 && (
-            <p className="text-xs text-text-tertiary mt-1">{attendees.length} {t('attendees')}</p>
+          {c.type === 'they_promised' && (
+            <button
+              onClick={() => {/* TODO: nudge */}}
+              className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors"
+              title={t('sendNudge')}
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => setShowActions(!showActions)}
+            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+
+          {/* Dropdown */}
+          {showActions && (
+            <div className="absolute right-4 top-12 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
+              <button onClick={() => handleAction('done')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{t('markDone')}</button>
+              <button onClick={() => handleAction('postpone')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{t('postpone')}</button>
+            </div>
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
-function TimelineGap({ minutes, t }: { minutes: number; t: any }) {
-  if (minutes < 30) return null
+/* ─── Stats Banner ─── */
+
+function StatsBanner({ stats, t }: { stats: Stats | null; t: ReturnType<typeof useI18n>['t'] }) {
+  if (!stats) return null
+
   return (
-    <motion.div variants={fadeUp} className="flex gap-4 items-start">
-      <div className="w-20 shrink-0" />
-      <div className="relative flex flex-col items-center">
-        <div className="w-2 h-2 rounded-full bg-border shrink-0 mt-2" />
-        <div className="w-0.5 flex-1 bg-border" />
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="text-2xl font-bold text-blue-700">{stats.needs_action}</div>
+        <div className="text-xs text-blue-600 mt-1">{t('needsYourAction')}</div>
       </div>
-      <div className="flex-1 pb-6">
-        <p className="text-xs text-text-tertiary italic py-2">
-          {t('freeGap' as any, { n: minutes })}
-        </p>
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div className="text-2xl font-bold text-amber-700">{stats.waiting_on_them}</div>
+        <div className="text-xs text-amber-600 mt-1">{t('waitingOnThem')}</div>
       </div>
-    </motion.div>
+      <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
+        <div className="text-2xl font-bold text-pink-700">{stats.family_active}</div>
+        <div className="text-xs text-pink-600 mt-1">{t('familyCommitments')}</div>
+      </div>
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+        <div className="flex items-center gap-1">
+          <div className="text-2xl font-bold text-emerald-700">{stats.compliance_rate}%</div>
+          <TrendingUp className="w-4 h-4 text-emerald-500" />
+        </div>
+        <div className="text-xs text-emerald-600 mt-1">{t('complianceRate')}</div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Add Commitment Modal ─── */
+
+function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useI18n()
+  const [type, setType] = useState<'i_promised' | 'they_promised' | 'family'>('i_promised')
+  const [title, setTitle] = useState('')
+  const [contactName, setContactName] = useState('')
+  const [familyMember, setFamilyMember] = useState('')
+  const [deadline, setDeadline] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim()) return
+    setSaving(true)
+    await fetch('/api/commitments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type,
+        title: title.trim(),
+        contact_name: type !== 'family' ? contactName.trim() : undefined,
+        family_member: type === 'family' ? familyMember.trim() : undefined,
+        deadline: deadline || undefined,
+        source_type: 'manual',
+      }),
+    })
+    setSaving(false)
+    onSaved()
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-lg font-bold mb-4">{t('addCommitment')}</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Type selector */}
+          <div className="flex gap-2">
+            {(['i_promised', 'they_promised', 'family'] as const).map((tp) => (
+              <button
+                key={tp}
+                type="button"
+                onClick={() => setType(tp)}
+                className={cn('flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors', {
+                  'bg-blue-50 border-blue-300 text-blue-700': type === tp && tp === 'i_promised',
+                  'bg-amber-50 border-amber-300 text-amber-700': type === tp && tp === 'they_promised',
+                  'bg-pink-50 border-pink-300 text-pink-700': type === tp && tp === 'family',
+                  'bg-slate-50 border-slate-200 text-slate-500': type !== tp,
+                })}
+              >
+                {tp === 'i_promised' ? t('iPromised') : tp === 'they_promised' ? t('theyPromised') : t('family')}
+              </button>
+            ))}
+          </div>
+
+          {/* Who */}
+          {type !== 'family' ? (
+            <input
+              type="text"
+              placeholder={t('people')}
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          ) : (
+            <input
+              type="text"
+              placeholder="Emily, 老婆, 儿子..."
+              value={familyMember}
+              onChange={(e) => setFamilyMember(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          )}
+
+          {/* What */}
+          <input
+            type="text"
+            placeholder={t('addCommitment')}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+            autoFocus
+          />
+
+          {/* When */}
+          <input
+            type="date"
+            value={deadline}
+            onChange={(e) => setDeadline(e.target.value)}
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          />
+
+          <div className="flex gap-2 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving || !title.trim()} className="flex-1 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+              {saving ? '...' : t('addCommitment')}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  )
+}
+
+/* ─── Chief Insight ─── */
+
+function ChiefInsight({ stats, commitments, t }: { stats: Stats | null; commitments: Commitment[]; t: ReturnType<typeof useI18n>['t'] }) {
+  if (!stats) return null
+
+  const message = (() => {
+    const overdue = commitments.filter(c => c.deadline && daysUntil(c.deadline)! < 0)
+
+    if (overdue.length > 0) {
+      // Find the most overdue commitment
+      const worst = overdue.reduce((a, b) => {
+        const dA = Math.abs(daysUntil(a.deadline)!)
+        const dB = Math.abs(daysUntil(b.deadline)!)
+        return dA > dB ? a : b
+      })
+      const who = worst.type === 'family'
+        ? worst.family_member
+        : (worst.contacts?.name || worst.contact_name || worst.contact_email || 'someone')
+      const daysLate = Math.abs(daysUntil(worst.deadline)!)
+      const desc = worst.title.length > 40 ? worst.title.slice(0, 40) + '...' : worst.title
+      return `You have ${overdue.length} overdue commitment${overdue.length > 1 ? 's' : ''}. The one for ${who} (${desc}) is most urgent \u2014 it\u2019s been ${daysLate} day${daysLate > 1 ? 's' : ''}.`
+    }
+
+    if (stats.due_today > 0) {
+      return `${stats.due_today} commitment${stats.due_today > 1 ? 's' : ''} due today. Stay on top of them and keep your streak going.`
+    }
+
+    if (stats.compliance_rate >= 90) {
+      return `All clear today! Your compliance rate is at ${stats.compliance_rate}% \u2014 excellent work.`
+    }
+
+    if (stats.needs_action + stats.waiting_on_them + stats.family_active === 0) {
+      return 'No active commitments right now. Scan your emails or add one manually to get started.'
+    }
+
+    return `${stats.needs_action} thing${stats.needs_action !== 1 ? 's' : ''} need your action, ${stats.waiting_on_them} waiting on others. Compliance rate: ${stats.compliance_rate}%.`
+  })()
+
+  return (
+    <div className="flex items-start gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl">
+      <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+      <p className="text-sm text-violet-800">{message}</p>
+    </div>
   )
 }
 
 /* ─── Main Page ─── */
 
-export default function DashboardPage() {
-  const { t, setLocale } = useI18n()
-  const [data, setData] = useState<DashboardData>({ tasks: [], pendingReplies: [], followUps: [], todayEvents: [] })
-  const [allEmails, setAllEmails] = useState<any[]>([])
+export default function CommitmentDashboard() {
+  const { t } = useI18n()
+  const [commitments, setCommitments] = useState<Commitment[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [briefing, setBriefing] = useState<string | null>(null)
-  const [briefingLoading, setBriefingLoading] = useState(false)
-  const [assistantName, setAssistantName] = useState('Chief')
-  const [userName, setUserName] = useState('')
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  const [detectedTimezone, setDetectedTimezone] = useState('')
-  const [detectedLanguage, setDetectedLanguage] = useState('en')
-  const [radarSignals, setRadarSignals] = useState(0)
-  const [onboardingJustFinished, setOnboardingJustFinished] = useState(false)
+  const [filter, setFilter] = useState<'all' | 'i_promised' | 'they_promised' | 'family'>('all')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [scanning, setScanning] = useState(false)
+  const [scanMessage, setScanMessage] = useState('')
 
-  // Auto-onboarding detection
-  useEffect(() => {
-    const alreadyOnboarded = localStorage.getItem('chief-onboarded')
-    if (alreadyOnboarded) return
-
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const navLang = navigator.language
-    const lang = navLang.startsWith('zh') ? 'zh'
-      : navLang.startsWith('ms') ? 'ms'
-      : 'en'
-
-    setDetectedTimezone(tz)
-    setDetectedLanguage(lang)
-
-    if (['en', 'zh', 'ms'].includes(lang)) {
-      setLocale(lang as any)
-    }
-
-    const needsOnboarding = document.cookie.includes('chief-needs-onboarding=true')
-    if (needsOnboarding || !alreadyOnboarded) {
-      setShowOnboarding(true)
-    }
-  }, [setLocale])
-
-  const handleOnboardingComplete = useCallback(() => {
-    setShowOnboarding(false)
-    localStorage.setItem('chief-onboarded', 'true')
-    document.cookie = 'chief-needs-onboarding=; path=/; max-age=0'
-    setOnboardingJustFinished(true)
+  const fetchData = useCallback(async () => {
+    const [cRes, sRes] = await Promise.all([
+      fetch('/api/commitments'),
+      fetch('/api/commitments/stats'),
+    ])
+    if (cRes.ok) setCommitments(await cRes.json())
+    if (sRes.ok) setStats(await sRes.json())
+    setLoading(false)
   }, [])
 
-  const today = new Date()
-  const greeting = today.getHours() < 12 ? t('goodMorning') : today.getHours() < 18 ? t('goodAfternoon') : t('goodEvening')
-  const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-  const todayStr = today.toISOString().slice(0, 10)
-
-  const fetchAll = useCallback(async () => {
+  const handleScan = useCallback(async () => {
+    setScanning(true)
+    setScanMessage('Scanning your recent emails for commitments...')
     try {
-      const [tasksRes, emailsRes, followUpsRes, calendarRes] = await Promise.all([
-        fetch('/api/tasks'),
-        fetch('/api/emails'),
-        fetch('/api/follow-ups'),
-        fetch('/api/calendar'),
-      ])
-
-      const [tasks, emails, followUps, calendar] = await Promise.all([
-        tasksRes.ok ? tasksRes.json() : [],
-        emailsRes.ok ? emailsRes.json() : [],
-        followUpsRes.ok ? followUpsRes.json() : [],
-        calendarRes.ok ? calendarRes.json() : [],
-      ])
-
-      setAllEmails(emails || [])
-
-      setData({
-        tasks: (tasks || []).filter((t: any) => t.status !== 'done'),
-        pendingReplies: (emails || []).slice(0, 3),
-        followUps: (followUps || []).filter((f: any) => f.status === 'active'),
-        todayEvents: (calendar || []).filter((e: any) => e.start_time?.slice(0, 10) === todayStr).sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()),
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [todayStr])
-
-  const fetchBriefing = useCallback(async (forceRefresh = false) => {
-    if (!forceRefresh) {
-      const cached = localStorage.getItem('chief_briefing')
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached)
-          const age = Date.now() - new Date(parsed.generated_at).getTime()
-          if (age < 60 * 60 * 1000) {
-            setBriefing(parsed.briefing)
-            return
-          }
-        } catch { /* ignore */ }
-      }
-    }
-
-    setBriefingLoading(true)
-    try {
-      const url = forceRefresh ? '/api/briefing?refresh=1' : '/api/briefing'
-      const res = await fetch(url)
+      const res = await fetch('/api/commitments/scan', { method: 'POST' })
       if (res.ok) {
         const data = await res.json()
-        setBriefing(data.briefing)
-        localStorage.setItem('chief_briefing', JSON.stringify({
-          briefing: data.briefing,
-          generated_at: data.generated_at,
-        }))
+        setScanMessage(`Done! Found ${data.found ?? 0} new commitment${(data.found ?? 0) !== 1 ? 's' : ''}.`)
+        await fetchData()
+      } else {
+        setScanMessage('Scan completed. Connect your Gmail in Settings to enable scanning.')
       }
-    } catch { /* silently fail */ }
-    finally { setBriefingLoading(false) }
-  }, [])
-
-  const fetchSettings = useCallback(async () => {
-    try {
-      const res = await fetch('/api/settings')
-      if (res.ok) {
-        const data = await res.json()
-        if (data.assistant_name) setAssistantName(data.assistant_name)
-        if (data.full_name) setUserName(data.full_name)
-      }
-    } catch { /* use default */ }
-  }, [])
-
-  const fetchRadar = useCallback(async () => {
-    try {
-      const res = await fetch('/api/agents/radar')
-      if (res.ok) {
-        const data = await res.json()
-        setRadarSignals(data.signals_count || data.length || 0)
-      }
-    } catch { /* silently fail */ }
-  }, [])
-
-  useEffect(() => { fetchAll() }, [fetchAll])
-  useEffect(() => { fetchBriefing() }, [fetchBriefing])
-  useEffect(() => { fetchSettings() }, [fetchSettings])
-  useEffect(() => { fetchRadar() }, [fetchRadar])
-
-  // Request notification permission
-  useEffect(() => {
-    const timer = setTimeout(() => requestNotificationPermission(), 3000)
-    return () => clearTimeout(timer)
-  }, [])
-
-  // Send browser notification for overdue emails
-  const overdueNotifiedRef = useRef(false)
-  useEffect(() => {
-    if (overdueNotifiedRef.current) return
-    if (allEmails.length > 0) {
-      const overdueCount = allEmails.filter((e: any) => {
-        if (!e.received_at) return false
-        return Date.now() - new Date(e.received_at).getTime() > 24 * 60 * 60 * 1000
-      }).length
-      if (overdueCount > 0) {
-        overdueNotifiedRef.current = true
-        sendOverdueEmailNotification(overdueCount)
-      }
+    } catch {
+      setScanMessage('Could not reach the scanner. Try again later.')
     }
-  }, [allEmails])
+    setTimeout(() => { setScanning(false); setScanMessage('') }, 3000)
+  }, [fetchData])
 
-  // Listen for background sync
-  useEffect(() => {
-    const onSyncComplete = () => { fetchAll() }
-    window.addEventListener('chief-sync-complete', onSyncComplete)
-    return () => window.removeEventListener('chief-sync-complete', onSyncComplete)
-  }, [fetchAll])
+  useEffect(() => { fetchData() }, [fetchData])
 
-  // Refetch after onboarding
-  useEffect(() => {
-    if (onboardingJustFinished) {
-      setOnboardingJustFinished(false)
-      fetchAll()
-    }
-  }, [onboardingJustFinished, fetchAll])
+  const filtered = filter === 'all' ? commitments : commitments.filter(c => c.type === filter)
 
-  /* ─── Derive urgent items (overdue emails + overdue follow-ups, max 3) ─── */
-  const urgentItems: { text: string; type: 'email' | 'followup'; id: string }[] = []
-
-  // Overdue emails (> 24h unanswered)
-  for (const email of allEmails) {
-    if (urgentItems.length >= 3) break
-    if (!email.received_at) continue
-    const days = daysAgo(email.received_at)
-    if (days >= 1) {
-      const sender = email.from_name || email.from_address || 'Someone'
-      const role = email.sender_role ? ` (${email.sender_role})` : ''
-      urgentItems.push({
-        text: `${sender}${role} emailed you ${days === 1 ? 'yesterday' : `${days} days ago`} — ${t('stillUnanswered' as any)}`,
-        type: 'email',
-        id: email.id,
-      })
-    }
-  }
-
-  // Overdue follow-ups
-  for (const fu of data.followUps) {
-    if (urgentItems.length >= 3) break
-    if (!fu.due_date) continue
-    const overdueDays = daysAgo(fu.due_date)
-    if (overdueDays > 0) {
-      const direction = fu.direction === 'you_promised' ? t('youPromisedBrief' as any) : t('waitingOn' as any)
-      urgentItems.push({
-        text: `${direction}: ${fu.subject} — ${fu.contact_name || 'someone'} (${overdueDays}d overdue)`,
-        type: 'followup',
-        id: fu.id,
-      })
-    }
-  }
-
-  // Overdue tasks
-  for (const task of data.tasks) {
-    if (urgentItems.length >= 3) break
-    if (task.priority === 1 && task.due_date) {
-      const overdueDays = daysAgo(task.due_date)
-      if (overdueDays > 0) {
-        urgentItems.push({
-          text: `${task.title} — due ${overdueDays === 1 ? 'yesterday' : `${overdueDays} days ago`}`,
-          type: 'followup',
-          id: task.id,
-        })
-      }
-    }
-  }
-
-  const hasData = data.tasks.length > 0 || data.pendingReplies.length > 0 || data.todayEvents.length > 0 || data.followUps.length > 0 || briefing
-  const isQuietDay = !loading && hasData && urgentItems.length === 0 && data.todayEvents.length === 0 && allEmails.length === 0
+  // Group: overdue first, then due today, then rest
+  const overdue = filtered.filter(c => c.deadline && daysUntil(c.deadline)! < 0)
+  const dueToday = filtered.filter(c => c.deadline && daysUntil(c.deadline) === 0)
+  const upcoming = filtered.filter(c => !c.deadline || daysUntil(c.deadline)! > 0)
 
   return (
-    <div>
-      {/* Onboarding overlay */}
-      {showOnboarding && (
-        <OnboardingProgress
-          timezone={detectedTimezone}
-          language={detectedLanguage}
-          onComplete={handleOnboardingComplete}
-        />
-      )}
+    <div className="min-h-screen bg-surface-primary">
+      <TopBar title={t('commitmentDashboard')} />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-      <TopBar
-        title={`${greeting}`}
-        subtitle={dateStr}
-        onSyncComplete={fetchAll}
-        autoSync
-      />
-
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 pb-32 lg:pb-12">
-        {loading ? (
-          <SkeletonBriefing />
-        ) : !hasData ? (
-          <WelcomeCard t={t} onSync={() => {
-            fetch('/api/sync', { method: 'POST' }).then(() => {
-              localStorage.setItem('chief-last-sync', Date.now().toString())
-              fetchAll()
-            }).catch(() => {})
-          }} />
-        ) : (
-          <motion.div
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
-            className="space-y-12"
-          >
-            {/* ─── 1. Greeting ─── */}
-            <motion.div variants={fadeUp}>
-              <p className="text-2xl sm:text-3xl font-semibold text-text-primary leading-snug">
-                {assistantName}: {greeting}{userName ? `, ${userName}` : ''}. {t('heresYourDay' as any)}
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-xl">
+              <Target className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{t('commitmentDashboard')}</h1>
+              <p className="text-sm text-slate-500">
+                {stats ? `${stats.needs_action + stats.waiting_on_them + stats.family_active} active` : ''}
               </p>
-            </motion.div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleScan}
+              disabled={scanning}
+              className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              <span className="hidden sm:inline">Scan emails</span>
+            </button>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('addCommitment')}</span>
+            </button>
+          </div>
+        </div>
 
-            {/* ─── 2. Urgent Matters ─── */}
-            {urgentItems.length > 0 && (
-              <motion.section variants={fadeUp}>
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertCircle className="w-5 h-5 text-red-500" />
-                  <h2 className="text-lg font-semibold text-red-700">{t('urgentMatters' as any)}</h2>
-                </div>
-                <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-3">
-                  {urgentItems.map((item) => (
-                    <UrgentItem
-                      key={item.id}
-                      text={item.text}
-                      t={t}
-                      onReply={item.type === 'email' ? () => {
-                        window.location.assign('/dashboard/inbox')
-                      } : undefined}
-                      onDoNow={() => {
-                        if (item.type === 'email') {
-                          window.location.assign('/dashboard/inbox')
-                        } else {
-                          window.location.assign('/dashboard/tasks')
-                        }
-                      }}
-                      onSnooze={() => {
-                        // TODO: implement snooze API
-                      }}
-                    />
-                  ))}
-                </motion.div>
-              </motion.section>
-            )}
+        {/* Stats */}
+        {!loading && <StatsBanner stats={stats} t={t} />}
 
-            {/* ─── 3. Today's Timeline ─── */}
-            {data.todayEvents.length > 0 && (
-              <motion.section variants={fadeUp}>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-semibold text-text-primary">{t('todayTimeline' as any)}</h2>
-                  </div>
-                  <Link href="/dashboard/calendar" className="text-sm text-primary hover:underline">{t('viewAll')}</Link>
-                </div>
-                <motion.div variants={staggerContainer} initial="initial" animate="animate">
-                  {data.todayEvents.map((event, i) => (
-                    <div key={event.id}>
-                      <TimelineEvent event={event} t={t} />
-                      {i < data.todayEvents.length - 1 && event.end_time && data.todayEvents[i + 1]?.start_time && (
-                        <TimelineGap
-                          minutes={getGapMinutes(event.end_time, data.todayEvents[i + 1].start_time)}
-                          t={t}
-                        />
-                      )}
-                    </div>
-                  ))}
-                  {/* End dot */}
-                  <div className="flex gap-4 items-start">
-                    <div className="w-20 shrink-0" />
-                    <div className="relative flex flex-col items-center">
-                      <div className="w-2 h-2 rounded-full bg-border shrink-0" />
-                    </div>
-                    <div className="flex-1" />
-                  </div>
-                </motion.div>
-              </motion.section>
-            )}
+        {/* Scanning indicator */}
+        {scanning && (
+          <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+            <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+            <p className="text-sm text-blue-700">{scanMessage}</p>
+          </div>
+        )}
 
-            {/* ─── 4. Follow-up Reminders ─── */}
-            {data.followUps.length > 0 && (
-              <motion.section variants={fadeUp}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-amber-500" />
-                    <h2 className="text-lg font-semibold text-text-primary">{t('followUpReminders' as any)}</h2>
-                  </div>
-                  <Link href="/dashboard/tasks" className="text-sm text-primary hover:underline">{t('viewAll')}</Link>
-                </div>
-                <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-2">
-                  {data.followUps.slice(0, 5).map((fu) => {
-                    const isOverdue = fu.due_date && daysAgo(fu.due_date) > 0
-                    const direction = fu.direction === 'you_promised'
-                      ? t('youPromisedBrief' as any)
-                      : `${t('waitingOn' as any)}:`
+        {/* Chief insight */}
+        {!loading && !scanning && commitments.length > 0 && (
+          <ChiefInsight stats={stats} commitments={commitments} t={t} />
+        )}
 
-                    return (
-                      <motion.div
-                        key={fu.id}
-                        variants={fadeUp}
-                        className="bg-white rounded-2xl p-5 shadow-sm border border-border"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className={cn(
-                            'w-2 h-2 rounded-full mt-2 shrink-0',
-                            isOverdue ? 'bg-red-500' : 'bg-amber-400'
-                          )} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[15px] text-text-primary leading-relaxed">
-                              <span className="font-medium">{direction}</span>{' '}
-                              {fu.contact_name || 'someone'} ({fu.subject})
-                              {fu.due_date && (
-                                <span className={cn(
-                                  'text-xs ml-2',
-                                  isOverdue ? 'text-red-500 font-medium' : 'text-text-tertiary'
-                                )}>
-                                  {isOverdue
-                                    ? `${daysAgo(fu.due_date)}d overdue`
-                                    : t('daysWaiting' as any, { n: Math.abs(daysAgo(fu.due_date)) || 'today' as any })
-                                  }
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )
-                  })}
-                </motion.div>
-              </motion.section>
-            )}
+        {/* Filter tabs */}
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-hide">
+          {([
+            { key: 'all', label: t('allCommitments') },
+            { key: 'i_promised', label: t('iPromised') },
+            { key: 'they_promised', label: t('theyPromised') },
+            { key: 'family', label: t('family') },
+          ] as const).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={cn('flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-w-0', {
+                'bg-white text-slate-900 shadow-sm': filter === key,
+                'text-slate-500 hover:text-slate-700': filter !== key,
+              })}
+            >
+              {label}
+              {key === 'family' && stats && stats.family_active > 0 && (
+                <span className="ml-1.5 px-1.5 py-0.5 bg-pink-100 text-pink-600 rounded-full text-xs">{stats.family_active}</span>
+              )}
+            </button>
+          ))}
+        </div>
 
-            {/* ─── 5. Inbox Summary ─── */}
-            <motion.section variants={fadeUp}>
-              <div className="flex items-center gap-2 mb-4">
-                <Inbox className="w-5 h-5 text-blue-500" />
-                <h2 className="text-lg font-semibold text-text-primary">{t('inboxSummary' as any)}</h2>
-              </div>
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-border">
-                {allEmails.length > 0 ? (
-                  <div className="flex items-center justify-between">
-                    <p className="text-[15px] text-text-primary leading-relaxed">
-                      {t('newEmailsToday' as any, { n: allEmails.length, urgent: data.pendingReplies.length })}
-                    </p>
-                    <Link
-                      href="/dashboard/inbox"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-medium hover:bg-primary/20 transition-colors shrink-0"
-                    >
-                      {t('viewInbox' as any)}
-                      <ArrowRight className="w-4 h-4" />
-                    </Link>
-                  </div>
-                ) : (
-                  <p className="text-[15px] text-text-tertiary">{t('noEmailsNeedReply')}</p>
-                )}
-              </div>
-            </motion.section>
+        {/* Loading */}
+        {loading && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        )}
 
-            {/* ─── 6. Assistant Status ─── */}
-            <motion.section variants={fadeUp}>
-              <div className="bg-surface-secondary rounded-2xl px-6 py-4 flex items-center gap-3 text-sm text-text-tertiary">
-                <Radio className="w-4 h-4 text-green-500 shrink-0" />
-                <p>
-                  {t('watchingChannels' as any, { channels: 3 })}
-                  {' · '}
-                  {radarSignals > 0 ? t('signalsDetected' as any, { signals: radarSignals }) : t('allCaughtUp' as any)}
+        {/* Commitment lists */}
+        {!loading && filtered.length === 0 && (
+          <div className="flex flex-col items-center py-12 px-4">
+            <div className="p-3 bg-slate-100 rounded-2xl mb-4">
+              <Target className="w-10 h-10 text-slate-400" />
+            </div>
+            <p className="text-base font-medium text-slate-700 mb-2">
+              {commitments.length === 0 ? 'Get started with Chief' : t('noActiveCommitments')}
+            </p>
+            {commitments.length === 0 && (
+              <>
+                <p className="text-sm text-slate-500 text-center max-w-sm mb-6">
+                  Chief tracks your promises &mdash; what you owe others, what others owe you, and what you promised your family.
                 </p>
-              </div>
-            </motion.section>
-
-            {/* ─── Quiet Day Message ─── */}
-            {isQuietDay && (
-              <motion.section variants={fadeUp}>
-                <div className="bg-white rounded-2xl p-8 shadow-sm border border-border text-center">
-                  <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                    <Sparkles className="w-8 h-8 text-green-500" />
-                  </div>
-                  <p className="text-lg text-text-primary font-medium">
-                    {t('quietDay' as any)}
-                  </p>
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm">
+                  <button
+                    onClick={handleScan}
+                    disabled={scanning}
+                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    Connect Gmail &amp; scan
+                  </button>
+                  <button
+                    onClick={() => setShowAddForm(true)}
+                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 bg-white text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add manually
+                  </button>
                 </div>
-              </motion.section>
+              </>
             )}
-          </motion.div>
+          </div>
+        )}
+
+        {!loading && overdue.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-1">
+              <AlertTriangle className="w-4 h-4 text-red-500" />
+              <h2 className="text-sm font-semibold text-red-600">{t('overdueItems')} ({overdue.length})</h2>
+            </div>
+            {overdue.map((c) => (
+              <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                <CommitmentCard c={c} t={t} onUpdate={fetchData} />
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {!loading && dueToday.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-1">
+              <Clock className="w-4 h-4 text-orange-500" />
+              <h2 className="text-sm font-semibold text-orange-600">{t('dueToday')} ({dueToday.length})</h2>
+            </div>
+            {dueToday.map((c) => (
+              <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                <CommitmentCard c={c} t={t} onUpdate={fetchData} />
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {!loading && upcoming.length > 0 && (
+          <div className="space-y-2">
+            {(overdue.length > 0 || dueToday.length > 0) && (
+              <h2 className="text-sm font-semibold text-slate-500 px-1">{t('allCommitments')} ({upcoming.length})</h2>
+            )}
+            {upcoming.map((c) => (
+              <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                <CommitmentCard c={c} t={t} onUpdate={fetchData} />
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Completed link */}
+        {!loading && stats && stats.period_completed > 0 && (
+          <div className="text-center pt-4">
+            <Link href="/dashboard?view=done" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
+              {stats.period_completed} {t('markDone').toLowerCase()} this week
+            </Link>
+          </div>
         )}
       </div>
+
+      {/* Add form modal */}
+      {showAddForm && <AddCommitmentForm onClose={() => setShowAddForm(false)} onSaved={fetchData} />}
     </div>
   )
 }

@@ -37,7 +37,7 @@ export async function GET() {
 
   for (const trip of trips) {
     // Gather trip context in parallel
-    const [expensesRes, eventsRes, contactsRes, followUpsRes] = await Promise.all([
+    const [expensesRes, eventsRes, contactsRes, commitmentsRes] = await Promise.all([
       // Trip expenses
       admin
         .from('trip_expenses')
@@ -62,14 +62,14 @@ export async function GET() {
         .in('importance', ['vip', 'high'])
         .limit(20),
 
-      // Open follow-ups
+      // Open commitments
       admin
-        .from('follow_ups')
-        .select('contact_email, contact_name, subject, type, due_date')
+        .from('commitments')
+        .select('contact_email, contact_name, title, type, deadline')
         .eq('user_id', user.id)
-        .eq('status', 'active')
-        .lte('due_date', trip.end_date)
-        .order('due_date', { ascending: true })
+        .in('status', ['pending', 'in_progress', 'overdue'])
+        .lte('deadline', trip.end_date)
+        .order('deadline', { ascending: true })
         .limit(10),
     ])
 
@@ -107,11 +107,11 @@ export async function GET() {
         currency: expenses[0]?.currency || 'SGD',
         by_category: expenseByCategory,
       },
-      open_follow_ups: (followUpsRes.data || []).map((f: any) => ({
+      open_commitments: (commitmentsRes.data || []).map((f: any) => ({
         contact: f.contact_name || f.contact_email,
-        subject: f.subject,
+        title: f.title,
         type: f.type,
-        due: f.due_date,
+        deadline: f.deadline,
       })),
       vip_contacts_count: (contactsRes.data || []).length,
     })

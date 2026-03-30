@@ -59,13 +59,13 @@ export async function GET(request: NextRequest) {
               .limit(attendeeEmails.length * 3)
           : Promise.resolve({ data: [] }),
 
-        // Active follow-ups with attendees
+        // Active commitments with attendees
         attendeeEmails.length > 0
           ? admin
-              .from('follow_ups')
-              .select('contact_email, contact_name, subject, type, due_date')
+              .from('commitments')
+              .select('contact_email, contact_name, title, type, deadline')
               .eq('user_id', event.user_id)
-              .eq('status', 'active')
+              .in('status', ['pending', 'in_progress', 'overdue'])
               .in('contact_email', attendeeEmails)
           : Promise.resolve({ data: [] }),
 
@@ -119,12 +119,12 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Follow-ups
+      // Commitments
       if ((followUpsRes.data || []).length > 0) {
         contextParts.push('\n--- Open Commitments ---')
         for (const f of followUpsRes.data || []) {
           const label = (f as any).type === 'i_promised' ? 'YOU PROMISED' : 'WAITING ON THEM'
-          contextParts.push(`- [${label}] ${(f as any).contact_name || (f as any).contact_email}: "${(f as any).subject}" (due: ${(f as any).due_date || 'no date'})`)
+          contextParts.push(`- [${label}] ${(f as any).contact_name || (f as any).contact_email}: "${(f as any).title}" (due: ${(f as any).deadline || 'no date'})`)
         }
       }
 

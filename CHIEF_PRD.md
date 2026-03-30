@@ -1,3 +1,5 @@
+> **SUPERSEDED**: This PRD has been superseded by APPLE_PRODUCT_BLUEPRINT.md v2.0 and CHIEF_PRODUCT_VISION.md. Kept for historical reference.
+
 # Chief — 产品需求文档 (PRD)
 ## 办公协同 AI 助手 | Web App
 

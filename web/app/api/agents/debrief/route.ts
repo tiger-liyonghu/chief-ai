@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   const endISO = endDate.toISOString()
 
   // Gather all data for the period in parallel
-  const [emailsRes, eventsRes, tasksRes, followUpsRes, waRes, tripsRes] = await Promise.all([
+  const [emailsRes, eventsRes, tasksRes, commitmentsRes, waRes, tripsRes] = await Promise.all([
     admin
       .from('emails')
       .select('from_address, from_name, subject, is_reply_needed, received_at')
@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
       .lte('created_at', endISO),
 
     admin
-      .from('follow_ups')
-      .select('contact_name, contact_email, subject, type, status, due_date, created_at')
+      .from('commitments')
+      .select('contact_name, contact_email, title, type, status, deadline, created_at')
       .eq('user_id', user.id)
       .gte('created_at', startISO),
 
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   const emails = emailsRes.data || []
   const events = eventsRes.data || []
   const tasks = tasksRes.data || []
-  const followUps = followUpsRes.data || []
+  const commitments = commitmentsRes.data || []
   const waMessages = waRes.data || []
   const trips = tripsRes.data || []
 
@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
     tasks_completion_rate: tasks.length > 0
       ? Math.round(tasks.filter(t => t.status === 'done').length / tasks.length * 100)
       : 0,
-    commitments_made: followUps.filter(f => f.type === 'i_promised').length,
-    commitments_resolved: followUps.filter(f => f.type === 'i_promised' && f.status === 'resolved').length,
+    commitments_made: commitments.filter(f => f.type === 'i_promised').length,
+    commitments_done: commitments.filter(f => f.type === 'i_promised' && f.status === 'done').length,
     whatsapp_messages: waMessages.length,
     wa_inbound: waMessages.filter(m => m.direction === 'inbound').length,
     wa_outbound: waMessages.filter(m => m.direction === 'outbound').length,
@@ -157,9 +157,9 @@ Rules: Be specific with names/numbers. Detect language from email subjects. Keep
             period: `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`,
             stats,
             top_contacts: topContacts,
-            unresolved_followups: followUps.filter(f => f.status === 'active').slice(0, 5).map(f => ({
+            unresolved_commitments: commitments.filter(f => ['pending', 'in_progress', 'overdue'].includes(f.status)).slice(0, 5).map(f => ({
               contact: f.contact_name || f.contact_email,
-              subject: f.subject,
+              title: f.title,
               type: f.type,
             })),
             meetings_sample: events.slice(0, 5).map(e => e.title),

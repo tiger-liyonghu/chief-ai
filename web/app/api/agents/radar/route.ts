@@ -33,13 +33,13 @@ export async function GET() {
   ] = await Promise.all([
     // 1. Overdue commitments
     supabase
-      .from('follow_ups')
-      .select('id, title, detail, due_date, contact_name')
+      .from('commitments')
+      .select('id, title, description, deadline, contact_name')
       .eq('user_id', user.id)
       .eq('type', 'i_promised')
-      .eq('status', 'active')
-      .lt('due_date', today)
-      .order('due_date', { ascending: true })
+      .in('status', ['pending', 'in_progress', 'overdue'])
+      .lt('deadline', today)
+      .order('deadline', { ascending: true })
       .limit(20),
 
     // 2. VIP unreplied emails (join via contact email)
@@ -85,7 +85,7 @@ export async function GET() {
 
   if (overdueResult.data) {
     for (const fu of overdueResult.data) {
-      const dueDate = new Date(fu.due_date)
+      const dueDate = new Date(fu.deadline)
       const daysOverdue = Math.floor((Date.now() - dueDate.getTime()) / 86400000)
       const overdueTxt = daysOverdue === 1 ? 'Due yesterday' : `${daysOverdue} days overdue`
 
@@ -93,9 +93,9 @@ export async function GET() {
         type: 'overdue_commitment',
         urgency: 'critical',
         title: `You promised${fu.contact_name ? ` ${fu.contact_name}` : ''}: ${fu.title}`,
-        detail: `${overdueTxt}.${fu.detail ? ` ${fu.detail}` : ''}`,
-        action_url: '/dashboard/follow-ups',
-        source: { module: 'follow_ups', id: fu.id },
+        detail: `${overdueTxt}.${fu.description ? ` ${fu.description}` : ''}`,
+        action_url: '/dashboard',
+        source: { module: 'commitments', id: fu.id },
       })
     }
   }
