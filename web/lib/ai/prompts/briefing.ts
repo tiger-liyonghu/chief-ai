@@ -36,7 +36,7 @@ export function buildBriefingUserPrompt(context: {
   todayDate: string
   timezone: string
   // New optional fields
-  pendingDecisions?: Array<{ contact_name?: string; contact_email?: string; subject: string; due_date?: string; commitment_text?: string; priority?: number }>
+  pendingDecisions?: Array<{ contact_name?: string; contact_email?: string; title?: string; subject?: string; deadline?: string; due_date?: string; commitment_text?: string; type?: string; urgency_score?: number; priority?: number }>
   horizonItems?: Array<{ title: string; date: string; type?: 'event' | 'commitment' | 'deadline' }>
   channel?: BriefingChannel
 }): string {
