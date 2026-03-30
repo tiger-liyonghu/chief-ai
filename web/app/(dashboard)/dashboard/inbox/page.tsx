@@ -12,6 +12,9 @@ import {
   Loader2,
   Inbox,
   CheckCircle,
+  Sparkles,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { cn, fixDoubleUtf8 } from '@/lib/utils'
@@ -83,6 +86,10 @@ export default function InboxPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedBody, setExpandedBody] = useState<string | null>(null)
   const [bodyLoading, setBodyLoading] = useState(false)
+  const [draftText, setDraftText] = useState<string>('')
+  const [draftLoading, setDraftLoading] = useState(false)
+  const [draftVisible, setDraftVisible] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -150,6 +157,8 @@ export default function InboxPage() {
 
     setExpandedId(item.id)
     setExpandedBody(null)
+    setDraftVisible(false)
+    setDraftText('')
 
     if (item.channel === 'email') {
       const email = item.raw as EmailItem
@@ -171,6 +180,52 @@ export default function InboxPage() {
       const msg = item.raw as WhatsAppMessage
       setExpandedBody(msg.body || '')
     }
+  }
+
+  const handleDraft = async (item: UnifiedMessage) => {
+    if (item.channel !== 'email') return
+    const email = item.raw as EmailItem
+    setDraftText('')
+    setDraftLoading(true)
+    setDraftVisible(true)
+    setCopied(false)
+
+    try {
+      const res = await fetch('/api/ai/draft-reply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          thread: expandedBody || email.snippet || '',
+          from: email.from_address,
+          subject: email.subject,
+          tone: 'friendly',
+        }),
+      })
+
+      if (!res.ok) throw new Error()
+
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) throw new Error()
+
+      let accumulated = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        accumulated += decoder.decode(value, { stream: true })
+        setDraftText(accumulated)
+      }
+    } catch {
+      setDraftText('Failed to generate draft. Please try again.')
+    } finally {
+      setDraftLoading(false)
+    }
+  }
+
+  const handleCopyDraft = () => {
+    navigator.clipboard.writeText(draftText)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   const filterTabs: { key: ChannelFilter; labelKey: string }[] = [
@@ -320,11 +375,59 @@ export default function InboxPage() {
                                 <span className="text-sm text-text-tertiary">{t('loading')}</span>
                               </div>
                             ) : (
-                              <div className="text-sm text-text-secondary leading-relaxed max-h-[400px] overflow-y-auto">
-                                <pre className="whitespace-pre-wrap font-sans break-words">
-                                  {expandedBody}
-                                </pre>
-                              </div>
+                              <>
+                                <div className="text-sm text-text-secondary leading-relaxed max-h-[400px] overflow-y-auto">
+                                  <pre className="whitespace-pre-wrap font-sans break-words">
+                                    {expandedBody}
+                                  </pre>
+                                </div>
+
+                                {/* AI Draft button — email only */}
+                                {item.channel === 'email' && (
+                                  <div className="mt-4 pt-3 border-t border-border">
+                                    {!draftVisible ? (
+                                      <button
+                                        onClick={() => handleDraft(item)}
+                                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+                                      >
+                                        <Sparkles className="w-4 h-4" />
+                                        {t('aiDraft')}
+                                      </button>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                          <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                                            <Sparkles className="w-4 h-4" />
+                                            {t('aiDraft')}
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={handleCopyDraft}
+                                              disabled={draftLoading}
+                                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-white rounded-lg transition-colors border border-border"
+                                            >
+                                              {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                                              {copied ? 'Copied' : 'Copy'}
+                                            </button>
+                                            <button
+                                              onClick={() => handleDraft(item)}
+                                              disabled={draftLoading}
+                                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/5 rounded-lg transition-colors border border-primary/20"
+                                            >
+                                              <Sparkles className="w-3.5 h-3.5" />
+                                              Regenerate
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div className="bg-white border border-border rounded-xl p-4 text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+                                          {draftText}
+                                          {draftLoading && <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5 align-text-bottom rounded-sm" />}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         </motion.div>
