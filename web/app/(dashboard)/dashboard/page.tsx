@@ -28,6 +28,7 @@ import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
 import { useI18n } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
+import { BriefingCard } from '@/components/dashboard/BriefingCard'
 
 /* ─── Types ─── */
 
@@ -524,6 +525,9 @@ export default function CommitmentDashboard() {
             </button>
           </div>
         </div>
+
+        {/* Morning Briefing */}
+        <BriefingCard />
 
         {/* Stats */}
         {!loading && <StatsBanner stats={stats} t={t} />}

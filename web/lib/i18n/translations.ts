@@ -28,6 +28,11 @@ const en = {
   goodMorning: 'Good morning',
   goodAfternoon: 'Good afternoon',
   goodEvening: 'Good evening',
+  dailyBriefing: 'Daily Briefing',
+  briefingLoading: 'Preparing your briefing...',
+  briefingError: 'Could not load briefing',
+  briefingRefresh: 'Refresh',
+  briefingCached: 'Updated {time}',
 
   // Sidebar
   chief: 'Chief',
@@ -505,6 +510,11 @@ const zh: typeof en = {
   goodMorning: '早上好',
   goodAfternoon: '下午好',
   goodEvening: '晚上好',
+  dailyBriefing: '每日简报',
+  briefingLoading: '正在准备你的简报...',
+  briefingError: '无法加载简报',
+  briefingRefresh: '刷新',
+  briefingCached: '{time} 更新',
 
   chief: 'Chief',
   dailyBrief: '每日简报',
@@ -969,6 +979,11 @@ const ms: typeof en = {
   goodMorning: 'Selamat pagi',
   goodAfternoon: 'Selamat petang',
   goodEvening: 'Selamat malam',
+  dailyBriefing: 'Taklimat Harian',
+  briefingLoading: 'Menyediakan taklimat anda...',
+  briefingError: 'Tidak dapat memuatkan taklimat',
+  briefingRefresh: 'Muat semula',
+  briefingCached: 'Dikemas kini {time}',
 
   chief: 'Chief',
   dailyBrief: 'Ringkasan Harian',
