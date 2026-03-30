@@ -1,45 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import QRCode from 'qrcode'
 
 // Allow up to 60 seconds for WhatsApp connection (Baileys needs 10-30s)
 export const maxDuration = 60
-
-const WA_SERVICE_URL = process.env.WHATSAPP_SERVICE_URL || ''
-const WA_API_SECRET = process.env.WHATSAPP_API_SECRET || ''
-
-/**
- * Proxy helper — forwards requests to the standalone WhatsApp service on Railway.
- */
-async function proxyToService(
-  path: string,
-  method: string,
-  body?: Record<string, any>,
-): Promise<Response> {
-  if (!WA_SERVICE_URL) {
-    return NextResponse.json(
-      { error: 'WhatsApp service not configured' },
-      { status: 503 },
-    )
-  }
-
-  const url = `${WA_SERVICE_URL}${path}`
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (WA_API_SECRET) {
-    headers['x-api-secret'] = WA_API_SECRET
-  }
-
-  const res = await fetch(url, {
-    method,
-    headers,
-    ...(body ? { body: JSON.stringify(body) } : {}),
-    signal: AbortSignal.timeout(55000), // 55s timeout (under Vercel's 60s limit)
-  })
-
-  const data = await res.json()
-  return NextResponse.json(data, { status: res.status })
-}
 
 /**
  * GET /api/whatsapp — connection status
@@ -49,7 +14,39 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  return proxyToService(`/api/whatsapp?user_id=${user.id}`, 'GET')
+  const { isConnected, getPhoneNumber, hasSession } = await import('@/lib/whatsapp/client')
+
+  const connected = isConnected(user.id)
+  const phoneNumber = getPhoneNumber(user.id)
+  const sessionExists = hasSession(user.id)
+
+  const adminClient = createAdminClient()
+
+  // Get message count from Supabase
+  const { count } = await adminClient
+    .from('whatsapp_messages')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+  // Get DB connection record
+  const { data: connection } = await adminClient
+    .from('whatsapp_connections')
+    .select('id, phone_number, status, ai_enabled, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  return NextResponse.json({
+    connected,
+    phoneNumber: phoneNumber || connection?.phone_number || null,
+    sessionExists,
+    connection: connected
+      ? { ...connection, status: 'active' }
+      : connection || null,
+    messageCount: count || 0,
+    aiEnabled: connection?.ai_enabled || false,
+  })
 }
 
 /**
@@ -61,10 +58,38 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  return proxyToService('/api/whatsapp', 'POST', {
-    ...body,
-    user_id: user.id,
-  })
+  const { action, phone_number } = body
+
+  if (action !== 'connect') {
+    return NextResponse.json({ error: 'Invalid action. Use { action: "connect" }' }, { status: 400 })
+  }
+
+  try {
+    const { connectWhatsApp } = await import('@/lib/whatsapp/client')
+    const result = await connectWhatsApp(user.id, phone_number || undefined)
+
+    if (result.connected) {
+      return NextResponse.json({ connected: true, phoneNumber: result.phoneNumber })
+    }
+
+    if (result.pairingCode) {
+      return NextResponse.json({ connected: false, pairing_code: result.pairingCode, phoneNumber: result.phoneNumber })
+    }
+
+    if (result.qrCode) {
+      const qrDataUrl = await QRCode.toDataURL(result.qrCode, {
+        width: 280,
+        margin: 2,
+        color: { dark: '#000000', light: '#ffffff' },
+      })
+      return NextResponse.json({ connected: false, qr_data_url: qrDataUrl })
+    }
+
+    return NextResponse.json({ connected: false, error: 'No QR code generated' })
+  } catch (err: any) {
+    console.error('WhatsApp connect error:', err)
+    return NextResponse.json({ error: err.message || 'Failed to connect' }, { status: 500 })
+  }
 }
 
 /**
@@ -76,10 +101,31 @@ export async function PATCH(request: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  return proxyToService('/api/whatsapp', 'PATCH', {
-    ...body,
-    user_id: user.id,
-  })
+  const { ai_enabled } = body
+
+  const updates: Record<string, any> = {}
+  if (typeof ai_enabled === 'boolean') {
+    updates.ai_enabled = ai_enabled
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+  }
+
+  updates.updated_at = new Date().toISOString()
+
+  const adminClient = createAdminClient()
+  const { error } = await adminClient
+    .from('whatsapp_connections')
+    .update(updates)
+    .eq('user_id', user.id)
+    .eq('status', 'active')
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, ...updates })
 }
 
 /**
@@ -90,7 +136,12 @@ export async function DELETE() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  return proxyToService(`/api/whatsapp?user_id=${user.id}`, 'DELETE', {
-    user_id: user.id,
-  })
+  try {
+    const { disconnectWhatsApp } = await import('@/lib/whatsapp/client')
+    await disconnectWhatsApp(user.id)
+    return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    console.error('WhatsApp disconnect error:', err)
+    return NextResponse.json({ error: err.message || 'Failed to disconnect' }, { status: 500 })
+  }
 }

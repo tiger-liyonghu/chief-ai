@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
     'jimp',
     'qrcode',
     'link-preview-js',
+    'pdf-parse',
   ],
   // Turbopack config (Next.js 16 default bundler) — the serverExternalPackages
   // above handles externalization. This empty config silences the webpack
@@ -32,6 +33,7 @@ const nextConfig: NextConfig = {
           'jimp': 'commonjs jimp',
           'qrcode': 'commonjs qrcode',
           'link-preview-js': 'commonjs link-preview-js',
+          'pdf-parse': 'commonjs pdf-parse',
         })
       }
     }
