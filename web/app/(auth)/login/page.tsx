@@ -1,12 +1,15 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/context'
 
 export default function LoginPage() {
   const { t } = useI18n()
+  const searchParams = useSearchParams()
+  const error = searchParams.get('error')
 
   const handleGoogleLogin = () => {
     window.location.href = '/api/auth/login'
@@ -34,6 +37,14 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl border border-border p-8 shadow-sm">
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-2 mb-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {error === 'microsoft_not_configured' ? 'Microsoft login is not configured yet.' :
+               error === 'auth_failed' ? 'Authentication failed. Please try again.' :
+               'Something went wrong. Please try again.'}
+            </div>
+          )}
           <h1 className="text-xl font-semibold text-center mb-2">{t('welcomeBack')}</h1>
           <p className="text-sm text-text-secondary text-center mb-8">
             {t('signInSubtitle')}

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getMicrosoftAuthUrl } from '@/lib/microsoft/auth'
 
 /**
@@ -6,15 +6,20 @@ import { getMicrosoftAuthUrl } from '@/lib/microsoft/auth'
  * Redirect to Microsoft OAuth for initial login (no auth required).
  * Uses state to distinguish login flow from add-account flow.
  */
-export async function GET() {
-  const state = Buffer.from(JSON.stringify({
-    action: 'login',
-  })).toString('base64')
+export async function GET(request: NextRequest) {
+  try {
+    const state = Buffer.from(JSON.stringify({
+      action: 'login',
+    })).toString('base64')
 
-  const authUrl = getMicrosoftAuthUrl({
-    state,
-    redirectPath: '/api/auth/microsoft-callback',
-  })
+    const authUrl = getMicrosoftAuthUrl({
+      state,
+      redirectPath: '/api/auth/microsoft-callback',
+    })
 
-  return NextResponse.redirect(authUrl)
+    return NextResponse.redirect(authUrl)
+  } catch (err) {
+    console.error('Microsoft login error:', err)
+    return NextResponse.redirect(new URL('/login?error=microsoft_not_configured', request.url))
+  }
 }
