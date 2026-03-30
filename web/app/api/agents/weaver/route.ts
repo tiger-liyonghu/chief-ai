@@ -46,21 +46,21 @@ export async function GET() {
     recentCounts.set(addr, (recentCounts.get(addr) || 0) + 1)
   }
 
-  // Get active follow-ups per contact
-  const { data: followUps } = await admin
-    .from('follow_ups')
+  // Get active commitments per contact
+  const { data: commitmentsList } = await admin
+    .from('commitments')
     .select('contact_email, type')
     .eq('user_id', user.id)
-    .eq('status', 'active')
+    .in('status', ['pending', 'in_progress', 'overdue'])
     .in('contact_email', contactEmails)
 
-  const followUpCounts = new Map<string, { promised: number; waiting: number }>()
-  for (const f of followUps || []) {
+  const commitmentCounts = new Map<string, { promised: number; waiting: number }>()
+  for (const f of commitmentsList || []) {
     const email = (f.contact_email || '').toLowerCase()
-    const current = followUpCounts.get(email) || { promised: 0, waiting: 0 }
+    const current = commitmentCounts.get(email) || { promised: 0, waiting: 0 }
     if (f.type === 'i_promised') current.promised++
     else current.waiting++
-    followUpCounts.set(email, current)
+    commitmentCounts.set(email, current)
   }
 
   // Calculate relationship temperature for each contact
@@ -71,7 +71,7 @@ export async function GET() {
       : 999
 
     const recentInteractions = recentCounts.get(email) || 0
-    const fups = followUpCounts.get(email) || { promised: 0, waiting: 0 }
+    const fups = commitmentCounts.get(email) || { promised: 0, waiting: 0 }
 
     // Temperature calculation (0-100)
     // Factors: recency, frequency, importance, open commitments

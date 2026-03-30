@@ -41,7 +41,7 @@ AI Chief of Staff (简称 Chief)
 | 6 | **数据同步** | 增量同步 Gmail + Outlook 的邮件与日历，支持 History API | 已上线 | `/api/sync`, `/api/sync/process` | SyncManager 组件 |
 | 7 | **AI 处理管线** | 自动从邮件中提取任务、检测出差、扫描承诺 | 已上线 | `/api/sync/process` | -- |
 | 8 | **任务管理** | AI 提取 + 手动创建任务，优先级三级，状态流转 | 已上线 | `/api/tasks` | Tasks 页 |
-| 9 | **跟进追踪** | 三种类型：等对方回复 / 我答应的 / 需要回复 | 已上线 | `/api/follow-ups` | Follow-ups 页 |
+| 9 | **跟进追踪** | 三种类型：等对方回复 / 我答应的 / 需要回复 | 已上线 | `/api/commitments` | Commitments 页 |
 | 10 | **日历视图** | 展示未来两周日历事件 | 已上线 | `/api/calendar`, `/api/calendar/events` | Calendar 页 |
 | 11 | **会议准备** | 为每场会议生成参会者简报（互动历史、谈话要点） | 已上线 | `/api/meetings`, `/api/meetings/generate-brief`, `/api/meeting-context/[eventId]` | Meetings 页 |
 | 12 | **Daily Briefing** | AI 生成每日简报（今日日程、待办、需回复邮件、跟进、VIP 动态） | 已上线 | `/api/briefing` | Dashboard 主页 |
@@ -69,7 +69,7 @@ AI Chief of Staff (简称 Chief)
 | `/dashboard` | 主页 -- Daily Briefing + 提醒 + 快捷操作 |
 | `/dashboard/replies` | 邮件回复队列 |
 | `/dashboard/tasks` | 任务管理 |
-| `/dashboard/follow-ups` | 跟进追踪 |
+| `/dashboard/commitments` | 跟进追踪 |
 | `/dashboard/calendar` | 日历视图 |
 | `/dashboard/meetings` | 会议准备 + 简报 |
 | `/dashboard/trips` | 商旅管理 |
@@ -156,7 +156,7 @@ AI Chief of Staff (简称 Chief)
 
 **职责**: 7x24 静默监控所有渠道，识别需要用户注意的"信号"，按紧急程度分级推送。
 
-**串联模块**: Gmail + Outlook + WhatsApp + Calendar + Tasks + Follow-ups + Contacts
+**串联模块**: Gmail + Outlook + WhatsApp + Calendar + Tasks + Commitments + Contacts
 
 **通讯渠道交互**:
 - **Gmail / Outlook**: 实时监听新邮件，识别"隐性紧急"邮件（如投资人语气平和但需优先回复）
@@ -171,7 +171,7 @@ AI Chief of Staff (简称 Chief)
 
 **职责**: 基于完整上下文生成跨渠道的回复策略。
 
-**串联模块**: Gmail + Outlook + WhatsApp + Calendar + Contacts + Tasks + Follow-ups
+**串联模块**: Gmail + Outlook + WhatsApp + Calendar + Contacts + Tasks + Commitments
 
 **通讯渠道交互**:
 - **Gmail / Outlook**: 拉取邮件线程上下文 + 发送审核后的回复
@@ -186,7 +186,7 @@ AI Chief of Staff (简称 Chief)
 
 **职责**: 每个日历事件前 30 分钟自动生成"作战简报"。
 
-**串联模块**: Calendar + Contacts + Gmail + Outlook + WhatsApp + Tasks + Follow-ups + Recommendations
+**串联模块**: Calendar + Contacts + Gmail + Outlook + WhatsApp + Tasks + Commitments + Recommendations
 
 **通讯渠道交互**:
 - **Gmail / Outlook**: 拉取与参会者的邮件往来历史
@@ -201,14 +201,14 @@ AI Chief of Staff (简称 Chief)
 
 **职责**: 自动追踪所有"开环"事项，在接近超时时自动触发下一步动作链。
 
-**串联模块**: Follow-ups + Tasks + Gmail + Outlook + WhatsApp + Calendar + Contacts
+**串联模块**: Commitments + Tasks + Gmail + Outlook + WhatsApp + Calendar + Contacts
 
 **通讯渠道交互**:
 - **Gmail / Outlook**: 超时后自动生成跟进邮件草稿
 - **WhatsApp**: 建议渠道升级（邮件无回复 -> 建议 WhatsApp 跟进）
 - **输出**: 草稿进入 Replies 待审核队列
 
-**与现有功能的关系**: 将 Follow-ups 从"提醒用户该跟了"升级为"准备好草稿，用户一键确认发送"。
+**与现有功能的关系**: 将 Commitments 从"提醒用户该跟了"升级为"准备好草稿，用户一键确认发送"。
 
 ---
 
@@ -245,7 +245,7 @@ AI Chief of Staff (简称 Chief)
 
 **职责**: 在 Chat 中触发，对特定时间段或项目进行结构化复盘。
 
-**串联模块**: Gmail + Outlook + WhatsApp + Calendar + Tasks + Follow-ups + Contacts
+**串联模块**: Gmail + Outlook + WhatsApp + Calendar + Tasks + Commitments + Contacts
 
 **通讯渠道交互**:
 - **全渠道**: 拉取指定时间窗口的全部通信记录，编织成叙事
@@ -311,7 +311,7 @@ AI Chief of Staff (简称 Chief)
 | `emails` | 邮件元数据 + 正文缓存 | gmail_message_id, thread_id, from_address, subject, body_text, is_reply_needed, reply_urgency, source_account_email, commitment_scanned | auth.uid() = user_id |
 | `calendar_events` | 日历事件 | google_event_id, title, start_time, end_time, attendees(JSONB), location, meeting_link, source_account_email | auth.uid() = user_id |
 | `tasks` | 任务 | title, priority(1-3), status(pending/in_progress/done/dismissed), source_type(email/calendar/manual/whatsapp), due_date, ai_confidence | auth.uid() = user_id |
-| `follow_ups` | 跟进追踪 | type(waiting_on_them/i_promised/reply_needed), contact_email, commitment_text, due_date, status(active/resolved/snoozed) | auth.uid() = user_id |
+| `commitments` | 跟进追踪 | type(waiting_on_them/i_promised/reply_needed), contact_email, commitment_text, due_date, status(active/resolved/snoozed) | auth.uid() = user_id |
 | `reply_drafts` | AI 回复草稿 | email_id, draft_content, tone, ai_model, status(draft/edited/sent/discarded) | auth.uid() = user_id |
 | `meeting_briefs` | 会议简报 | event_id, attendee_email, interaction_summary, talking_points(JSONB) | auth.uid() = user_id |
 | `trips` | 出差行程 | destination_city, destination_country, start_date, end_date, status(upcoming/active/completed), flight_info(JSONB), hotel_info(JSONB) | auth.uid() = user_id |
@@ -322,6 +322,9 @@ AI Chief of Staff (简称 Chief)
 | `whatsapp_messages` | WhatsApp 消息 | wa_message_id, from_number, to_number, body, direction(inbound/outbound), message_type | auth.uid() = user_id |
 | `sync_log` | 同步日志 | sync_type, status, messages_processed, error_message, expires_at | auth.uid() = user_id |
 | `google_tokens` (遗留) | 旧的单账户令牌表 | 已被 google_accounts 替代，数据已迁移 | service_only |
+| `family_calendar` | 家庭日历事件 | title, family_member, event_date, recurrence, reminder_days | auth.uid() = user_id |
+| `trip_timeline_events` | 出差时间线节点 | trip_id, event_type(flight/hotel/meeting/meal), start_time, end_time, location, details(JSONB) | auth.uid() = user_id |
+| `insights_snapshots` | 周期洞察快照 | snapshot_type(weekly/monthly), period_start, period_end, metrics(JSONB), narrative(TEXT) | auth.uid() = user_id |
 
 ### 5.2 表关系图
 
@@ -330,13 +333,13 @@ profiles (1)
   ├──< google_accounts (N)     -- 多个邮箱账户
   ├──< emails (N)              -- 邮件
   │     ├──< tasks (N)         -- 来源于邮件的任务
-  │     ├──< follow_ups (N)    -- 来源于邮件的跟进
+  │     ├──< commitments (N)    -- 来源于邮件的跟进
   │     └──< reply_drafts (N)  -- 回复草稿
   ├──< calendar_events (N)     -- 日历事件
   │     ├──< tasks (N)         -- 来源于日历的任务
   │     └──< meeting_briefs (N)-- 会议简报
   ├──< tasks (N)               -- 任务（含手动/WhatsApp来源）
-  ├──< follow_ups (N)          -- 跟进追踪
+  ├──< commitments (N)          -- 跟进追踪
   ├──< trips (N)               -- 出差行程
   │     └──< trip_expenses (N) -- 差旅费用
   ├──< daily_briefings (N)     -- 每日简报
@@ -356,7 +359,7 @@ profiles (1)
 Gmail API  ──邮件元数据──▶  emails 表  ──未处理邮件──▶  sync/process API         Dashboard
            ──邮件正文──▶   (body_text)                  ├─ 任务提取 ──▶ tasks 表 ──▶ Tasks 页
                                                         ├─ 出差检测 ──▶ trips 表 ──▶ Trips 页
-                                                        └─ 承诺扫描 ──▶ follow_ups ──▶ Follow-ups 页
+                                                        └─ 承诺扫描 ──▶ commitments ──▶ Commitments 页
 
 Google     ──日历事件──▶  calendar_events              meetings/generate-brief
 Calendar                                                └─ 参会者简报 ──▶ meeting_briefs ──▶ Meetings 页
@@ -492,7 +495,7 @@ WhatsApp   ──消息──▶      whatsapp_messages            whatsapp-extr
 ```
 邮件同步 ──▶ sync/process ──▶ 任务提取 ──▶ tasks 表
                            ──▶ 出差检测 ──▶ trips 表
-                           ──▶ 承诺扫描 ──▶ follow_ups 表
+                           ──▶ 承诺扫描 ──▶ commitments 表
 ```
 
 #### 联动 2: 日历 + 邮件 + 联系人 -> 会议简报 (P0, 已上线)

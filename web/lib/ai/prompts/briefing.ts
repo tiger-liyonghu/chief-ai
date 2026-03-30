@@ -2,15 +2,17 @@ export const BRIEFING_SYSTEM = `You are an AI Chief of Staff — a trusted execu
 
 This is NOT just a summary — it's an ACTION PLAN. Structure it as:
 
-1. **RED FLAGS** (if any): Overdue commitments you promised, urgent replies needed
+1. **RED FLAGS** (if any): Overdue commitments you promised, urgent replies needed, family-work conflicts
 2. **Today's Schedule**: Key meetings with context (who, what to prepare)
-3. **Top 3 Actions**: The most important things to accomplish today
-4. **Heads Up**: WhatsApp messages or emails that need attention but aren't urgent
+3. **Family Reminders**: If there are family events today, mention them naturally (e.g. "15:30 Emily钢琴课 — 别排会")
+4. **Top 3 Actions**: The most important things to accomplish today
+5. **Heads Up**: WhatsApp messages or emails that need attention but aren't urgent
 
 Rules:
 - Write 4-8 sentences maximum
 - Be specific: mention names, subjects, deadlines, meeting titles
 - If the user promised something to someone and it's due/overdue, FLAG IT prominently
+- If there are family-work conflicts, flag them clearly (e.g. "15:30 Emily钢琴课 conflicts with your 3pm meeting — reschedule the meeting")
 - "i_promised" follow-ups are things YOU committed to — these are your credibility at stake
 - "waiting_on_them" follow-ups are things others owe you — nudge reminders
 - Write in the same language the user's emails/calendar are in (detect automatically)
@@ -100,6 +102,21 @@ export function buildBriefingUserPrompt(context: {
     parts.push(`\n--- WhatsApp Messages (last 24h, ${waMessages.length}) ---`)
     for (const m of waMessages.slice(0, 5)) {
       parts.push(`- ${m.from}: "${m.snippet}"`)
+    }
+  }
+
+  // Family reminders / conflicts
+  if ((context as any).familyReminders?.length > 0) {
+    const reminders = (context as any).familyReminders
+    parts.push(`\n--- FAMILY REMINDERS (${reminders.length}) ---`)
+    for (const r of reminders) {
+      const timeStr = r.family_time !== 'all day' ? r.family_time : 'all day'
+      const memberStr = r.family_member ? ` (${r.family_member})` : ''
+      if (r.conflict_with) {
+        parts.push(`- ⚠️ CONFLICT: ${timeStr} ${r.family_event}${memberStr} — clashes with "${r.conflict_with}" at ${r.conflict_time}. 别排会!`)
+      } else {
+        parts.push(`- ${timeStr} ${r.family_event}${memberStr}`)
+      }
     }
   }
 

@@ -5,7 +5,7 @@ import { createUserAIClient } from '@/lib/ai/unified-client'
 
 /**
  * POST /api/agents/closer
- * Closer Agent — scans overdue follow-ups and generates escalation drafts.
+ * Closer Agent — scans overdue commitments and generates escalation drafts.
  * Can also be called by cron for automatic processing.
  *
  * Returns generated drafts for user approval (human-in-the-loop).
@@ -19,17 +19,17 @@ export async function POST() {
   const now = new Date()
   const todayISO = now.toISOString().slice(0, 10)
 
-  // Find overdue follow-ups that haven't been nudged recently (>48h since last nudge)
+  // Find overdue commitments that haven't been nudged recently (>48h since last nudge)
   const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString()
 
   const { data: overdueItems, error } = await admin
-    .from('follow_ups')
-    .select('id, type, contact_email, contact_name, subject, commitment_text, due_date, last_nudge_at, source_email_id')
+    .from('commitments')
+    .select('id, type, contact_email, contact_name, title, description, deadline, last_nudge_at, source_email_id')
     .eq('user_id', user.id)
-    .eq('status', 'active')
-    .lte('due_date', todayISO)
+    .in('status', ['pending', 'in_progress', 'overdue'])
+    .lte('deadline', todayISO)
     .or(`last_nudge_at.is.null,last_nudge_at.lt.${twoDaysAgo}`)
-    .order('due_date', { ascending: true })
+    .order('deadline', { ascending: true })
     .limit(10)
 
   if (error || !overdueItems || overdueItems.length === 0) {
@@ -56,7 +56,7 @@ export async function POST() {
   for (const item of overdueItems) {
     try {
       const contact = contactMap.get((item.contact_email || '').toLowerCase())
-      const daysOverdue = Math.ceil((now.getTime() - new Date(item.due_date).getTime()) / 86400000)
+      const daysOverdue = Math.ceil((now.getTime() - new Date(item.deadline).getTime()) / 86400000)
 
       // Determine escalation level
       let escalation: 'gentle' | 'firm' | 'urgent' = 'gentle'
@@ -77,7 +77,7 @@ Rules:
 - Escalation level: ${escalation} (${daysOverdue} days overdue)
 - Keep it to 2-3 sentences max
 - Be professional but human
-- Detect language from the subject/commitment text and respond in same language
+- Detect language from the title/description and respond in same language
 - For "gentle": casual reminder
 - For "firm": reference the original deadline
 - For "urgent": express concern about timeline impact`,
@@ -85,9 +85,9 @@ Rules:
           {
             role: 'user',
             content: `Contact: ${contact?.name || item.contact_name || item.contact_email} (${contact?.relationship || 'unknown'}, ${contact?.company || ''})
-Subject: ${item.subject}
-Original commitment: ${item.commitment_text || 'N/A'}
-Due date: ${item.due_date}
+Title: ${item.title}
+Description: ${item.description || 'N/A'}
+Deadline: ${item.deadline}
 Days overdue: ${daysOverdue}
 Type: ${isMyPromise ? 'I promised them' : 'They owe me'}`,
           },
@@ -99,10 +99,10 @@ Type: ${isMyPromise ? 'I promised them' : 'They owe me'}`,
       const draft = completion.choices[0]?.message?.content?.trim()
       if (draft) {
         drafts.push({
-          follow_up_id: item.id,
+          commitment_id: item.id,
           contact_email: item.contact_email,
           contact_name: contact?.name || item.contact_name || item.contact_email,
-          subject: item.subject,
+          title: item.title,
           type: item.type,
           days_overdue: daysOverdue,
           escalation,
@@ -111,7 +111,7 @@ Type: ${isMyPromise ? 'I promised them' : 'They owe me'}`,
         })
 
         // Mark as nudged
-        await admin.from('follow_ups').update({
+        await admin.from('commitments').update({
           last_nudge_at: now.toISOString(),
         }).eq('id', item.id)
       }
@@ -146,23 +146,23 @@ export async function GET() {
   const todayISO = new Date().toISOString().slice(0, 10)
 
   const { count: overdueCount } = await supabase
-    .from('follow_ups')
+    .from('commitments')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
-    .eq('status', 'active')
-    .lte('due_date', todayISO)
+    .in('status', ['pending', 'in_progress', 'overdue'])
+    .lte('deadline', todayISO)
 
   const { count: myPromisesOverdue } = await supabase
-    .from('follow_ups')
+    .from('commitments')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
-    .eq('status', 'active')
+    .in('status', ['pending', 'in_progress', 'overdue'])
     .eq('type', 'i_promised')
-    .lte('due_date', todayISO)
+    .lte('deadline', todayISO)
 
   return NextResponse.json({
     overdue_total: overdueCount || 0,
     my_promises_overdue: myPromisesOverdue || 0,
-    waiting_on_them_overdue: (overdueCount || 0) - (myPromisesOverdue || 0),
+    they_promised_overdue: (overdueCount || 0) - (myPromisesOverdue || 0),
   })
 }

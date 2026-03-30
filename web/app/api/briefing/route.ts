@@ -21,7 +21,7 @@ async function gatherBriefingContext(userId: string, timezone: string) {
   const todayISO = now.toISOString().slice(0, 10)
   const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString()
 
-  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes, myCommitmentsRes, waMessagesRes] = await Promise.all([
+  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes, myCommitmentsRes, waMessagesRes, familyEventsRes] = await Promise.all([
     // Today's calendar events
     admin
       .from('calendar_events')
@@ -52,13 +52,13 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .order('received_at', { ascending: false })
       .limit(5),
 
-    // Overdue follow-ups + today's due follow-ups
+    // Overdue commitments + today's due commitments
     admin
-      .from('follow_ups')
-      .select('contact_name, contact_email, subject, due_date, type')
+      .from('commitments')
+      .select('contact_name, contact_email, title, deadline, type')
       .eq('user_id', userId)
-      .eq('status', 'active')
-      .lte('due_date', todayISO)
+      .in('status', ['pending', 'in_progress', 'overdue'])
+      .lte('deadline', todayISO)
       .order('due_date', { ascending: true })
       .limit(10),
 
@@ -81,12 +81,12 @@ async function gatherBriefingContext(userId: string, timezone: string) {
 
     // My commitments due today or overdue (i_promised type)
     admin
-      .from('follow_ups')
-      .select('contact_name, contact_email, subject, due_date, commitment_text')
+      .from('commitments')
+      .select('contact_name, contact_email, title, deadline, description')
       .eq('user_id', userId)
-      .eq('status', 'active')
+      .in('status', ['pending', 'in_progress', 'overdue'])
       .eq('type', 'i_promised')
-      .lte('due_date', todayISO)
+      .lte('deadline', todayISO)
       .order('due_date', { ascending: true })
       .limit(5),
 
@@ -99,6 +99,14 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .gte('received_at', yesterday)
       .order('received_at', { ascending: false })
       .limit(10),
+
+    // Family calendar events: today's date matches + recurring events active today
+    admin
+      .from('family_calendar')
+      .select('id, event_type, title, start_date, end_date, start_time, end_time, recurrence, recurrence_day, family_member')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .or(`start_date.eq.${todayISO},and(start_date.lte.${todayISO},end_date.gte.${todayISO}),recurrence.neq.none`),
   ])
 
   // Build VIP contact lookup for enriching email/follow-up context
@@ -120,6 +128,67 @@ async function gatherBriefingContext(userId: string, timezone: string) {
     return { ...f, contact_relationship: vip?.relationship, contact_importance: vip?.importance }
   })
 
+  // --- Family calendar: filter to events actually relevant today ---
+  const todayDayOfWeek = new Date(todayISO).getDay() // 0=Sun..6=Sat
+  const allFamilyEvents = familyEventsRes.data || []
+  const todayFamilyEvents = allFamilyEvents.filter(fe => {
+    // One-off or date-range events covering today
+    if (fe.recurrence === 'none') {
+      if (fe.start_date === todayISO) return true
+      if (fe.start_date <= todayISO && fe.end_date && fe.end_date >= todayISO) return true
+      return false
+    }
+    // Weekly recurring: match day of week
+    if (fe.recurrence === 'weekly' && fe.recurrence_day === todayDayOfWeek) return true
+    // Daily recurring
+    if (fe.recurrence === 'daily') return true
+    // Monthly: match day of month
+    if (fe.recurrence === 'monthly') {
+      const eventDay = new Date(fe.start_date).getDate()
+      if (new Date(todayISO).getDate() === eventDay) return true
+    }
+    // Yearly: match month+day
+    if (fe.recurrence === 'yearly') {
+      const ed = new Date(fe.start_date)
+      const td = new Date(todayISO)
+      if (ed.getMonth() === td.getMonth() && ed.getDate() === td.getDate()) return true
+    }
+    return false
+  })
+
+  // --- Detect conflicts between work events and family events ---
+  const familyReminders: Array<{ family_event: string; family_time: string; conflict_with?: string; conflict_time?: string; family_member?: string }> = []
+
+  for (const fe of todayFamilyEvents) {
+    const feTime = fe.start_time ? fe.start_time.slice(0, 5) : null // "HH:MM"
+    const feEndTime = fe.end_time ? fe.end_time.slice(0, 5) : null
+
+    let conflictEvent: { title: string; start_time: string } | null = null
+
+    if (feTime) {
+      // Check overlap with work calendar events
+      for (const we of eventsRes.data || []) {
+        const weStart = new Date(we.start_time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: timezone })
+        const weEnd = new Date(we.end_time).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', timeZone: timezone })
+
+        // Time overlap: family starts before work ends AND work starts before family ends
+        const famEnd = feEndTime || feTime // if no end, treat as point-in-time
+        if (feTime < weEnd && weStart < famEnd) {
+          conflictEvent = { title: we.title, start_time: weStart }
+          break
+        }
+      }
+    }
+
+    familyReminders.push({
+      family_event: fe.title,
+      family_time: feTime || 'all day',
+      conflict_with: conflictEvent?.title,
+      conflict_time: conflictEvent?.start_time,
+      family_member: fe.family_member || undefined,
+    })
+  }
+
   return {
     todayEvents: eventsRes.data || [],
     pendingTasks: tasksRes.data || [],
@@ -135,6 +204,7 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       snippet: (m.body || '').slice(0, 100),
       received_at: m.received_at,
     })),
+    familyReminders,
     todayDate: now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone }),
     timezone,
   }

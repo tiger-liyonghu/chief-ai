@@ -7,6 +7,7 @@ import { createUserAIClient } from '@/lib/ai/unified-client'
 import { TASK_EXTRACTION_SYSTEM, TASK_EXTRACTION_USER } from '@/lib/ai/prompts/task-extraction'
 import { TRIP_DETECTION_SYSTEM, TRIP_DETECTION_USER } from '@/lib/ai/prompts/trip-detection'
 import { COMMITMENT_EXTRACTION_SYSTEM, COMMITMENT_EXTRACTION_USER } from '@/lib/ai/prompts/commitment-extraction'
+import { shouldSkipEmail, postFilterCommitments } from '@/lib/ai/commitment-filters'
 
 const AI_BATCH_SIZE = 5
 const PROCESS_LIMIT = 10
@@ -70,6 +71,25 @@ export async function POST(request: NextRequest) {
       const results = await Promise.allSettled(
         batch.map(async (emailRow) => {
           try {
+            // Pre-filter: skip emails unlikely to contain commitments
+            const preFilter = shouldSkipEmail({
+              from_address: emailRow.from_address || '',
+              from_name: emailRow.from_name || '',
+              subject: emailRow.subject || '',
+              snippet: emailRow.snippet || '',
+              to_address: emailRow.to_address || '',
+              is_outbound: emailRow.is_outbound || false,
+            }, profile?.email)
+
+            if (preFilter.skip) {
+              // Mark as processed but don't call LLM
+              await admin.from('emails').update({
+                body_processed: true,
+                commitment_scanned: true,
+              }).eq('id', emailRow.id)
+              return { skipped: true, reason: preFilter.reason }
+            }
+
             // Fetch full message body from Gmail
             const fullMessage = await getMessage(accessToken, emailRow.gmail_message_id)
             const headers = parseEmailHeaders(fullMessage.payload?.headers as any)
@@ -114,19 +134,19 @@ export async function POST(request: NextRequest) {
                 })
               }
 
-              // Insert follow-ups
+              // Insert commitments
               if (parsed.tasks) {
                 for (const task of parsed.tasks) {
                   if (task.type === 'follow_up' && task.confidence >= 0.5) {
-                    await admin.from('follow_ups').insert({
+                    await admin.from('commitments').insert({
                       user_id: user.id,
-                      type: 'waiting_on_them',
+                      type: 'they_promised',
                       contact_email: emailRow.from_address,
                       contact_name: emailRow.from_name || emailRow.from_address,
-                      subject: task.title,
-                      commitment_text: task.due_reason,
+                      title: task.title,
+                      description: task.due_reason,
                       source_email_id: emailRow.id,
-                      due_date: task.due_date || null,
+                      deadline: task.due_date || null,
                     })
                   }
                 }
@@ -381,16 +401,16 @@ export async function POST(request: NextRequest) {
               for (const c of parsed.commitments || []) {
                 if ((c.confidence || 0) < 0.5) continue
 
-                await admin.from('follow_ups').insert({
+                await admin.from('commitments').insert({
                   user_id: user.id,
-                  type: c.type === 'waiting_on_them' ? 'waiting_on_them' : 'i_promised',
+                  type: c.type === 'waiting_on_them' ? 'they_promised' : 'i_promised',
                   contact_email: toAddr,
                   contact_name: null,
-                  subject: c.title,
-                  commitment_text: c.due_reason || null,
+                  title: c.title,
+                  description: c.due_reason || null,
                   source_email_id: email.id,
-                  due_date: c.due_date || null,
-                  status: 'active',
+                  deadline: c.due_date || null,
+                  status: 'pending',
                 })
                 commitmentsExtracted++
               }
@@ -467,15 +487,15 @@ export async function POST(request: NextRequest) {
               const parsed = JSON.parse(content)
               for (const c of parsed.commitments || []) {
                 if ((c.confidence || 0) < 0.5) continue
-                await admin.from('follow_ups').insert({
+                await admin.from('commitments').insert({
                   user_id: user.id,
-                  type: c.type === 'waiting_on_them' ? 'waiting_on_them' : 'i_promised',
+                  type: c.type === 'waiting_on_them' ? 'they_promised' : 'i_promised',
                   contact_email: `wa-${msg.to_number}@whatsapp.placeholder`,
                   contact_name: null,
-                  subject: c.title,
-                  commitment_text: c.due_reason || null,
-                  due_date: c.due_date || null,
-                  status: 'active',
+                  title: c.title,
+                  description: c.due_reason || null,
+                  deadline: c.due_date || null,
+                  status: 'pending',
                 })
               }
             }

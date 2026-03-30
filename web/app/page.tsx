@@ -1,14 +1,15 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { ArrowRight, Mail, Calendar, CheckSquare, Sparkles, Shield, Zap } from 'lucide-react'
+import { ArrowRight, Target, Plane, Heart, Sparkles, Shield, Zap, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { useI18n } from '@/lib/i18n/context'
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher'
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
+  whileInView: { opacity: 1, y: 0 },
+  viewport: { once: true },
 }
 
 export default function LandingPage() {
@@ -74,7 +75,8 @@ export default function LandingPage() {
         {/* Product screenshot mock */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.5 }}
           className="mt-16 max-w-3xl mx-auto"
         >
@@ -103,7 +105,7 @@ export default function LandingPage() {
                     </div>
                     <span className="font-semibold text-sm text-text-primary">Chief</span>
                   </div>
-                  {[t('dailyBrief'), t('inbox'), t('tasks'), t('calendar')].map((item, i) => (
+                  {[t('commitmentsNav'), t('inbox'), t('calendar'), t('familyNav')].map((item, i) => (
                     <div key={item} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs mb-1 ${i === 0 ? 'bg-primary/10 text-primary font-medium' : 'text-text-secondary'}`}>
                       <div className={`w-3.5 h-3.5 rounded ${i === 0 ? 'bg-primary/20' : 'bg-gray-200'}`} />
                       {item}
@@ -122,9 +124,9 @@ export default function LandingPage() {
                   {/* Stat cards */}
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     {[
-                      { label: t('pendingTasks'), value: '7', color: 'text-emerald-600' },
-                      { label: t('needsReply'), value: '5', color: 'text-blue-600' },
-                      { label: t('meetings'), value: '2', color: 'text-amber-600' },
+                      { label: t('needsYourAction'), value: '3', color: 'text-blue-600' },
+                      { label: t('waitingOnThem'), value: '5', color: 'text-amber-600' },
+                      { label: t('complianceRate'), value: '92%', color: 'text-emerald-600' },
                     ].map((stat) => (
                       <div key={stat.label} className="bg-gray-50 rounded-xl p-3">
                         <div className={`text-lg font-bold ${stat.color}`}>{stat.value}</div>
@@ -132,11 +134,11 @@ export default function LandingPage() {
                       </div>
                     ))}
                   </div>
-                  {/* Task rows */}
+                  {/* Commitment rows */}
                   <div className="space-y-2">
-                    {[t('mockTask1'), t('mockTask2'), t('mockTask3')].map((task, i) => (
+                    {['Send proposal to David', 'Follow up with Ben (investor)', 'Emily — weekend zoo trip'].map((task, i) => (
                       <div key={task} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
-                        <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-red-400' : i === 1 ? 'bg-orange-400' : 'bg-yellow-400'}`} />
+                        <div className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-red-400' : i === 1 ? 'bg-orange-400' : 'bg-pink-400'}`} />
                         <span className="text-xs text-text-primary">{task}</span>
                       </div>
                     ))}
@@ -153,28 +155,29 @@ export default function LandingPage() {
         <div className="grid md:grid-cols-3 gap-8">
           {[
             {
-              icon: <CheckSquare className="w-6 h-6" />,
-              title: t('smartTaskExtraction'),
-              desc: t('smartTaskExtractionDesc'),
-              color: 'bg-emerald-50 text-emerald-600',
-            },
-            {
-              icon: <Mail className="w-6 h-6" />,
-              title: t('aiReplyAssistant'),
-              desc: t('aiReplyAssistantDesc'),
+              icon: <Target className="w-6 h-6" />,
+              title: t('commitmentTracking'),
+              desc: t('commitmentTrackingDesc'),
               color: 'bg-blue-50 text-blue-600',
             },
             {
-              icon: <Calendar className="w-6 h-6" />,
-              title: t('meetingPrep'),
-              desc: t('meetingPrepDesc'),
-              color: 'bg-amber-50 text-amber-600',
+              icon: <Plane className="w-6 h-6" />,
+              title: t('citySwitching'),
+              desc: t('citySwitchingDesc'),
+              color: 'bg-sky-50 text-sky-600',
+            },
+            {
+              icon: <Heart className="w-6 h-6" />,
+              title: t('familyGuard'),
+              desc: t('familyGuardDesc'),
+              color: 'bg-pink-50 text-pink-600',
             },
           ].map((feature, i) => (
             <motion.div
               key={feature.title}
               initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
               transition={{ duration: 0.5, delay: 0.4 + i * 0.1 }}
               className="p-6 rounded-2xl bg-white border border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
             >
