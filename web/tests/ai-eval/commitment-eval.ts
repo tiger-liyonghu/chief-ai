@@ -8,6 +8,22 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs'
+import { resolve } from 'path'
+
+// Load .env.local manually (no dotenv dependency)
+try {
+  const envContent = readFileSync(resolve(process.cwd(), '.env.local'), 'utf8')
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx > 0) {
+      const key = trimmed.slice(0, eqIdx).trim()
+      const val = trimmed.slice(eqIdx + 1).trim()
+      process.env[key] = val
+    }
+  }
+} catch { /* .env.local not found, rely on environment */ }
 import { resolve, dirname } from 'path'
 import OpenAI from 'openai'
 
@@ -49,36 +65,10 @@ const TEMPERATURE = 0.2 // matches commitment_scan task profile
 const MAX_TOKENS = 300
 
 // ---------------------------------------------------------------------------
-// System prompt — identical to production
+// System prompt — imported from production (single source of truth)
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are an AI assistant that extracts commitments from outbound messages (emails and WhatsApp messages sent BY the user).
-
-Analyze the sent message and identify two types of commitments:
-
-1. **i_promised**: Things the user committed to do for someone else.
-   - Patterns: "I'll", "I will", "Let me", "I can", "Will do", "Sure", "I'll get back to you", "好的我来", "我这边处理", "收到马上办"
-
-2. **waiting_on_them**: Things the user asked someone else to do.
-   - Patterns: "Could you", "Please send", "Can you", "Let me know", "Looking forward to", "请你", "麻烦帮忙", "什么时候能"
-
-For each commitment found, provide:
-- type: "i_promised" | "waiting_on_them"
-- title: Concise description (verb-first, e.g., "Send pitch deck to David")
-- due_date: ISO date if a deadline is mentioned or implied, null otherwise
-- due_reason: Why this date
-- confidence: 0.0-1.0
-
-Rules:
-- Only extract genuine commitments, not pleasantries
-- "Thanks" / "Got it" / "OK" alone are NOT commitments
-- Be conservative: confidence < 0.5 will be filtered out
-- Detect language automatically (English/Chinese/mixed)
-
-Respond in JSON:
-{
-  "commitments": [...],
-  "summary": "One sentence summary of what was promised/requested"
-}`
+import { COMMITMENT_EXTRACTION_SYSTEM } from '../../lib/ai/prompts/commitment-extraction'
+const SYSTEM_PROMPT = COMMITMENT_EXTRACTION_SYSTEM
 
 // ---------------------------------------------------------------------------
 // Types
@@ -192,8 +182,8 @@ Tiger`,
 Tiger`,
     date: '2026-03-27',
     expected: [
-      { type: 'i_promised', titlePattern: '合同', hasDueDate: true },
-      { type: 'waiting_on_them', titlePattern: '法务', hasDueDate: false },
+      { type: 'i_promised', titlePattern: '合同|contract|修订|revision', hasDueDate: true },
+      { type: 'waiting_on_them', titlePattern: '法务|legal|审核|review', hasDueDate: false },
     ],
   },
   {

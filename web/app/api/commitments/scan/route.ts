@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { COMMITMENT_EXTRACTION_SYSTEM } from '@/lib/ai/prompts/commitment-extraction'
 import { createUserAIClient } from '@/lib/ai/unified-client'
+import { shouldSkipEmail, postFilterCommitments } from '@/lib/ai/commitment-filters'
+import { getPersonalizedPrompt } from '@/lib/ai/personalized-prompt'
 
 /**
  * Commitment Scanner — the 30-second cold-start hook.
@@ -60,8 +62,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ scanned: 0, found: 0, commitments: [] })
   }
 
-  // Filter to unscanned emails
-  const unscanned = emails.filter(e => !e.commitment_scanned)
+  // Filter to unscanned emails + pre-filter
+  const unscanned = emails.filter(e => {
+    if (e.commitment_scanned) return false
+    const pf = shouldSkipEmail({
+      from_address: e.from_address || '',
+      from_name: e.from_name || '',
+      subject: e.subject || '',
+      snippet: e.snippet || '',
+      to_address: e.to_address || '',
+      is_outbound: e.is_outbound || false,
+    })
+    return !pf.skip
+  })
   if (unscanned.length === 0) {
     // Return existing commitments instead
     const { data: existing } = await supabase
@@ -74,8 +87,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ scanned: 0, found: 0, commitments: existing || [], already_scanned: true })
   }
 
-  // 2. Get LLM client
+  // 2. Get LLM client + personalized prompt
   const { client: ai, model } = await createUserAIClient(user.id)
+  const personalizedBlock = await getPersonalizedPrompt(user.id)
 
   // 3. Batch emails into groups for LLM processing
   const newCommitments: Array<{
@@ -91,7 +105,12 @@ export async function POST(req: NextRequest) {
       `---\nID: ${e.id}\nFrom: ${e.from_name || e.from_address}\nTo: ${e.to_address}\nSubject: ${e.subject}\nDate: ${e.date}\nDirection: ${e.is_outbound ? 'OUTBOUND (user sent)' : 'INBOUND (user received)'}\nSnippet: ${(e.snippet || '').slice(0, 500)}\n---`
     ).join('\n\n')
 
-    const systemPrompt = `You extract commitments from a batch of emails. For INBOUND emails: ${INBOUND_EXTRACTION_SYSTEM}\nFor OUTBOUND emails: ${COMMITMENT_EXTRACTION_SYSTEM}\n\nReturn JSON: { "results": [{ "email_id": "...", "commitments": [{ "type", "title", "due_date", "confidence" }] }] }`
+    let systemPrompt = `You extract commitments from a batch of emails. For INBOUND emails: ${INBOUND_EXTRACTION_SYSTEM}\nFor OUTBOUND emails: ${COMMITMENT_EXTRACTION_SYSTEM}\n\nReturn JSON: { "results": [{ "email_id": "...", "commitments": [{ "type", "title", "due_date", "confidence" }] }] }`
+
+    // Append personalized few-shot examples if available
+    if (personalizedBlock) {
+      systemPrompt += '\n' + personalizedBlock
+    }
 
     try {
       const aiRes = await ai.chat.completions.create({
@@ -139,19 +158,28 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 4. Insert new commitments (deduplicate by title similarity)
+  // 4. Post-filter + Insert new commitments
   const { data: existingCommitments } = await supabase
     .from('commitments')
     .select('title, contact_email')
     .eq('user_id', user.id)
     .in('status', ['pending', 'in_progress', 'overdue'])
 
-  const existingTitles = new Set((existingCommitments || []).map(c => c.title.toLowerCase()))
+  const existingTitles = (existingCommitments || []).map(c => c.title)
+
+  // Post-filter: catch false positives the LLM missed
+  const { passed: filteredCommitments } = postFilterCommitments(
+    newCommitments.map(c => ({ type: c.type, title: c.title, confidence: c.confidence, due_date: c.deadline })),
+    existingTitles
+  )
+
+  // Map back to full objects
+  const toInsert = filteredCommitments.map(fc =>
+    newCommitments.find(nc => nc.title === fc.title && nc.type === fc.type)!
+  ).filter(Boolean)
 
   let inserted = 0
-  for (const c of newCommitments) {
-    // Skip if similar commitment already exists
-    if (existingTitles.has(c.title.toLowerCase())) continue
+  for (const c of toInsert) {
 
     await supabase.from('commitments').insert({
       user_id: user.id,

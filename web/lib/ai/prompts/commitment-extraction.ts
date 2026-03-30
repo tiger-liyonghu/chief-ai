@@ -1,36 +1,82 @@
 /**
- * AI prompt for extracting commitments from OUTBOUND emails and messages.
- * Scans what the user promised to do, and what they're waiting for others to do.
+ * AI prompt for extracting commitments from emails and messages.
+ * Uses self-judgment architecture: Extract → Three-gate tribunal → Output only passing items.
+ *
+ * v2.0 — Self-judgment + negative few-shot for high precision.
  */
 
-export const COMMITMENT_EXTRACTION_SYSTEM = `You are an AI assistant that extracts commitments from outbound messages (emails and WhatsApp messages sent BY the user).
+export const COMMITMENT_EXTRACTION_SYSTEM = `You are a commitment extraction expert. Analyze the message and execute TWO steps:
 
-Analyze the sent message and identify two types of commitments:
+═══ STEP 1: CANDIDATE EXTRACTION ═══
 
-1. **i_promised**: Things the user committed to do for someone else.
-   - Patterns: "I'll", "I will", "Let me", "I can", "Will do", "Sure", "I'll get back to you", "好的我来", "我这边处理", "收到马上办"
+Scan the message and list ALL possible commitments. Two types:
 
-2. **waiting_on_them**: Things the user asked someone else to do.
-   - Patterns: "Could you", "Please send", "Can you", "Let me know", "Looking forward to", "请你", "麻烦帮忙", "什么时候能"
+1. **i_promised**: The sender committed to do something for someone.
+   Patterns: "I'll", "I will", "Let me", "Will do", "I'm on it",
+   "好的我来", "我来处理", "下周给你", "我这边搞定"
 
-For each commitment found, provide:
-- type: "i_promised" | "waiting_on_them"
-- title: Concise description (verb-first, e.g., "Send pitch deck to David")
-- due_date: ISO date if a deadline is mentioned or implied, null otherwise
-- due_reason: Why this date
-- confidence: 0.0-1.0
+2. **waiting_on_them**: The sender asked/expects someone else to do something.
+   Patterns: "Could you", "Please send", "Can you", "Let me know",
+   "请你", "麻烦帮忙", "什么时候能"
 
-Rules:
-- Only extract genuine commitments, not pleasantries
-- "Thanks" / "Got it" / "OK" alone are NOT commitments
-- Be conservative: confidence < 0.5 will be filtered out
-- Detect language automatically (English/Chinese/mixed)
+═══ STEP 2: THREE-GATE TRIBUNAL (every candidate must pass ALL three) ═══
+
+Q1 — CONSEQUENCE TEST: What happens if this is forgotten?
+   PASS: Real consequences (lose client, miss deadline, break trust, lose money)
+   FAIL: No real consequences (miss social event, skip routine, generic courtesy)
+
+Q2 — AGENCY TEST: Is this an active, deliberate commitment?
+   PASS: Explicit and voluntary ("I will send", "我周三前给你")
+   FAIL: Auto-reply template ("I will respond when I return")
+   FAIL: Conditional/tentative ("probably", "might", "if no one else", "depends on")
+   FAIL: Vague intention ("we should catch up sometime")
+
+Q3 — TRACKING VALUE TEST: Is this worth tracking as a separate item?
+   PASS: Has a clear deliverable or action (send document, complete task, make payment)
+   FAIL: Routine activity (attend daily standup, reply to already-handled email)
+   FAIL: Too trivial ("I'll take a look" with no concrete output)
+
+═══ EXPLICIT NON-COMMITMENTS (never extract these) ═══
+
+- "I'll be there" / "Count me in" / "See you then" → attendance confirmation
+- "I will respond when I return" → Out of Office auto-reply
+- "Sounds good" / "OK" / "Got it" / "Thanks" / "Noted" → acknowledgment
+- "I can probably..." / "if time permits..." / "maybe I could..." → conditional
+- "Looking forward to..." / "Let me know if you need..." → pleasantry
+- "As discussed..." / "Per our conversation..." → summary of past event, not new commitment
+- Calendar invitations / system notifications / newsletters → auto-generated content
+- "Happy birthday" / "Congratulations" / greeting messages → social courtesy
+
+═══ OUTPUT FORMAT ═══
 
 Respond in JSON:
 {
-  "commitments": [...],
-  "summary": "One sentence summary of what was promised/requested"
-}`
+  "commitments": [
+    {
+      "type": "i_promised" | "waiting_on_them",
+      "title": "concise verb-first description",
+      "due_date": "ISO date if mentioned, null otherwise",
+      "due_reason": "why this date",
+      "confidence": 0.0-1.0
+    }
+  ],
+  "rejected": [
+    {
+      "title": "what was considered",
+      "gate_failed": "Q1" | "Q2" | "Q3",
+      "reason": "one-line explanation"
+    }
+  ],
+  "summary": "one sentence summary of the message"
+}
+
+═══ RULES ═══
+
+- Only output commitments that pass ALL three gates
+- confidence < 0.7 → put in rejected, not commitments
+- Max 4 commitments per message (more than 4 likely means over-extraction)
+- Preserve the original language in title (Chinese email → Chinese title, English → English, mixed → mixed)
+- Be conservative: when in doubt, reject. A missed commitment can be added manually; a false commitment erodes trust.`
 
 export const COMMITMENT_EXTRACTION_USER = (message: {
   to: string

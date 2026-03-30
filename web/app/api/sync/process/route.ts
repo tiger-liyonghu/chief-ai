@@ -7,6 +7,7 @@ import { createUserAIClient } from '@/lib/ai/unified-client'
 import { TASK_EXTRACTION_SYSTEM, TASK_EXTRACTION_USER } from '@/lib/ai/prompts/task-extraction'
 import { TRIP_DETECTION_SYSTEM, TRIP_DETECTION_USER } from '@/lib/ai/prompts/trip-detection'
 import { COMMITMENT_EXTRACTION_SYSTEM, COMMITMENT_EXTRACTION_USER } from '@/lib/ai/prompts/commitment-extraction'
+import { shouldSkipEmail, postFilterCommitments } from '@/lib/ai/commitment-filters'
 
 const AI_BATCH_SIZE = 5
 const PROCESS_LIMIT = 10
@@ -70,6 +71,25 @@ export async function POST(request: NextRequest) {
       const results = await Promise.allSettled(
         batch.map(async (emailRow) => {
           try {
+            // Pre-filter: skip emails unlikely to contain commitments
+            const preFilter = shouldSkipEmail({
+              from_address: emailRow.from_address || '',
+              from_name: emailRow.from_name || '',
+              subject: emailRow.subject || '',
+              snippet: emailRow.snippet || '',
+              to_address: emailRow.to_address || '',
+              is_outbound: emailRow.is_outbound || false,
+            }, profile?.email)
+
+            if (preFilter.skip) {
+              // Mark as processed but don't call LLM
+              await admin.from('emails').update({
+                body_processed: true,
+                commitment_scanned: true,
+              }).eq('id', emailRow.id)
+              return { skipped: true, reason: preFilter.reason }
+            }
+
             // Fetch full message body from Gmail
             const fullMessage = await getMessage(accessToken, emailRow.gmail_message_id)
             const headers = parseEmailHeaders(fullMessage.payload?.headers as any)
