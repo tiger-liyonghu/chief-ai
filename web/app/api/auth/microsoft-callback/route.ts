@@ -1,3 +1,4 @@
+import { buildRedirectUrl } from '@/lib/auth/redirect'
 import { NextRequest, NextResponse } from 'next/server'
 import { getMicrosoftTokensFromCode, getMicrosoftProfile } from '@/lib/microsoft/auth'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -16,11 +17,11 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('Microsoft OAuth error:', error, request.nextUrl.searchParams.get('error_description'))
-    return NextResponse.redirect(new URL('/login?error=microsoft_auth_failed', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=microsoft_auth_failed', request.url))
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL('/login?error=no_code', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=no_code', request.url))
   }
 
   // Validate state
@@ -28,25 +29,25 @@ export async function GET(request: NextRequest) {
   try {
     state = JSON.parse(Buffer.from(stateParam || '', 'base64').toString())
   } catch {
-    return NextResponse.redirect(new URL('/login?error=invalid_state', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=invalid_state', request.url))
   }
 
   if (state.action !== 'login') {
-    return NextResponse.redirect(new URL('/login?error=invalid_state', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=invalid_state', request.url))
   }
 
   try {
     // Exchange code for tokens
     const tokens = await getMicrosoftTokensFromCode(code, '/api/auth/microsoft-callback')
     if (!tokens.access_token || !tokens.refresh_token) {
-      return NextResponse.redirect(new URL('/login?error=no_tokens', request.url))
+      return NextResponse.redirect(buildRedirectUrl('/login?error=no_tokens', request.url))
     }
 
     // Get user profile from Microsoft Graph
     const profile = await getMicrosoftProfile(tokens.access_token)
     const email = profile.mail || profile.userPrincipalName
     if (!email) {
-      return NextResponse.redirect(new URL('/login?error=no_email', request.url))
+      return NextResponse.redirect(buildRedirectUrl('/login?error=no_email', request.url))
     }
 
     const supabase = createAdminClient()
@@ -129,7 +130,7 @@ export async function GET(request: NextRequest) {
     })
     if (sessionError) throw sessionError
 
-    const redirectUrl = new URL('/api/auth/session', request.url)
+    const redirectUrl = buildRedirectUrl('/api/auth/session', request.url)
     redirectUrl.searchParams.set('token_hash', session.properties.hashed_token)
     redirectUrl.searchParams.set('type', 'magiclink')
     redirectUrl.searchParams.set('user_id', userId)
@@ -148,6 +149,6 @@ export async function GET(request: NextRequest) {
     return response
   } catch (err) {
     console.error('Microsoft OAuth callback error:', err)
-    return NextResponse.redirect(new URL('/login?error=auth_failed', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=auth_failed', request.url))
   }
 }

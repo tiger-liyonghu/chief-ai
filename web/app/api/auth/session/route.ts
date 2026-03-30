@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildRedirectUrl } from '@/lib/auth/redirect'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get('type')
 
   if (!tokenHash || !type) {
-    return NextResponse.redirect(new URL('/login?error=invalid_session', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=invalid_session', request.url))
   }
 
   const cookieStore = await cookies()
@@ -36,8 +37,8 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('Session verification error:', error)
-    return NextResponse.redirect(new URL('/login?error=session_failed', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=session_failed', request.url))
   }
 
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  return NextResponse.redirect(buildRedirectUrl('/dashboard', request.url))
 }

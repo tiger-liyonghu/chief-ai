@@ -1,3 +1,4 @@
+import { buildRedirectUrl } from '@/lib/auth/redirect'
 import { NextRequest, NextResponse } from 'next/server'
 import { getMicrosoftAuthUrl } from '@/lib/microsoft/auth'
 
@@ -20,6 +21,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(authUrl)
   } catch (err) {
     console.error('Microsoft login error:', err)
-    return NextResponse.redirect(new URL('/login?error=microsoft_not_configured', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=microsoft_not_configured', request.url))
   }
 }

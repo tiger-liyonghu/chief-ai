@@ -36,4 +36,5 @@ RUN mkdir -p /data/.wa-sessions
 ENV WA_SESSIONS_PATH=/data/.wa-sessions
 EXPOSE 3000
 
-CMD ["node", "server.js", "-H", "0.0.0.0"]
+ENV HOSTNAME=0.0.0.0
+CMD ["node", "server.js"]
