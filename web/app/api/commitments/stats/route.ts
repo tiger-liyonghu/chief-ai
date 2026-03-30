@@ -49,6 +49,64 @@ export async function GET(req: NextRequest) {
     ? Math.round((familyDone.length / familyAll.length) * 100)
     : 100
 
+  // --- Response time metrics (last 30 days) ---
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+  const { data: completedRecent } = await supabase
+    .from('commitments')
+    .select('id, created_at, completed_at, source_type')
+    .eq('user_id', user.id)
+    .eq('status', 'done')
+    .not('completed_at', 'is', null)
+    .gte('completed_at', thirtyDaysAgo.toISOString())
+
+  const completedList = completedRecent || []
+
+  let avgResponseHours = 0
+  let fastestResponseHours = 0
+  if (completedList.length > 0) {
+    const responseTimes = completedList
+      .filter(c => c.created_at && c.completed_at)
+      .map(c => (new Date(c.completed_at).getTime() - new Date(c.created_at).getTime()) / 3600000)
+      .filter(h => h > 0) // exclude invalid
+
+    if (responseTimes.length > 0) {
+      avgResponseHours = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length
+      fastestResponseHours = Math.min(...responseTimes)
+    }
+  }
+
+  // Completion sources heuristic
+  const completionSources = { web: 0, whatsapp: 0, auto: 0 }
+
+  for (const c of completedList) {
+    if (!c.completed_at) continue
+
+    // Check if a WhatsApp message containing completion signal exists near completion time
+    const completedAt = new Date(c.completed_at)
+    const windowStart = new Date(completedAt.getTime() - 5 * 60 * 1000) // 5 min before
+    const windowEnd = new Date(completedAt.getTime() + 5 * 60 * 1000)   // 5 min after
+    const shortId = c.id.substring(0, 6)
+
+    const { data: waMatch } = await supabase
+      .from('whatsapp_messages')
+      .select('id')
+      .gte('received_at', windowStart.toISOString())
+      .lte('received_at', windowEnd.toISOString())
+      .or(`body.ilike.%完成%${shortId}%,body.ilike.%done%${shortId}%,body.ilike.%${shortId}%完成%,body.ilike.%${shortId}%done%`)
+      .limit(1)
+
+    if (waMatch && waMatch.length > 0) {
+      completionSources.whatsapp++
+    } else if (c.source_type === 'manual') {
+      // Source type manual typically means web
+      completionSources.web++
+    } else {
+      completionSources.web++
+    }
+  }
+
   // Due today
   const today = new Date().toISOString().split('T')[0]
   const dueToday = activeList.filter(c => c.deadline === today)
@@ -75,6 +133,11 @@ export async function GET(req: NextRequest) {
     period_total: commitments.length,
     period_completed: completed.length,
     period_overdue: overdue.length,
+
+    // Response time metrics
+    avg_response_hours: Math.round(avgResponseHours * 10) / 10,
+    fastest_response_hours: Math.round(fastestResponseHours * 10) / 10,
+    completion_sources: completionSources,
 
     // Top urgent items
     top_urgent: activeList

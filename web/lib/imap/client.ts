@@ -7,6 +7,20 @@
 
 import { ImapFlow } from 'imapflow'
 import nodemailer from 'nodemailer'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const libmime = require('libmime') as { decodeWords: (str: string) => string }
+
+/**
+ * Decode RFC 2047 encoded-words in email headers (e.g. =?UTF-8?B?5L2g5aW9?=).
+ */
+function decodeHeader(value: string | null | undefined): string {
+  if (!value) return ''
+  try {
+    return libmime.decodeWords(value)
+  } catch {
+    return value
+  }
+}
 
 export interface ImapConfig {
   host: string
@@ -58,6 +72,11 @@ export const IMAP_PRESETS: Record<string, { imap: { host: string; port: number }
     smtp: { host: 'smtp.yeah.net', port: 465 },
     label: 'Yeah.net',
   },
+  'outlook': {
+    imap: { host: 'imap-mail.outlook.com', port: 993 },
+    smtp: { host: 'smtp-mail.outlook.com', port: 587 },
+    label: 'Outlook / Hotmail',
+  },
   'custom': {
     imap: { host: '', port: 993 },
     smtp: { host: '', port: 465 },
@@ -75,6 +94,8 @@ export function detectPreset(email: string): string {
   if (domain === 'qq.com') return 'qq'
   if (domain === '126.com') return '126'
   if (domain === 'yeah.net') return 'yeah'
+  if (['outlook.com', 'hotmail.com', 'live.com', 'msn.com'].includes(domain)) return 'outlook'
+  if (domain.endsWith('.outlook.com')) return 'outlook'
   return 'custom'
 }
 
@@ -174,16 +195,16 @@ export async function listImapMessages(
 
       const fromAddr = env.from?.[0]
       const toAddrs = (env.to || []).map((a: any) => ({
-        name: a.name || null,
+        name: decodeHeader(a.name) || null,
         address: a.address || '',
       }))
 
       messages.push({
         uid,
         messageId: env.messageId || `imap-${uid}`,
-        subject: env.subject || '(No Subject)',
+        subject: decodeHeader(env.subject) || '(No Subject)',
         from: {
-          name: fromAddr?.name || null,
+          name: decodeHeader(fromAddr?.name) || null,
           address: fromAddr?.address || '',
         },
         to: toAddrs,
@@ -274,16 +295,16 @@ export async function listImapSentMessages(
 
       const fromAddr = env.from?.[0]
       const toAddrs = (env.to || []).map((a: any) => ({
-        name: a.name || null,
+        name: decodeHeader(a.name) || null,
         address: a.address || '',
       }))
 
       messages.push({
         uid: msg.uid,
         messageId: env.messageId || `imap-sent-${msg.uid}`,
-        subject: env.subject || '(No Subject)',
+        subject: decodeHeader(env.subject) || '(No Subject)',
         from: {
-          name: fromAddr?.name || null,
+          name: decodeHeader(fromAddr?.name) || null,
           address: fromAddr?.address || '',
         },
         to: toAddrs,
@@ -306,6 +327,82 @@ export async function listImapSentMessages(
 }
 
 /**
+ * Fetch full email body by UID from INBOX.
+ * Returns plain text content (or HTML stripped to text).
+ */
+export async function fetchImapMessageBody(
+  config: ImapConfig,
+  uid: number,
+  folder: string = 'INBOX',
+): Promise<string> {
+  const client = new ImapFlow({
+    host: config.host,
+    port: config.port,
+    secure: true,
+    auth: {
+      user: config.email,
+      pass: config.password,
+    },
+    logger: false,
+  })
+
+  try {
+    await client.connect()
+    await client.mailboxOpen(folder)
+
+    const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
+    await client.logout()
+
+    if (!message?.source) return ''
+
+    // Parse the raw email source to extract text body
+    const raw = message.source.toString()
+
+    // Try to extract plain text part
+    const textMatch = raw.match(/Content-Type:\s*text\/plain[\s\S]*?\r\n\r\n([\s\S]*?)(?:\r\n--|\r\n\.\r\n|$)/i)
+    if (textMatch) {
+      return decodeEmailBody(textMatch[1])
+    }
+
+    // Fallback: extract HTML and strip tags
+    const htmlMatch = raw.match(/Content-Type:\s*text\/html[\s\S]*?\r\n\r\n([\s\S]*?)(?:\r\n--|\r\n\.\r\n|$)/i)
+    if (htmlMatch) {
+      return decodeEmailBody(htmlMatch[1]).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    }
+
+    // Last resort: return raw body after headers
+    const bodyStart = raw.indexOf('\r\n\r\n')
+    if (bodyStart >= 0) {
+      return raw.slice(bodyStart + 4, bodyStart + 2000)
+    }
+
+    return ''
+  } catch (err: any) {
+    try { await client.close() } catch { /* ignore */ }
+    throw new Error(`IMAP body fetch failed: ${err.message}`)
+  }
+}
+
+/**
+ * Decode common email body encodings (quoted-printable, base64).
+ */
+function decodeEmailBody(text: string): string {
+  // Check for quoted-printable soft line breaks
+  if (text.includes('=\r\n') || text.includes('=3D')) {
+    return text
+      .replace(/=\r\n/g, '')
+      .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+  }
+  // Check for base64
+  if (/^[A-Za-z0-9+/=\r\n]+$/.test(text.trim())) {
+    try {
+      return Buffer.from(text.replace(/\r?\n/g, ''), 'base64').toString('utf-8')
+    } catch { /* not base64 */ }
+  }
+  return text
+}
+
+/**
  * Send an email via SMTP.
  */
 export async function sendSmtpMessage(
@@ -318,7 +415,7 @@ export async function sendSmtpMessage(
   const transporter = nodemailer.createTransport({
     host: config.host,
     port: config.port,
-    secure: true, // SSL for port 465
+    secure: config.port === 465, // SSL for 465, STARTTLS for 587
     auth: {
       user: config.email,
       pass: config.password,

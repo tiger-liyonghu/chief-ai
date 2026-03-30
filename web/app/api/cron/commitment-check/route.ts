@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createUserAIClient } from '@/lib/ai/unified-client'
 
 /**
  * GET /api/cron/commitment-check
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
   }
 
   let processed = 0
+  let escalationsGenerated = 0
 
   for (const item of overdueItems) {
     const daysOverdue = Math.ceil((now.getTime() - new Date(item.deadline).getTime()) / 86400000)
@@ -56,6 +58,75 @@ export async function GET(request: NextRequest) {
     await admin.from('commitments').update({
       last_nudge_at: now.toISOString(),
     }).eq('id', item.id)
+
+    // Smart Escalation: if 7+ days overdue AND already nudged before, generate AI suggestion
+    if (daysOverdue >= 7 && item.last_nudge_at) {
+      try {
+        const { client: ai, model } = await createUserAIClient(item.user_id)
+
+        // Optionally fetch contact importance
+        let contactImportance = 'normal'
+        if (item.contact_email) {
+          const { data: contact } = await admin
+            .from('contacts')
+            .select('importance, name')
+            .eq('user_id', item.user_id)
+            .eq('email', item.contact_email)
+            .single()
+          if (contact?.importance) contactImportance = contact.importance
+        }
+
+        const contactName = item.contact_name || item.contact_email || 'the contact'
+
+        const res = await ai.chat.completions.create({
+          model,
+          messages: [
+            {
+              role: 'system',
+              content: `You are an AI chief of staff helping a busy professional manage commitments. Respond in the same language as the commitment title. Keep suggestions practical and actionable. Output plain text only, no JSON.`,
+            },
+            {
+              role: 'user',
+              content: `This commitment has been overdue for ${daysOverdue} days and I already nudged them before:
+Title: "${item.title}"
+Contact: ${contactName}
+Contact importance: ${contactImportance}
+Deadline was: ${item.deadline}
+
+Suggest 2-3 alternative escalation approaches. Be concise (under 100 words total). Format as a numbered list.`,
+            },
+          ],
+          temperature: 0.4,
+          max_tokens: 300,
+        })
+
+        const suggestion = res.choices?.[0]?.message?.content
+        if (suggestion) {
+          // Fetch current description to append
+          const { data: current } = await admin
+            .from('commitments')
+            .select('description')
+            .eq('id', item.id)
+            .single()
+
+          const separator = '\n\n---ESCALATION---\n'
+          const existingDesc = current?.description || ''
+          // Replace any previous escalation suggestion
+          const baseDesc = existingDesc.split('---ESCALATION---')[0].trimEnd()
+          const newDesc = baseDesc
+            ? `${baseDesc}${separator}${suggestion}`
+            : `${separator}${suggestion}`
+
+          await admin.from('commitments').update({
+            description: newDesc,
+          }).eq('id', item.id)
+          escalationsGenerated++
+        }
+      } catch (escalationErr) {
+        console.error('Escalation suggestion failed for commitment:', item.id, escalationErr)
+        // Non-fatal, continue processing
+      }
+    }
 
     processed++
   }
@@ -137,6 +208,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     processed,
+    escalations_generated: escalationsGenerated,
     total_overdue: overdueItems.length,
     urgency_scores_updated: urgencyUpdated,
     breakdown: {

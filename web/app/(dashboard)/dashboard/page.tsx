@@ -69,6 +69,13 @@ interface Stats {
   family_compliance_rate: number
   period_total: number
   period_completed: number
+  avg_response_hours: number
+  fastest_response_hours: number
+  completion_sources?: {
+    web: number
+    whatsapp: number
+    auto: number
+  }
 }
 
 /* ─── Helpers ─── */
@@ -86,6 +93,16 @@ function sourceIcon(type: string) {
     case 'voice': return Mic
     default: return PenLine
   }
+}
+
+function formatHours(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)}m`
+  if (hours < 24) return `${Math.round(hours)}h`
+  return `${Math.round(hours / 24)}d`
+}
+
+function hasEscalationSuggestion(description: string | null): boolean {
+  return !!description && description.includes('---ESCALATION---')
 }
 
 function urgencyColor(score: number, days: number | null): string {
@@ -211,6 +228,14 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
               </span>
             )}
           </div>
+
+          {/* Escalation badge */}
+          {hasEscalationSuggestion(c.description) && (
+            <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 bg-orange-100 border border-orange-300 text-orange-700 text-xs font-medium rounded-full">
+              <AlertTriangle className="w-3 h-3" />
+              needs escalation
+            </span>
+          )}
 
           {/* Blocking chain warning */}
           {c.blocked_by && c.blocked_by.length > 0 && (
@@ -556,6 +581,27 @@ export default function CommitmentDashboard() {
 
         {/* Stats */}
         {!loading && <StatsBanner stats={stats} t={t} />}
+
+        {/* Response metrics — only show if user has completed commitments */}
+        {!loading && stats && stats.avg_response_hours > 0 && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4">
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Performance</h3>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-lg font-bold text-primary">{formatHours(stats.avg_response_hours)}</p>
+                <p className="text-xs text-slate-400">Avg Response</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-green-600">{stats.completion_sources?.web || 0}</p>
+                <p className="text-xs text-slate-400">Web</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold text-green-600">{stats.completion_sources?.whatsapp || 0}</p>
+                <p className="text-xs text-slate-400">WhatsApp</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Scanning indicator */}
         {scanning && (

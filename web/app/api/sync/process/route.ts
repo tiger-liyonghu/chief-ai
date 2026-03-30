@@ -8,6 +8,8 @@ import { TASK_EXTRACTION_SYSTEM, TASK_EXTRACTION_USER } from '@/lib/ai/prompts/t
 import { TRIP_DETECTION_SYSTEM, TRIP_DETECTION_USER } from '@/lib/ai/prompts/trip-detection'
 import { COMMITMENT_EXTRACTION_SYSTEM, COMMITMENT_EXTRACTION_USER } from '@/lib/ai/prompts/commitment-extraction'
 import { shouldSkipEmail, postFilterCommitments } from '@/lib/ai/commitment-filters'
+import { getImapAccountTokens } from '@/lib/imap/tokens'
+import { fetchImapMessageBody, type ImapConfig } from '@/lib/imap/client'
 
 const AI_BATCH_SIZE = 5
 const PROCESS_LIMIT = 10
@@ -35,12 +37,26 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient()
     const { client: aiClient, model: aiModel } = await createUserAIClient(user.id)
-    const accessToken = await getValidAccessToken(user.id)
+
+    // Get Gmail access token (may not exist if user only has IMAP accounts)
+    let accessToken: string | null = null
+    try {
+      accessToken = await getValidAccessToken(user.id)
+    } catch {
+      // No Gmail account — that's fine, we'll use IMAP for those emails
+    }
+
+    // Build IMAP config lookup: source_account_email → ImapConfig
+    const imapAccounts = await getImapAccountTokens(user.id)
+    const imapConfigMap = new Map<string, ImapConfig>()
+    for (const acc of imapAccounts) {
+      imapConfigMap.set(acc.email.toLowerCase(), acc.imapConfig)
+    }
 
     // Query unprocessed emails
     const { data: unprocessedEmails, error: queryErr } = await admin
       .from('emails')
-      .select('id, gmail_message_id, from_address, from_name, subject, snippet, to_address, is_outbound')
+      .select('id, gmail_message_id, from_address, from_name, subject, snippet, to_addresses, source_account_email, body_text')
       .eq('user_id', user.id)
       .eq('body_processed', false)
       .order('received_at', { ascending: false })
@@ -77,8 +93,8 @@ export async function POST(request: NextRequest) {
               from_name: emailRow.from_name || '',
               subject: emailRow.subject || '',
               snippet: emailRow.snippet || '',
-              to_address: emailRow.to_address || '',
-              is_outbound: emailRow.is_outbound || false,
+              to_address: (Array.isArray(emailRow.to_addresses) ? emailRow.to_addresses[0] : emailRow.to_addresses) || '',
+              is_outbound: false,
             }, user.email || undefined)
 
             if (preFilter.skip) {
@@ -90,10 +106,38 @@ export async function POST(request: NextRequest) {
               return { skipped: true, reason: preFilter.reason }
             }
 
-            // Fetch full message body from Gmail
-            const fullMessage = await getMessage(accessToken, emailRow.gmail_message_id)
-            const headers = parseEmailHeaders(fullMessage.payload?.headers as any)
-            const body = parseEmailBody(fullMessage.payload)
+            // Fetch full message body — route by account type
+            let headers = { from: emailRow.from_name || emailRow.from_address || '', subject: emailRow.subject || '', date: '' }
+            let body = ''
+            const sourceEmail = (emailRow.source_account_email || '').toLowerCase()
+            const imapConfig = imapConfigMap.get(sourceEmail)
+
+            // Priority: body_text (pre-stored) > IMAP fetch > Gmail API > snippet
+            if (emailRow.body_text) {
+              body = emailRow.body_text
+            } else if (imapConfig && emailRow.gmail_message_id.startsWith('imap-')) {
+              // IMAP account (163, QQ, Outlook IMAP, etc.) — fetch body via IMAP
+              const uidMatch = emailRow.gmail_message_id.match(/^imap-[^-]+-(\d+)-/)
+              const uid = uidMatch ? parseInt(uidMatch[1], 10) : 0
+              if (uid > 0) {
+                try {
+                  body = await fetchImapMessageBody(imapConfig, uid)
+                } catch {
+                  body = emailRow.snippet || ''
+                }
+              } else {
+                body = emailRow.snippet || ''
+              }
+            } else if (accessToken) {
+              // Gmail/Outlook OAuth — fetch body via API
+              const fullMessage = await getMessage(accessToken, emailRow.gmail_message_id)
+              const gmailHeaders = parseEmailHeaders(fullMessage.payload?.headers as any)
+              headers = gmailHeaders
+              body = parseEmailBody(fullMessage.payload)
+            } else {
+              // No way to fetch body — use snippet
+              body = emailRow.snippet || ''
+            }
 
             // AI task extraction
             const aiResponse = await aiClient.chat.completions.create({
@@ -214,7 +258,7 @@ export async function POST(request: NextRequest) {
     const processedIds = unprocessedEmails.map(e => e.id)
     const { data: emailsWithSubjects } = await admin
       .from('emails')
-      .select('id, subject, from_address, from_name, snippet, received_at, gmail_message_id')
+      .select('id, subject, from_address, from_name, snippet, received_at, gmail_message_id, source_account_email')
       .in('id', processedIds)
 
     const travelCandidates = (emailsWithSubjects || []).filter(e => looksLikeTravel(e.subject || ''))
@@ -224,10 +268,20 @@ export async function POST(request: NextRequest) {
         try {
           // Fetch full body for better detection
           let body = email.snippet || ''
-          try {
-            const fullMessage = await getMessage(accessToken, email.gmail_message_id)
-            body = parseEmailBody(fullMessage.payload) || body
-          } catch { /* use snippet as fallback */ }
+          const travelSourceEmail = (email.source_account_email || '').toLowerCase()
+          const travelImapConfig = imapConfigMap.get(travelSourceEmail)
+          if (travelImapConfig && email.gmail_message_id.startsWith('imap-')) {
+            const uidMatch = email.gmail_message_id.match(/^imap-[^-]+-(\d+)-/)
+            const uid = uidMatch ? parseInt(uidMatch[1], 10) : 0
+            if (uid > 0) {
+              try { body = await fetchImapMessageBody(travelImapConfig, uid) || body } catch { /* snippet fallback */ }
+            }
+          } else if (accessToken) {
+            try {
+              const fullMessage = await getMessage(accessToken, email.gmail_message_id)
+              body = parseEmailBody(fullMessage.payload) || body
+            } catch { /* use snippet as fallback */ }
+          }
 
           const aiResponse = await aiClient.chat.completions.create({
             model: aiModel,
@@ -360,7 +414,7 @@ export async function POST(request: NextRequest) {
     try {
       const { data: sentEmails } = await admin
         .from('emails')
-        .select('id, gmail_message_id, from_address, to_addresses, subject, snippet, labels')
+        .select('id, gmail_message_id, from_address, to_addresses, subject, snippet, labels, source_account_email')
         .eq('user_id', user.id)
         .eq('body_processed', true)
         .contains('labels', ['SENT'])
@@ -372,10 +426,22 @@ export async function POST(request: NextRequest) {
         for (const email of sentEmails) {
           try {
             let body = email.snippet || ''
-            try {
-              const fullMsg = await getMessage(accessToken, email.gmail_message_id)
-              body = parseEmailBody(fullMsg.payload) || body
-            } catch { /* use snippet */ }
+            const sentSourceEmail = (email.source_account_email || '').toLowerCase()
+            const sentImapConfig = imapConfigMap.get(sentSourceEmail)
+            if (sentImapConfig && email.gmail_message_id.startsWith('imap-')) {
+              const uidMatch = email.gmail_message_id.match(/^imap-[^-]+-(\d+)-/)
+              const uid = uidMatch ? parseInt(uidMatch[1], 10) : 0
+              if (uid > 0) {
+                try { body = await fetchImapMessageBody(sentImapConfig, uid, '&XfJT0ZAB-') || body } catch {
+                  try { body = await fetchImapMessageBody(sentImapConfig, uid, 'Sent Messages') || body } catch { /* snippet */ }
+                }
+              }
+            } else if (accessToken) {
+              try {
+                const fullMsg = await getMessage(accessToken, email.gmail_message_id)
+                body = parseEmailBody(fullMsg.payload) || body
+              } catch { /* use snippet */ }
+            }
 
             const toAddr = Array.isArray(email.to_addresses) ? email.to_addresses[0] : ''
 
@@ -384,6 +450,7 @@ export async function POST(request: NextRequest) {
               messages: [
                 { role: 'system', content: COMMITMENT_EXTRACTION_SYSTEM },
                 { role: 'user', content: COMMITMENT_EXTRACTION_USER({
+                  from: email.from_address || '',
                   to: toAddr,
                   subject: email.subject || '',
                   body,

@@ -111,7 +111,7 @@ export async function execute(ctx: ToolContext, name: string, args: any): Promis
       const dataTools = APPLE_TOOLS.filter(t => {
         const n = (t as any).function.name
         return ['get_today_calendar', 'get_upcoming_events', 'get_pending_emails', 'get_tasks',
-                'get_follow_ups', 'get_contact_info', 'get_trip_info', 'search_company_news'].includes(n)
+                'get_commitments', 'get_contact_info', 'get_trip_info', 'search_company_news'].includes(n)
       })
 
       const client = getLLMClient()

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   // 1. Get recent emails not yet scanned
   const { data: emails } = await supabase
     .from('emails')
-    .select('id, from_address, from_name, to_address, subject, snippet, date, is_outbound, commitment_scanned')
+    .select('id, from_address, from_name, to_address, subject, snippet, body_text, date, is_outbound, commitment_scanned')
     .eq('user_id', user.id)
     .gte('date', since)
     .order('date', { ascending: false })
@@ -101,9 +101,10 @@ export async function POST(req: NextRequest) {
   // Process in batches of 5
   for (let i = 0; i < unscanned.length; i += 5) {
     const batch = unscanned.slice(i, i + 5)
-    const emailSummaries = batch.map(e =>
-      `---\nID: ${e.id}\nFrom: ${e.from_name || e.from_address}\nTo: ${e.to_address}\nSubject: ${e.subject}\nDate: ${e.date}\nDirection: ${e.is_outbound ? 'OUTBOUND (user sent)' : 'INBOUND (user received)'}\nSnippet: ${(e.snippet || '').slice(0, 500)}\n---`
-    ).join('\n\n')
+    const emailSummaries = batch.map(e => {
+      const bodyPreview = e.body_text ? e.body_text.slice(0, 1500) : (e.snippet || '').slice(0, 500)
+      return `---\nID: ${e.id}\nFrom: ${e.from_name || e.from_address}\nTo: ${e.to_address}\nSubject: ${e.subject}\nDate: ${e.date}\nDirection: ${e.is_outbound ? 'OUTBOUND (user sent)' : 'INBOUND (user received)'}\nBody: ${bodyPreview}\n---`
+    }).join('\n\n')
 
     let systemPrompt = `You extract commitments from a batch of emails. For INBOUND emails: ${INBOUND_EXTRACTION_SYSTEM}\nFor OUTBOUND emails: ${COMMITMENT_EXTRACTION_SYSTEM}\n\nReturn JSON: { "results": [{ "email_id": "...", "commitments": [{ "type", "title", "due_date", "confidence" }] }] }`
 
