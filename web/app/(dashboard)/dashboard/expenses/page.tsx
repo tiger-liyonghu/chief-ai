@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
 import {
   Plane, Hotel, Car, UtensilsCrossed, Circle,
-  Download, Plus, Loader2, X, Receipt,
+  Download, Plus, Loader2, X, Receipt, Sparkles, ChevronUp,
 } from 'lucide-react'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
@@ -69,6 +69,9 @@ export default function ExpensesPage() {
   const [showForm, setShowForm] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [reportText, setReportText] = useState('')
+  const [reportLoading, setReportLoading] = useState(false)
+  const [showReport, setShowReport] = useState(false)
 
   // Form state
   const [form, setForm] = useState({
@@ -234,6 +237,30 @@ export default function ExpensesPage() {
     )
   }
 
+  const handleGenerateReport = async () => {
+    setReportLoading(true)
+    setReportText('')
+    setShowReport(true)
+    try {
+      const res = await fetch('/api/expenses/report')
+      if (!res.ok) throw new Error()
+      const reader = res.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) throw new Error()
+      let acc = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        acc += decoder.decode(value, { stream: true })
+        setReportText(acc)
+      }
+    } catch {
+      setReportText('Failed to generate report. Make sure you have expenses recorded.')
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
   const pendingCount = expenses.filter(e => e.status === 'pending').length
 
   return (
@@ -287,6 +314,14 @@ export default function ExpensesPage() {
               <span>Add Expense</span>
             </button>
             <button
+              onClick={handleGenerateReport}
+              disabled={reportLoading || expenses.length === 0}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100 transition-all duration-200 disabled:opacity-50"
+            >
+              {reportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              <span>AI Report</span>
+            </button>
+            <button
               onClick={handleExport}
               disabled={exporting || expenses.length === 0}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-white border border-border text-text-secondary hover:bg-surface-secondary transition-all duration-200 disabled:opacity-50"
@@ -296,6 +331,25 @@ export default function ExpensesPage() {
             </button>
           </div>
         </div>
+
+        {/* AI Report Panel */}
+        {showReport && (
+          <div className="mb-6 bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-200 rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-violet-800 flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Expense Analysis Report
+              </h3>
+              <button onClick={() => setShowReport(false)} className="p-1 text-violet-400 hover:text-violet-600">
+                <ChevronUp className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-sm text-violet-900 leading-relaxed whitespace-pre-line">
+              {reportText}
+              {reportLoading && <span className="inline-block w-1.5 h-4 bg-violet-400/60 animate-pulse ml-0.5 align-text-bottom rounded-sm" />}
+            </div>
+          </div>
+        )}
 
         {/* Content */}
         {loading ? (
