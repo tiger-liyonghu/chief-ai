@@ -22,6 +22,7 @@ import {
   Sparkles,
   Search,
   Loader2,
+  XCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useCallback } from 'react'
@@ -103,6 +104,18 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: c.id, status: 'done' }),
       })
+      // Record confirmed feedback
+      await fetch('/api/commitments/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedback_type: 'confirmed',
+          commitment_id: c.id,
+          original_title: c.title,
+          original_type: c.type,
+          source_type: c.source_type,
+        }),
+      })
       onUpdate()
     } else if (action === 'postpone') {
       if (c.type === 'family' && !confirm(t('confirmPostponeFamily'))) return
@@ -112,6 +125,25 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: c.id, deadline: newDeadline.toISOString().split('T')[0] }),
+      })
+      onUpdate()
+    } else if (action === 'not_a_commitment') {
+      // Mark as cancelled + record rejected feedback
+      await fetch('/api/commitments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: c.id, status: 'cancelled' }),
+      })
+      await fetch('/api/commitments/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedback_type: 'rejected',
+          commitment_id: c.id,
+          original_title: c.title,
+          original_type: c.type,
+          source_type: c.source_type,
+        }),
       })
       onUpdate()
     }
@@ -192,6 +224,13 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
             </button>
           )}
           <button
+            onClick={() => handleAction('not_a_commitment')}
+            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+            title="Not a commitment"
+          >
+            <XCircle className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => setShowActions(!showActions)}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
           >
@@ -203,6 +242,7 @@ function CommitmentCard({ c, t, onUpdate }: { c: Commitment; t: ReturnType<typeo
             <div className="absolute right-4 top-12 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 min-w-[140px]">
               <button onClick={() => handleAction('done')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{t('markDone')}</button>
               <button onClick={() => handleAction('postpone')} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50">{t('postpone')}</button>
+              <button onClick={() => handleAction('not_a_commitment')} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">Not a commitment</button>
             </div>
           )}
         </div>
