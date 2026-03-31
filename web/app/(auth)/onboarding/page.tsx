@@ -313,16 +313,19 @@ export default function OnboardingPage() {
                 </h2>
                 <div className="space-y-2">
                   {emailConnected && emailAddress && (
-                    <div className="border border-emerald-300 bg-emerald-50 rounded-xl p-3 flex items-center gap-3">
-                      <Check className="w-4 h-4 text-emerald-600" />
-                      <span className="text-sm text-emerald-800">{emailAddress}</span>
+                    <div className="border border-emerald-300 bg-emerald-50 rounded-xl p-3">
+                      <div className="flex items-center gap-3">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="text-sm font-medium text-emerald-800">{emailAddress}</span>
+                      </div>
+                      <p className="text-xs text-emerald-600/70 mt-1 ml-7">邮件扫描、承诺提取、简报生成已就绪</p>
                     </div>
                   )}
                   <button
                     onClick={() => window.location.href = '/api/accounts/add'}
                     className="w-full border border-dashed border-slate-300 rounded-xl p-3 text-sm text-slate-500 hover:border-slate-400 hover:text-slate-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    <Plus className="w-4 h-4" /> 添加另一个邮箱
+                    <Plus className="w-4 h-4" /> 添加另一个邮箱<span className="text-xs text-slate-400">（可选）</span>
                   </button>
                 </div>
               </div>
