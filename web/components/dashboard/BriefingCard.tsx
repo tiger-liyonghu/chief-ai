@@ -419,12 +419,54 @@ export function BriefingCard() {
 
     try {
       const url = refresh ? '/api/briefing?refresh=1' : '/api/briefing'
-      const res = await fetch(url)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 15000)
+      const res = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeout)
       if (!res.ok) throw new Error()
       const json = await res.json()
       setData(json)
     } catch {
-      setError(true)
+      // Build a data-only fallback briefing from raw APIs
+      try {
+        const [commRes, calRes] = await Promise.allSettled([
+          fetch('/api/commitments?status=pending,in_progress,waiting,overdue').then(r => r.json()),
+          fetch('/api/calendar').then(r => r.json()),
+        ])
+        const comms = commRes.status === 'fulfilled' ? (commRes.value.commitments || commRes.value || []) : []
+        const events = calRes.status === 'fulfilled' ? (calRes.value.events || calRes.value || []) : []
+
+        const overdue = comms.filter((c: any) => c.status === 'overdue')
+        const dueToday = comms.filter((c: any) => c.deadline === new Date().toISOString().split('T')[0])
+        const iPromised = comms.filter((c: any) => c.type === 'i_promised')
+
+        const todayLines = events.slice(0, 3).map((e: any) =>
+          `${e.start_time || ''} — ${e.title || e.summary || 'Meeting'}`
+        ).join('\n') || 'No meetings today'
+
+        const actionLines = [
+          ...overdue.slice(0, 2).map((c: any) => `🔴 ${c.contact_name || 'Someone'}: ${c.title} (overdue)`),
+          ...dueToday.slice(0, 1).map((c: any) => `🟡 ${c.contact_name || 'Someone'}: ${c.title} (due today)`),
+          ...iPromised.filter((c: any) => c.status !== 'overdue' && c.deadline !== new Date().toISOString().split('T')[0]).slice(0, 1).map((c: any) => `🟢 ${c.contact_name || 'Someone'}: ${c.title}`),
+        ].join('\n') || 'No urgent actions'
+
+        const fallbackBriefing = `## TODAY\n${todayLines}\n\n## ACTION\n${actionLines}\n\n## HORIZON\nChief is syncing your data for a full briefing.`
+
+        setData({
+          briefing: fallbackBriefing,
+          generated_at: new Date().toISOString(),
+          cached: false,
+          score: {
+            meetings: events.length,
+            actions_pending: iPromised.length,
+            overdue: overdue.length,
+            compliance_rate: comms.length > 0 ? Math.round(((comms.length - overdue.length) / comms.length) * 100) : 100,
+            trend: 'stable' as const,
+          },
+        })
+      } catch {
+        setError(true)
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
