@@ -7,25 +7,7 @@ import { supabase } from './supabase'
 import OpenAI from 'openai'
 import { getConnection } from './client'
 import { wasNotificationSent, markNotificationSent } from './notification-log'
-
-const BRIEFING_SYSTEM = `你是 Apple，老板的 AI 首席幕僚。现在生成今日晨间简报。
-
-格式要求：
-- 以 🍎 开头
-- 先打招呼（"老板早"或"Good morning boss"，看历史消息判断语言）
-- 最多列 3-5 件最重要的事，不要贪多
-- 逾期的承诺要用 ⚠️ 标出
-- 用换行分隔，不用 bullet 符号
-- 简短干练，整体不超过 10 行
-- 不要用 markdown 标题或代码块
-- 如果今天没什么特别的，就简短说"今天安排轻松"
-
-内容优先级：
-1. ⚠️ 逾期承诺/跟进（你答应的事过期了）
-2. 今天的会议（时间+人+要准备什么）
-3. 待回复邮件（等了超过2天的优先）
-4. 紧急任务
-5. Heads up（不紧急但应该知道的）`
+import { SOPHIE_BRIEFING_SYSTEM } from './sophia-voice'
 
 export function startMorningBriefingScheduler(): void {
   // Check every minute for briefings and reminders
@@ -116,12 +98,13 @@ async function maybeSendBriefing(userId: string, phoneNumber: string): Promise<v
   await supabase.from('whatsapp_messages').insert({
     user_id: userId,
     wa_message_id: `briefing-${userDate}-${Math.random().toString(36).slice(2, 8)}`,
-    from_number: 'apple',
-    from_name: 'Apple',
+    from_number: 'sophia',
+    from_name: 'Sophia',
     to_number: myNumber,
     body: briefingText,
     message_type: 'text',
     direction: 'inbound',
+    chat_role: 'assistant',
     received_at: now.toISOString(),
   })
 
@@ -304,7 +287,7 @@ async function generateBriefing(context: BriefingContext, tz: string): Promise<s
     const completion = await client.chat.completions.create({
       model: process.env.LLM_MODEL || 'deepseek-chat',
       messages: [
-        { role: 'system', content: BRIEFING_SYSTEM },
+        { role: 'system', content: SOPHIE_BRIEFING_SYSTEM },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.6,
@@ -422,12 +405,13 @@ async function maybeSendOverdueReminder(userId: string): Promise<void> {
   await supabase.from('whatsapp_messages').insert({
     user_id: userId,
     wa_message_id: `reminder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    from_number: 'apple',
-    from_name: 'Apple',
+    from_number: 'sophia',
+    from_name: 'Sophia',
     to_number: myNumber,
     body: text,
     message_type: 'text',
     direction: 'inbound',
+    chat_role: 'assistant',
     received_at: new Date().toISOString(),
   })
 
@@ -546,12 +530,13 @@ async function maybeSendCommitmentAlerts(userId: string): Promise<void> {
       await supabase.from('whatsapp_messages').insert({
         user_id: userId,
         wa_message_id: `commitment-alert-${c.id.slice(0, 8)}-${Date.now()}`,
-        from_number: 'apple',
-        from_name: 'Apple',
+        from_number: 'sophia',
+        from_name: 'Sophia',
         to_number: myNumber,
         body: alertText,
         message_type: 'text',
         direction: 'inbound',
+        chat_role: 'assistant',
         received_at: now.toISOString(),
       })
 
@@ -678,12 +663,13 @@ async function sendExpenseSummary(trip: any): Promise<void> {
   await supabase.from('whatsapp_messages').insert({
     user_id: trip.user_id,
     wa_message_id: `expense-summary-${trip.id}-${Math.random().toString(36).slice(2, 8)}`,
-    from_number: 'apple',
-    from_name: 'Apple',
+    from_number: 'sophia',
+    from_name: 'Sophia',
     to_number: myNumber,
     body: text,
     message_type: 'text',
     direction: 'inbound',
+    chat_role: 'assistant',
     received_at: new Date().toISOString(),
   })
 

@@ -330,10 +330,11 @@ function setupMessageHandler(userId: string) {
         wa_message_id: msgId || `${Date.now()}-${Math.random()}`,
         from_number: myNumber,
         from_name: null,
-        to_number: 'apple',
+        to_number: 'sophia',
         body: text || (hasImage ? '[图片]' : hasAudio ? '[语音]' : hasDocument ? `[文件: ${documentName}]` : ''),
         message_type: msgType,
         direction: 'outbound',
+        chat_role: 'user',
         received_at: msg.messageTimestamp
           ? new Date(Number(msg.messageTimestamp) * 1000).toISOString()
           : new Date().toISOString(),

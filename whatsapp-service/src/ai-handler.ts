@@ -9,6 +9,21 @@ import OpenAI from 'openai'
 import { APPLE_TOOLS, executeTool, getUserTimezone } from './tools/registry'
 import { getLLMClient } from './tools/types'
 import { preFetchPersonContext } from './tools/pre-fetch'
+import { getSophieWhatsAppPrompt } from './sophia-voice'
+
+// ── Output guard — 3 hard rules before sending ──
+
+function guardResponse(text: string): string {
+  // 1. Strip self-greeting ("Hi Sophia", "你好 Apple" etc.)
+  text = text.replace(/^(Hi|Hello|你好|嗨|Hey)\s*(Sophia|Sophie|Apple)[，。,.\s!！]*/i, '')
+  // 2. Strip markdown headings (WhatsApp doesn't render them)
+  text = text.replace(/^#{1,3}\s+/gm, '')
+  // 3. Cap at WhatsApp single-message practical limit
+  if (text.length > 2000) {
+    text = text.slice(0, 1997) + '...'
+  }
+  return text.trim()
+}
 
 // ── Vision/Audio client (SiliconFlow) ──
 
@@ -218,31 +233,10 @@ export async function isAIEnabled(userId: string): Promise<boolean> {
   return data?.ai_enabled === true
 }
 
-// ── System prompt ──
+// ── System prompt (delegated to sophia-voice.ts) ──
 
 function getSystemPrompt(timezone: string): string {
-  const now = new Date().toLocaleString('zh-CN', { timeZone: timezone })
-  return `你是 Apple，老板的 AI 首席幕僚。老板通过 WhatsApp 和你沟通。
-
-当前时间：${now}（${timezone}）
-
-你的角色：
-- 你是老板最信任的助理，像跟了三年的真人秘书
-- 老板说什么你就执行什么，简洁确认
-- 主动想一步：老板说要出差，你主动问要不要准备资料
-- 你有工具可以查日历、查邮件、查任务、建任务、查跟进事项、查联系人
-
-语气：
-- 简短、干练、不啰嗦
-- 用老板的语言回复（中文就中文，英文就英文）
-- 不要用 markdown 标题或代码块
-- 可以用 WhatsApp 格式：*加粗* _斜体_
-- 一般 1-3 句话搞定，列表用换行不用 bullet
-
-工具使用原则：
-- 老板问日程、邮件、任务等，先调工具拿真实数据，再基于数据回答
-- 不要编造数据，没查到就说"没有找到"
-- 建任务、标完成等写操作，执行后简洁确认`
+  return getSophieWhatsAppPrompt(timezone)
 }
 
 // ── Main handler ──
@@ -277,10 +271,11 @@ export async function processMessageWithAI(
           wa_message_id: `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           from_number: message.from,
           from_name: 'User',
-          to_number: 'apple',
+          to_number: 'sophia',
           body: message.body,
           message_type: 'text',
           direction: 'outbound',
+          chat_role: 'user',
           received_at: new Date().toISOString(),
         })
         return
@@ -354,7 +349,7 @@ export async function processMessageWithAI(
     // Fetch recent conversation history (Apple ↔ Boss)
     const { data: recentMessages } = await supabase
       .from('whatsapp_messages')
-      .select('body, direction, from_name, received_at')
+      .select('body, direction, from_name, chat_role, received_at')
       .eq('user_id', userId)
       .not('body', 'is', null)
       .order('received_at', { ascending: false })
@@ -365,8 +360,11 @@ export async function processMessageWithAI(
       const chronological = [...recentMessages].reverse()
       for (const msg of chronological) {
         if (!msg.body) continue
-        // Messages from Apple (from_name='Apple') are assistant, others are user
-        const role = msg.from_name === 'Apple' ? 'assistant' : 'user'
+        // Prefer explicit chat_role; fall back to from_name for legacy rows
+        const role: 'user' | 'assistant' =
+          msg.chat_role === 'assistant' || msg.chat_role === 'user'
+            ? msg.chat_role
+            : (msg.from_name === 'Apple' || msg.from_name === 'Sophia') ? 'assistant' : 'user'
         chatHistory.push({ role, content: msg.body })
       }
     }
@@ -485,8 +483,9 @@ export async function processMessageWithAI(
       if (!assistantMessage) return
     }
 
-    const response = assistantMessage.content?.trim()
-    if (!response) return
+    const rawResponse = assistantMessage.content?.trim()
+    if (!rawResponse) return
+    const response = guardResponse(rawResponse)
 
     const elapsed = Date.now() - startTime
     const usage = completion.usage
@@ -499,16 +498,17 @@ export async function processMessageWithAI(
     // Send reply
     await sendReply(message.remoteJid, response)
 
-    // Store Apple's reply
+    // Store Sophia's reply
     await supabase.from('whatsapp_messages').insert({
       user_id: userId,
-      wa_message_id: `apple-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      from_number: 'apple',
-      from_name: 'Apple',
+      wa_message_id: `sophia-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      from_number: 'sophia',
+      from_name: 'Sophia',
       to_number: message.from,
       body: response,
       message_type: 'text',
       direction: 'inbound',
+      chat_role: 'assistant',
       received_at: new Date().toISOString(),
     })
 
