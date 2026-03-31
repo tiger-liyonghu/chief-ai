@@ -167,7 +167,7 @@ const en = {
   getStarted: 'Get Started',
   aiPoweredProductivity: 'AI-Powered Productivity',
   heroTitle1: 'Your AI',
-  heroTitle2: 'Chief of Staff, Sophia',
+  heroTitle2: 'Sophia',
   heroSubtitle: 'Automatically knows what you need to do, who to reply to, and what to prepare for. Connects to your Gmail and Calendar — works in seconds.',
   connectGmail: 'Connect Your Gmail',
   freeToStart: 'Free to start. No credit card required.',
@@ -198,7 +198,7 @@ const en = {
 
   // Login page
   welcomeBack: 'Welcome to Sophia',
-  signInSubtitle: 'Your AI Chief of Staff, Sophia. Tracks every promise, switches cities seamlessly, guards your family time.',
+  signInSubtitle: 'Your AI advisor. Tracks every promise, switches cities seamlessly, guards your family time.',
   continueWithGoogle: 'Continue with Google',
   continueWithMicrosoft: 'Continue with Microsoft',
   microsoftComingSoon: 'Microsoft login coming soon',
@@ -499,7 +499,7 @@ const en = {
   theyPromisedDiscovery: 'Waiting on them',
   newlyDiscovered: 'Newly discovered',
   analyzingEmails: 'Analyzing email content...',
-  enterDashboard: 'Enter Commitment Dashboard',
+  enterDashboard: 'Enter Dashboard',
   daysOverdueDiscovery: '{days}d overdue',
   dueTodayDiscovery: 'Due today',
   dueTomorrow: 'Due tomorrow',
