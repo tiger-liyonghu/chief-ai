@@ -257,11 +257,16 @@ function setupMessageHandler(userId: string) {
       if (!msg.message) continue
       const remoteJid = msg.key.remoteJid || ''
 
+      // Immediately mark as read — prevents replay on reconnect
+      try {
+        await sock.readMessages([msg.key])
+      } catch { /* non-fatal */ }
+
       // Only process self-chat — ignore everything else
       const isSelfChat = remoteJid === selfJid || remoteJid === selfLidJid
       if (!isSelfChat) continue
 
-      // Skip Apple's own replies to avoid loops
+      // Skip Sophia's own replies to avoid loops
       const msgId = msg.key.id || ''
       if (appleMessageIds.has(msgId)) {
         appleMessageIds.delete(msgId)
