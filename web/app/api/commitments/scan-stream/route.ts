@@ -153,16 +153,21 @@ export async function GET(req: NextRequest) {
 
         const { data: emails, error: fetchError } = await query
 
+        const safeClose = async () => {
+          await new Promise(r => setTimeout(r, 500))
+          try { controller.close() } catch { /* already closed */ }
+        }
+
         if (fetchError) {
           send('error', { message: `Failed to fetch emails: ${fetchError.message}` })
-          controller.close()
+          await safeClose()
           return
         }
 
         if (!emails || emails.length === 0) {
           send('status', { message: 'No new emails to scan.', total: 0, filtered: 0, skipped: 0 })
           send('done', { total_found: 0, i_promised: 0, they_promised: 0, duration_ms: Date.now() - startTime })
-          controller.close()
+          await safeClose()
           return
         }
 
@@ -413,7 +418,8 @@ export async function GET(req: NextRequest) {
         send('error', { message: `Scan failed: ${err instanceof Error ? err.message : 'Unknown error'}` })
         send('done', { total_found: 0, i_promised: 0, they_promised: 0, duration_ms: Date.now() - startTime })
       } finally {
-        controller.close()
+        await new Promise(r => setTimeout(r, 500))
+        try { controller.close() } catch { /* already closed */ }
       }
     },
   })
