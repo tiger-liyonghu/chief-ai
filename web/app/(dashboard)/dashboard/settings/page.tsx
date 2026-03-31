@@ -732,23 +732,8 @@ function SettingsContent() {
                         <div className="mb-4 px-4 py-2 bg-red-50 text-red-700 rounded-xl text-xs border border-red-200">{waError}</div>
                       )}
 
-                      {/* Method toggle */}
-                      <div className="flex items-center gap-1 bg-surface-secondary rounded-xl p-1 mb-4 w-fit">
-                        <button
-                          onClick={() => setWaMethod('qr')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${waMethod === 'qr' ? 'bg-white text-primary shadow-sm' : 'text-text-tertiary'}`}
-                        >
-                          QR Code
-                        </button>
-                        <button
-                          onClick={() => setWaMethod('phone')}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${waMethod === 'phone' ? 'bg-white text-primary shadow-sm' : 'text-text-tertiary'}`}
-                        >
-                          Phone Number
-                        </button>
-                      </div>
-
-                      {waMethod === 'phone' && (
+                      {/* Phone number input — only method */}
+                      {(
                         <div className="flex items-center gap-2 mb-4">
                           <input
                             type="tel"
