@@ -370,19 +370,9 @@ export default function OnboardingPage() {
               {/* CTA */}
               <button
                 onClick={handleStartScan}
-                disabled={!whatsappConnected}
-                className={cn(
-                  'w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all',
-                  whatsappConnected
-                    ? 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                )}
+                className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
               >
-                {whatsappConnected ? (
-                  <>Scan Emails & Discover Commitments <ArrowRight className="w-4 h-4" /></>
-                ) : (
-                  'Connect WhatsApp to continue'
-                )}
+                Scan Emails & Discover Commitments <ArrowRight className="w-4 h-4" />
               </button>
             </motion.div>
           )}
