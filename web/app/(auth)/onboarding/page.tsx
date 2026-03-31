@@ -271,12 +271,12 @@ export default function OnboardingPage() {
             <Sparkles className="w-8 h-8 text-white" />
           </motion.div>
           <h1 className="text-xl font-bold text-slate-900">
-            {step === 'channels' ? '设置你的 Chief' :
-             step === 'scanning' ? 'Chief 正在了解你...' :
-             '准备好了！'}
+            {step === 'channels' ? 'Set Up Your Chief' :
+             step === 'scanning' ? 'Chief is Learning About You...' :
+             'You\'re All Set!'}
           </h1>
           {step === 'channels' && (
-            <p className="text-sm text-slate-500 mt-1">连接你的渠道，让 Chief 开始帮你追踪承诺</p>
+            <p className="text-sm text-slate-500 mt-1">Connect your channels so Chief can track commitments and keep you on top of everything</p>
           )}
         </div>
 
@@ -309,7 +309,7 @@ export default function OnboardingPage() {
               {/* Email section */}
               <div>
                 <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <Mail className="w-4 h-4" /> 邮箱
+                  <Mail className="w-4 h-4" /> Email
                 </h2>
                 <div className="space-y-2">
                   {emailConnected && emailAddress && (
@@ -318,63 +318,50 @@ export default function OnboardingPage() {
                         <Check className="w-4 h-4 text-emerald-600 shrink-0" />
                         <span className="text-sm font-medium text-emerald-800">{emailAddress}</span>
                       </div>
-                      <p className="text-xs text-emerald-600/70 mt-1 ml-7">邮件扫描、承诺提取、简报生成已就绪</p>
+                      <p className="text-xs text-emerald-600/70 mt-1 ml-7">Email scanning, commitment extraction, and briefing ready</p>
                     </div>
                   )}
                   <button
                     onClick={() => window.location.href = '/api/accounts/add'}
                     className="w-full border border-dashed border-slate-300 rounded-xl p-3 text-sm text-slate-500 hover:border-slate-400 hover:text-slate-700 transition-colors flex items-center justify-center gap-2"
                   >
-                    <Plus className="w-4 h-4" /> 添加另一个邮箱<span className="text-xs text-slate-400">（可选）</span>
+                    <Plus className="w-4 h-4" /> Add another email <span className="text-xs text-slate-400">(optional)</span>
                   </button>
                 </div>
               </div>
 
-              {/* Messaging section */}
+              {/* WhatsApp section — required */}
               <div>
                 <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" /> 通讯工具
-                  <span className="text-xs font-normal text-slate-400">（可选）</span>
+                  <MessageSquare className="w-4 h-4" /> Connect WhatsApp
                 </h2>
                 <p className="text-xs text-slate-500 mb-3">
-                  连接后，Chief 可以通过通讯工具推送简报、提醒承诺、接收语音指令。
+                  Chief uses WhatsApp as your real-time channel — morning briefings, commitment reminders, and voice commands all happen here.
                 </p>
                 <div className="space-y-2">
                   <ChannelCard
                     icon={MessageSquare}
                     name="WhatsApp"
-                    description="扫码连接，Chief 在 WhatsApp 里跟你对话"
+                    description={whatsappConnected ? 'Connected — Chief is ready' : 'Scan QR code to connect your WhatsApp'}
                     connected={whatsappConnected}
                     onConnect={handleWhatsAppConnect}
                   />
-                  <ChannelCard
-                    icon={Bot}
-                    name="Telegram"
-                    description="Telegram Bot 集成"
-                    connected={false}
-                    onConnect={() => {}}
-                    disabled
-                    badge="后续开发"
-                  />
-                  <ChannelCard
-                    icon={MessageSquare}
-                    name="Teams"
-                    description="Microsoft Teams 聊天和会议"
-                    connected={false}
-                    onConnect={() => {}}
-                    disabled
-                    badge="后续开发"
-                  />
+                  {!whatsappConnected && (
+                    <p className="text-xs text-amber-600 flex items-center gap-1">
+                      <Shield className="w-3 h-3" />
+                      Chief reads only your self-chat. Your private messages are never accessed.
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* AI section */}
               <div>
                 <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> Chief 的大脑
+                  <Sparkles className="w-4 h-4" /> Chief's Brain
                 </h2>
                 <p className="text-xs text-slate-500 mb-3">
-                  Chief 用 AI 帮你分析邮件、起草回复、追踪承诺。
+                  Chief uses AI to analyze emails, draft replies, and track commitments.
                 </p>
                 <AIConfig />
               </div>
@@ -382,9 +369,19 @@ export default function OnboardingPage() {
               {/* CTA */}
               <button
                 onClick={handleStartScan}
-                className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
+                disabled={!whatsappConnected}
+                className={cn(
+                  'w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all',
+                  whatsappConnected
+                    ? 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                )}
               >
-                下一步 <ArrowRight className="w-4 h-4" />
+                {whatsappConnected ? (
+                  <>Scan Emails & Discover Commitments <ArrowRight className="w-4 h-4" /></>
+                ) : (
+                  'Connect WhatsApp to continue'
+                )}
               </button>
             </motion.div>
           )}
@@ -412,15 +409,15 @@ export default function OnboardingPage() {
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-6">
                 <Target className="w-8 h-8 text-indigo-600 mx-auto mb-3" />
                 <div className="text-3xl font-bold text-indigo-700">{commitmentCount}</div>
-                <div className="text-sm text-indigo-600 mt-1">个承诺已发现</div>
-                <p className="text-xs text-indigo-500 mt-2">Chief 会帮你追踪每一个承诺，不再遗忘</p>
+                <div className="text-sm text-indigo-600 mt-1">commitments discovered</div>
+                <p className="text-xs text-indigo-500 mt-2">Chief will track every promise — nothing falls through the cracks</p>
               </div>
 
               <button
                 onClick={handleEnterDashboard}
                 className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-indigo-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
               >
-                进入 Chief <ArrowRight className="w-4 h-4" />
+                Enter Chief <ArrowRight className="w-4 h-4" />
               </button>
             </motion.div>
           )}

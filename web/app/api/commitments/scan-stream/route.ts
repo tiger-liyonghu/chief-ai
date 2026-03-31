@@ -5,6 +5,7 @@ import { COMMITMENT_EXTRACTION_SYSTEM } from '@/lib/ai/prompts/commitment-extrac
 import { createUserAIClient } from '@/lib/ai/unified-client'
 import { shouldSkipEmail, postFilterCommitments } from '@/lib/ai/commitment-filters'
 import { getPersonalizedPrompt } from '@/lib/ai/personalized-prompt'
+import { calculateUrgencyScores } from '@/lib/commitments/score'
 
 /**
  * Streaming Commitment Scanner — the "30-second wow moment".
@@ -385,7 +386,15 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // 6. Stream done event
+        // 6. Auto-score all commitments after scan
+        try {
+          const scoreResult = await calculateUrgencyScores(admin, user.id)
+          console.log(`[Scan] Auto-scored ${scoreResult.updated}/${scoreResult.total} commitments`)
+        } catch (err) {
+          console.error('[Scan] Auto-scoring failed:', err)
+        }
+
+        // 7. Stream done event
         const iPromised = allCommitments.filter(c => c.type === 'i_promised').length
         const theyPromised = allCommitments.filter(c => c.type === 'they_promised').length
 
