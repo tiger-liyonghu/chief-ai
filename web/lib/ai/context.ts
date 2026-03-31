@@ -31,7 +31,9 @@ export async function gatherUserContext(
   const todayEnd = new Date()
   todayEnd.setHours(23, 59, 59, 999)
 
-  const [profileResult, tasksResult, eventsResult, emailsResult, followUpsResult] =
+  const todayISO = new Date().toISOString().slice(0, 10)
+
+  const [profileResult, tasksResult, eventsResult, emailsResult, followUpsResult, commitmentsResult, vipContactsResult] =
     await Promise.all([
       // User profile for timezone
       admin
@@ -59,14 +61,14 @@ export async function gatherUserContext(
         .lte('start_time', todayEnd.toISOString())
         .order('start_time', { ascending: true }),
 
-      // Recent emails needing reply, top 3
+      // Recent emails needing reply, top 5
       admin
         .from('emails')
         .select('subject, from_name, from_address, snippet, received_at')
         .eq('user_id', userId)
         .eq('is_reply_needed', true)
         .order('received_at', { ascending: false })
-        .limit(3),
+        .limit(5),
 
       // Active follow-ups, top 3
       admin
@@ -76,6 +78,23 @@ export async function gatherUserContext(
         .eq('status', 'active')
         .order('due_date', { ascending: true, nullsFirst: false })
         .limit(3),
+
+      // Active commitments — sorted by urgency (overdue first)
+      admin
+        .from('commitments')
+        .select('type, contact_name, contact_email, title, deadline, status, urgency_score, family_member')
+        .eq('user_id', userId)
+        .in('status', ['pending', 'in_progress', 'overdue', 'waiting'])
+        .order('urgency_score', { ascending: false })
+        .limit(10),
+
+      // VIP and high-importance contacts
+      admin
+        .from('contacts')
+        .select('name, email, company, relationship, importance, last_contact_at')
+        .eq('user_id', userId)
+        .in('importance', ['vip', 'high'])
+        .limit(10),
     ])
 
   const timezone = profileResult.data?.timezone || 'Asia/Singapore'
@@ -85,6 +104,8 @@ export async function gatherUserContext(
     events: eventsResult.data || [],
     emails: emailsResult.data || [],
     followUps: followUpsResult.data || [],
+    commitments: commitmentsResult.data || [],
+    vipContacts: vipContactsResult.data || [],
     timezone,
   }
 
