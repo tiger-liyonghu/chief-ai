@@ -298,9 +298,20 @@ export default function FamilyCalendarPage() {
 
         {/* Empty state */}
         {!loading && events.length === 0 && (
-          <div className="text-center py-16 text-slate-400">
-            <Heart className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">{t('noFamilyEvents')}</p>
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Heart className="w-8 h-8 text-pink-500" />
+            </div>
+            <p className="text-lg font-medium text-slate-700 mb-1">Protect what matters most</p>
+            <p className="text-sm text-slate-400 max-w-xs mx-auto">
+              Add family events — school pickups, anniversaries, recitals — and Chief will guard that time from work conflicts.
+            </p>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="mt-4 px-4 py-2 bg-pink-500 text-white text-sm font-medium rounded-lg hover:bg-pink-600 transition-colors"
+            >
+              Add Family Event
+            </button>
           </div>
         )}
 

@@ -316,11 +316,19 @@ export default function TripsPage() {
           </div>
         ) : trips.length === 0 ? (
           <div className="text-center py-16">
-            <Plane className="w-12 h-12 text-text-tertiary mx-auto mb-3" />
-            <p className="text-text-secondary font-medium">No trips yet</p>
-            <p className="text-sm text-text-tertiary mt-1">
-              Click "Detect Trips" to scan your emails for travel bookings
+            <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Plane className="w-8 h-8 text-blue-500" />
+            </div>
+            <p className="text-lg font-medium text-text-primary mb-1">No trips detected yet</p>
+            <p className="text-sm text-text-tertiary max-w-xs mx-auto">
+              Chief automatically detects travel from your email — flight confirmations, hotel bookings, and itineraries.
             </p>
+            <button
+              onClick={handleDetect}
+              className="mt-4 px-4 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Scan Emails for Trips
+            </button>
           </div>
         ) : (
           <>
