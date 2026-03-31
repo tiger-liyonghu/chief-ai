@@ -10,13 +10,16 @@ export async function GET() {
   const admin = createAdminClient()
 
   const now = new Date()
+  // Show events from start of today (not from "now", which misses past-today events)
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
   const twoWeeksLater = new Date(now.getTime() + 14 * 86400000)
 
   const { data: events, error } = await admin
     .from('calendar_events')
     .select('*')
     .eq('user_id', user.id)
-    .gte('start_time', now.toISOString())
+    .gte('end_time', todayStart.toISOString())
     .lte('start_time', twoWeeksLater.toISOString())
     .order('start_time', { ascending: true })
 

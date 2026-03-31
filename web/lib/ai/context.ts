@@ -33,7 +33,7 @@ export async function gatherUserContext(
 
   const todayISO = new Date().toISOString().slice(0, 10)
 
-  const [profileResult, tasksResult, eventsResult, emailsResult, followUpsResult, commitmentsResult, vipContactsResult] =
+  const [profileResult, tasksResult, eventsResult, emailsResult, followUpsResult, commitmentsResult, vipContactsResult, tripsResult, familyResult] =
     await Promise.all([
       // User profile for timezone
       admin
@@ -95,6 +95,23 @@ export async function gatherUserContext(
         .eq('user_id', userId)
         .in('importance', ['vip', 'high'])
         .limit(10),
+
+      // Upcoming trips (next 30 days)
+      admin
+        .from('trips')
+        .select('title, destination_city, start_date, end_date, status, family_conflicts')
+        .eq('user_id', userId)
+        .in('status', ['upcoming', 'active', 'pre_trip'])
+        .order('start_date', { ascending: true })
+        .limit(3),
+
+      // Today's family events (recurring + one-off)
+      admin
+        .from('family_calendar')
+        .select('title, event_type, start_date, start_time, recurrence, recurrence_day, family_member')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(10),
     ])
 
   const timezone = profileResult.data?.timezone || 'Asia/Singapore'
@@ -106,6 +123,8 @@ export async function gatherUserContext(
     followUps: followUpsResult.data || [],
     commitments: commitmentsResult.data || [],
     vipContacts: vipContactsResult.data || [],
+    upcomingTrips: tripsResult.data || [],
+    familyEvents: familyResult.data || [],
     timezone,
   }
 

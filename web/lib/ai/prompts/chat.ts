@@ -105,6 +105,25 @@ interface VipContact {
   last_contact_at: string | null
 }
 
+interface Trip {
+  title: string
+  destination_city: string | null
+  start_date: string
+  end_date: string
+  status: string
+  family_conflicts: any[] | null
+}
+
+interface FamilyEvent {
+  title: string
+  event_type: string
+  start_date: string
+  start_time: string | null
+  recurrence: string
+  recurrence_day: number | null
+  family_member: string | null
+}
+
 export interface UserContext {
   tasks: Task[]
   events: CalendarEvent[]
@@ -112,6 +131,8 @@ export interface UserContext {
   followUps: FollowUp[]
   commitments?: Commitment[]
   vipContacts?: VipContact[]
+  upcomingTrips?: Trip[]
+  familyEvents?: FamilyEvent[]
   timezone: string
 }
 
@@ -201,6 +222,39 @@ export function formatUserContext(ctx: UserContext): string {
       return `- [${c.importance}] ${c.name} (${c.company || c.relationship})${stale}`
     })
     sections.push(`**Key contacts:**\n${lines.join('\n')}`)
+  }
+
+  // Upcoming trips
+  if (ctx.upcomingTrips && ctx.upcomingTrips.length > 0) {
+    const lines = ctx.upcomingTrips.map(t => {
+      const conflicts = Array.isArray(t.family_conflicts) && t.family_conflicts.length > 0
+        ? ` ⚠️ CONFLICTS: ${t.family_conflicts.map((c: any) => c.title).join(', ')}`
+        : ''
+      return `- ${t.destination_city || t.title} (${t.start_date} → ${t.end_date}, ${t.status})${conflicts}`
+    })
+    sections.push(`**Upcoming trips:**\n${lines.join('\n')}`)
+  }
+
+  // Family calendar (recurring events)
+  if (ctx.familyEvents && ctx.familyEvents.length > 0) {
+    const recurring = ctx.familyEvents.filter(e => e.recurrence !== 'none')
+    const upcoming = ctx.familyEvents.filter(e => e.recurrence === 'none')
+    const lines: string[] = []
+    if (recurring.length > 0) {
+      for (const e of recurring.slice(0, 5)) {
+        const dayMap: Record<number, string> = { 0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat' }
+        const when = e.recurrence === 'weekly' && e.recurrence_day != null
+          ? `every ${dayMap[e.recurrence_day] || '?'}`
+          : e.recurrence
+        lines.push(`- [${e.event_type}] ${e.title} (${when}${e.start_time ? ' ' + e.start_time : ''}) — ${e.family_member || ''}`)
+      }
+    }
+    if (upcoming.length > 0) {
+      for (const e of upcoming.slice(0, 3)) {
+        lines.push(`- [${e.event_type}] ${e.title} (${e.start_date}${e.start_time ? ' ' + e.start_time : ''}) — ${e.family_member || ''}`)
+      }
+    }
+    if (lines.length > 0) sections.push(`**Family calendar:**\n${lines.join('\n')}`)
   }
 
   return sections.join('\n\n')

@@ -163,7 +163,7 @@ export async function executeActions(
         case 'SEARCH': {
           const { query } = action.params
           const q = `%${query}%`
-          const [emails, tasks, events, contacts, followUps] = await Promise.all([
+          const [emails, tasks, events, contacts, followUps, commitments, trips, familyEvents] = await Promise.all([
             admin
               .from('emails')
               .select('subject, from_name, from_address, snippet, received_at')
@@ -196,6 +196,29 @@ export async function executeActions(
               .eq('user_id', userId)
               .or(`contact_name.ilike.${q},subject.ilike.${q},commitment_text.ilike.${q}`)
               .limit(5),
+            // Commitments — search by contact name, title, or email
+            admin
+              .from('commitments')
+              .select('type, contact_name, contact_email, title, deadline, status, urgency_score, family_member')
+              .eq('user_id', userId)
+              .or(`contact_name.ilike.${q},title.ilike.${q},contact_email.ilike.${q},family_member.ilike.${q}`)
+              .order('urgency_score', { ascending: false })
+              .limit(5),
+            // Trips — search by title, city, or country
+            admin
+              .from('trips')
+              .select('title, destination_city, destination_country, start_date, end_date, status, family_conflicts')
+              .eq('user_id', userId)
+              .or(`title.ilike.${q},destination_city.ilike.${q},destination_country.ilike.${q}`)
+              .limit(5),
+            // Family calendar — search by title or family member
+            admin
+              .from('family_calendar')
+              .select('title, event_type, start_date, start_time, recurrence, family_member')
+              .eq('user_id', userId)
+              .eq('is_active', true)
+              .or(`title.ilike.${q},family_member.ilike.${q}`)
+              .limit(5),
           ])
           const searchResults: Record<string, any[]> = {}
           if (emails.data?.length) searchResults.emails = emails.data
@@ -203,6 +226,9 @@ export async function executeActions(
           if (events.data?.length) searchResults.calendar_events = events.data
           if (contacts.data?.length) searchResults.contacts = contacts.data
           if (followUps.data?.length) searchResults.follow_ups = followUps.data
+          if (commitments.data?.length) searchResults.commitments = commitments.data
+          if (trips.data?.length) searchResults.trips = trips.data
+          if (familyEvents.data?.length) searchResults.family_calendar = familyEvents.data
           const total = Object.values(searchResults).reduce((s, a) => s + a.length, 0)
           results.push({
             type: 'SEARCH',
