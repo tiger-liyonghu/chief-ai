@@ -321,7 +321,7 @@ export default function TripsPage() {
             </div>
             <p className="text-lg font-medium text-text-primary mb-1">No trips detected yet</p>
             <p className="text-sm text-text-tertiary max-w-xs mx-auto">
-              Chief automatically detects travel from your email — flight confirmations, hotel bookings, and itineraries.
+              Sophia automatically detects travel from your email — flight confirmations, hotel bookings, and itineraries.
             </p>
             <button
               onClick={handleDetect}

@@ -81,7 +81,7 @@ export default function FollowUpsPage() {
           <div className="text-center py-20">
             <ArrowDownLeft className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <h2 className="text-lg font-medium text-slate-600">No pending follow-ups</h2>
-            <p className="text-sm text-slate-400 mt-1">When others promise you something, Chief will track it here</p>
+            <p className="text-sm text-slate-400 mt-1">When others promise you something, Sophia will track it here</p>
           </div>
         ) : (
           <div className="space-y-4">

@@ -1057,7 +1057,7 @@ function SettingsContent() {
                     </div>
                     <div className="text-center pt-2">
                       <div className="inline-block px-4 py-1 bg-primary/10 rounded-lg">
-                        <p className="text-[9px] font-semibold text-primary">Open Chief Dashboard</p>
+                        <p className="text-[9px] font-semibold text-primary">Open Sophia Dashboard</p>
                       </div>
                     </div>
                   </div>

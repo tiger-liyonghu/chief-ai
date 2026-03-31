@@ -304,7 +304,7 @@ export default function FamilyCalendarPage() {
             </div>
             <p className="text-lg font-medium text-slate-700 mb-1">Protect what matters most</p>
             <p className="text-sm text-slate-400 max-w-xs mx-auto">
-              Add family events — school pickups, anniversaries, recitals — and Chief will guard that time from work conflicts.
+              Add family events — school pickups, anniversaries, recitals — and Sophia will guard that time from work conflicts.
             </p>
             <button
               onClick={() => setShowAddForm(true)}

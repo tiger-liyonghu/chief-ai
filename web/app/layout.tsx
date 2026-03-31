@@ -3,7 +3,7 @@ import './globals.css'
 import { I18nProvider } from '@/lib/i18n/context'
 
 export const metadata: Metadata = {
-  title: 'Chief — Your AI Chief of Staff',
+  title: 'Sophia — Your AI Chief of Staff',
   description: 'AI-powered email and calendar assistant that tells you what to do, who to reply to, and what to prepare for.',
 }
 

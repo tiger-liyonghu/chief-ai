@@ -412,12 +412,24 @@ function EventCard({
   const layerColor = getLayerColor(event)
   const layer = event.layer || 'work'
 
+  // Family event type-specific icons (#10)
+  const familyIcon = layer === 'family' ? (
+    event.event_type === 'hard_constraint' ? '\u{1F512}' :
+    event.event_type === 'important_date' ? '\u{1F382}' :
+    event.event_type === 'school_cycle' ? '\u{1F393}' :
+    event.event_type === 'family_commitment' ? '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}' :
+    '\u{1F497}'
+  ) : null
+
   if (compact) {
     return (
       <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[11px] leading-tight truncate">
         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', layerColor.dot)} />
-        {layer === 'family' && <span className="shrink-0 text-[10px]">{'\u{1F497}'}</span>}
+        {familyIcon && <span className="shrink-0 text-[10px]">{familyIcon}</span>}
         <span className="truncate text-text-primary">{event.title}</span>
+        {attendees.length > 0 && (
+          <span className="shrink-0 text-[9px] text-text-tertiary bg-gray-100 px-1 rounded">{'\u{1F465}'} {attendees.length}</span>
+        )}
         {event.is_conflict && <span className="shrink-0 text-[10px]">{'\u26A0\uFE0F'}</span>}
       </div>
     )
@@ -437,10 +449,14 @@ function EventCard({
         <div className={cn('w-1 rounded-full shrink-0', layerColor.bg)} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            {layer === 'family' && <Heart className="w-3.5 h-3.5 text-pink-500 shrink-0" />}
+            {layer === 'family' && <span className="text-sm shrink-0">{familyIcon}</span>}
             {layer === 'commitment' && <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
             {layer === 'trip' && <Plane className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
             <p className="text-sm font-medium text-text-primary truncate">{event.title}</p>
+            {/* VIP badge for high-urgency contacts */}
+            {event.urgency != null && event.urgency >= 8 && (
+              <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">{'\u2B50'} VIP</span>
+            )}
             {event.is_conflict && (
               <span className="flex items-center gap-0.5 text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full shrink-0">
                 <AlertTriangle className="w-3 h-3" />
@@ -502,6 +518,22 @@ function EventCard({
               >
                 <Video className="w-3.5 h-3.5" />
                 Join meeting
+              </a>
+            )}
+            {/* Linked commitment indicator */}
+            {layer === 'work' && event.contact_name && (
+              <div className="flex items-center gap-1 text-xs text-amber-600">
+                {'\u{1F4CB}'} Related: {event.contact_name}
+              </div>
+            )}
+            {/* Meeting prep button */}
+            {layer === 'work' && attendees.length > 0 && (
+              <a
+                href="/dashboard/meetings"
+                className="flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full hover:bg-indigo-100 transition-colors"
+                onClick={e => e.stopPropagation()}
+              >
+                {'\u{1F4DD}'} Prep
               </a>
             )}
           </div>
@@ -654,16 +686,37 @@ function GapSuggestionButton({ gapMinutes, gapStart, beforeTitle, afterTitle }: 
     } catch {} finally { setLoading(false) }
   }, [gapMinutes, gapStart, recs.length, open])
 
+  // Smart suggestion label based on gap size
+  const suggestionLabel = gapMinutes > 120
+    ? '\u{1F4A1} Block focus time'
+    : gapMinutes >= 60
+    ? '\u{1F4A1} Good time for prep'
+    : '\u{2615} Break time'
+
   return (
     <div className="my-1">
-      <button
-        onClick={fetchRecs}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium transition-colors"
-      >
-        <Sparkles className="w-3 h-3" />
-        {gapMinutes} min free
-        {open ? <ChevronLeft className="w-3 h-3 rotate-90" /> : <ChevronRight className="w-3 h-3 -rotate-90" />}
-      </button>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => {
+            // For focus time, could open event creation with pre-filled title
+            // For now, just show the label
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-violet-50 hover:bg-violet-100 text-violet-700 text-xs font-medium transition-colors"
+        >
+          {suggestionLabel}
+          <span className="text-violet-400 text-[10px]">({gapMinutes} min)</span>
+        </button>
+        {gapMinutes >= 60 && (
+          <button
+            onClick={fetchRecs}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-medium transition-colors"
+          >
+            <Sparkles className="w-3 h-3" />
+            Nearby places
+            {open ? <ChevronLeft className="w-3 h-3 rotate-90" /> : <ChevronRight className="w-3 h-3 -rotate-90" />}
+          </button>
+        )}
+      </div>
       <AnimatePresence>
         {open && (
           <motion.div
@@ -759,6 +812,28 @@ function DayView({
   const activeTripToday = allDayEvents.find(e => e.layer === 'trip')
   const tripDestination = activeTripToday?.trip_destination
 
+  // Timezone offset map (relative to SGT, in hours)
+  const TZ_OFFSETS: Record<string, { offset: number; label: string }> = {
+    'Shanghai': { offset: 0, label: 'CST' },
+    'Beijing': { offset: 0, label: 'CST' },
+    'Tokyo': { offset: 1, label: 'JST' },
+    'KL': { offset: 0, label: 'MYT' },
+    'Kuala Lumpur': { offset: 0, label: 'MYT' },
+    'London': { offset: -8, label: 'GMT' },
+    'SF': { offset: -16, label: 'PST' },
+    'San Francisco': { offset: -16, label: 'PST' },
+    'NYC': { offset: -13, label: 'EST' },
+    'New York': { offset: -13, label: 'EST' },
+    'Mumbai': { offset: -2.5, label: 'IST' },
+    'Berlin': { offset: -6, label: 'CET' },
+    'Sydney': { offset: 2, label: 'AEST' },
+    'Hong Kong': { offset: 0, label: 'HKT' },
+    'Bangkok': { offset: -1, label: 'ICT' },
+    'Jakarta': { offset: -1, label: 'WIB' },
+  }
+
+  const destTz = tripDestination ? TZ_OFFSETS[tripDestination] || null : null
+
   if (dayEvents.length === 0 && allDayEvents.length === 0) {
     return <EmptyState message="No events this day" hint='Click "+ New Event" to create one, or "Sync now" to pull from Google Calendar' />
   }
@@ -786,11 +861,24 @@ function DayView({
             {allDayEvents.map((event, idx) => {
               const lc = getLayerColor(event)
               const layer = event.layer || 'work'
+              const isOverdue = layer === 'commitment' && (event.urgency || 0) > 7
+              const isCommitmentUpcoming = layer === 'commitment' && !isOverdue
+              const overdueDays = isOverdue ? Math.max(1, Math.round((new Date().getTime() - new Date(event.end_time).getTime()) / 86400000)) : 0
+              // Family type-specific icon
+              const allDayFamilyIcon = layer === 'family' ? (
+                event.event_type === 'hard_constraint' ? '\u{1F512}' :
+                event.event_type === 'important_date' ? '\u{1F382}' :
+                event.event_type === 'school_cycle' ? '\u{1F393}' :
+                event.event_type === 'family_commitment' ? '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}' :
+                null
+              ) : null
               return (
                 <div
                   key={event.id}
                   className={cn(
                     'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors cursor-pointer hover:shadow-sm',
+                    isOverdue ? 'bg-red-50 border border-red-200' :
+                    isCommitmentUpcoming ? 'bg-amber-50 border border-amber-200' :
                     lc.lightBg,
                     event.is_conflict && 'border-l-[3px] border-l-red-500',
                     layer === 'trip' && 'bg-emerald-50 border border-emerald-200',
@@ -798,16 +886,45 @@ function DayView({
                   onClick={() => onToggleExpand(event.id)}
                 >
                   <span className={cn('w-2 h-2 rounded-full shrink-0', lc.dot)} />
-                  {layer === 'family' && <Heart className="w-3.5 h-3.5 text-pink-500 shrink-0" />}
+                  {layer === 'family' && allDayFamilyIcon && <span className="text-sm shrink-0">{allDayFamilyIcon}</span>}
+                  {layer === 'family' && !allDayFamilyIcon && <Heart className="w-3.5 h-3.5 text-pink-500 shrink-0" />}
                   {layer === 'commitment' && <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                   {layer === 'trip' && <Plane className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
                   <span className={cn('text-sm font-medium truncate', lc.text)}>{event.title}</span>
-                  {layer === 'family' && event.event_type === 'hard_constraint' && <Lock className="w-3 h-3 text-pink-500" />}
+                  {/* Commitment: overdue badge */}
+                  {isOverdue && (
+                    <span className="text-[10px] font-semibold text-red-700 bg-red-100 px-1.5 py-0.5 rounded-full shrink-0">
+                      {'\u{1F6A8}'} {`\u{900E}\u{671F} ${overdueDays} \u{5929}`}
+                    </span>
+                  )}
+                  {/* Commitment: VIP badge */}
+                  {layer === 'commitment' && (event.urgency || 0) >= 8 && (
+                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full shrink-0">VIP</span>
+                  )}
+                  {layer === 'family' && event.event_type === 'hard_constraint' && !allDayFamilyIcon && <Lock className="w-3 h-3 text-pink-500" />}
+                  {/* Trip: destination prominently with airplane */}
                   {layer === 'trip' && event.trip_destination && (
-                    <span className="text-xs text-emerald-600 ml-auto shrink-0">{event.trip_destination}</span>
+                    <span className="text-xs text-emerald-600 ml-auto shrink-0">{'\u{2708}\uFE0F'} {event.trip_destination}</span>
                   )}
                   {layer === 'commitment' && event.contact_name && (
-                    <span className="text-xs text-amber-600 ml-auto shrink-0">{event.contact_name}</span>
+                    <span className="text-xs text-amber-600 shrink-0">{event.contact_name}</span>
+                  )}
+                  {/* Commitment quick actions */}
+                  {layer === 'commitment' && (
+                    <div className="flex items-center gap-1 ml-auto shrink-0">
+                      <button
+                        className="text-[10px] font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded transition-colors"
+                        onClick={e => { e.stopPropagation() }}
+                      >
+                        {'\u2713'} Done
+                      </button>
+                      <button
+                        className="text-[10px] font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors"
+                        onClick={e => { e.stopPropagation() }}
+                      >
+                        {'\u{1F4DD}'} Draft
+                      </button>
+                    </div>
                   )}
                   {event.is_conflict && (
                     <span className="text-[10px] text-red-600 ml-1 shrink-0">{'\u26A0\uFE0F'}</span>
@@ -820,10 +937,14 @@ function DayView({
       )}
 
       {/* Hourly grid */}
-      <div className="grid grid-cols-[72px_1fr] gap-0">
+      <div className={cn('grid gap-0', destTz ? 'grid-cols-[72px_1fr_80px]' : 'grid-cols-[72px_1fr]')}>
       {HOURS.map((hour) => {
         const eventsAtHour = dayEvents.filter(e => new Date(e.start_time).getHours() === hour)
         const gap = gapMap.get(hour)
+
+        // Calculate destination hour
+        const destHourRaw = destTz ? hour + destTz.offset : null
+        const destHour = destHourRaw != null ? ((destHourRaw % 24) + 24) % 24 : null
 
         return (
           <div key={hour} className="contents">
@@ -853,6 +974,11 @@ function DayView({
                 />
               )}
             </div>
+            {destTz && destHour != null && (
+              <div className="text-xs text-emerald-500 text-left pl-3 pt-2 font-medium border-t border-border/30">
+                {formatHour(destHour)} {destTz.label}
+              </div>
+            )}
           </div>
         )
       })}
@@ -879,8 +1005,83 @@ function WeekView({ events, weekStart, onDayClick }: { events: CalendarEvent[]; 
     return map
   }, [events, weekDays])
 
+  // Trip spanning ribbons: find trips that cover multiple days in this week
+  const tripRibbons = useMemo(() => {
+    const trips = events.filter(e => e.layer === 'trip' && e.all_day)
+    const ribbons: { id: string; title: string; destination: string; startCol: number; spanCols: number }[] = []
+    const weekKeys = weekDays.map(d => toDateKey(d))
+
+    for (const trip of trips) {
+      const tripStart = new Date(trip.start_time)
+      const tripEnd = new Date(trip.end_time)
+      // Find which columns this trip covers
+      let startCol = -1
+      let endCol = -1
+      for (let i = 0; i < 7; i++) {
+        const dayDate = weekDays[i]
+        if (dayDate >= tripStart && dayDate <= tripEnd) {
+          if (startCol === -1) startCol = i
+          endCol = i
+        }
+        // Also check if the trip date key matches (single-day trips)
+        if (weekKeys[i] === trip.start_time?.slice(0, 10)) {
+          if (startCol === -1) startCol = i
+          endCol = i
+        }
+      }
+      if (startCol >= 0) {
+        ribbons.push({
+          id: trip.id,
+          title: trip.title,
+          destination: trip.trip_destination || trip.title,
+          startCol,
+          spanCols: endCol - startCol + 1,
+        })
+      }
+    }
+    return ribbons
+  }, [events, weekDays])
+
   return (
     <div className="overflow-x-auto">
+      {/* Trip spanning ribbons */}
+      {tripRibbons.length > 0 && (
+        <div className="grid grid-cols-[72px_repeat(7,1fr)] mb-1">
+          <div /> {/* gutter */}
+          {/* Render ribbons using absolute-like positioning within grid */}
+          {(() => {
+            // Build a 7-cell row, filling in trip spans
+            const cells: React.ReactNode[] = []
+            let col = 0
+            // Sort ribbons by startCol
+            const sorted = [...tripRibbons].sort((a, b) => a.startCol - b.startCol)
+            for (const ribbon of sorted) {
+              // Fill empty cells before this ribbon
+              while (col < ribbon.startCol) {
+                cells.push(<div key={`empty-${col}`} />)
+                col++
+              }
+              cells.push(
+                <div
+                  key={ribbon.id}
+                  className="bg-emerald-100 border border-emerald-300 rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-700 truncate flex items-center gap-1"
+                  style={{ gridColumn: `span ${ribbon.spanCols}` }}
+                >
+                  {'\u{2708}\uFE0F'} {ribbon.destination}
+                </div>
+              )
+              col += ribbon.spanCols
+            }
+            // Fill remaining cells
+            while (col < 7) {
+              cells.push(<div key={`empty-${col}`} />)
+              col++
+            }
+            return cells
+          })()}
+        </div>
+      )}
+
       {/* Column headers */}
       <div className="grid grid-cols-[72px_repeat(7,1fr)] border-b border-border">
         <div /> {/* gutter */}
@@ -1038,11 +1239,24 @@ function MonthView({ events, month, onDayClick }: { events: CalendarEvent[]; mon
                   {(() => {
                     const commitments = dayEvts.filter(e => e.layer === 'commitment')
                     if (commitments.length === 0) return null
+                    const now = new Date()
+                    const thisWeekEnd = addDays(now, 7)
                     return (
-                      <div className="flex gap-0.5">
-                        {commitments.slice(0, 3).map((c) => (
-                          <span key={c.id} className={cn('w-1.5 h-1.5 rounded-full', c.urgency && c.urgency > 7 ? 'bg-red-500' : 'bg-amber-500')} />
-                        ))}
+                      <div className="flex items-center gap-0.5">
+                        {commitments.slice(0, 3).map((c) => {
+                          const deadline = new Date(c.end_time)
+                          const isOverdue = (c.urgency || 0) > 7
+                          const isThisWeek = !isOverdue && deadline <= thisWeekEnd
+                          return (
+                            <span key={c.id} className={cn(
+                              'w-2 h-2 rounded-full',
+                              isOverdue ? 'bg-red-500' : isThisWeek ? 'bg-amber-500' : 'bg-gray-400'
+                            )} />
+                          )
+                        })}
+                        {commitments.length > 2 && (
+                          <span className="text-[9px] font-semibold text-text-tertiary ml-0.5">+{commitments.length}</span>
+                        )}
                       </div>
                     )
                   })()}
@@ -1421,19 +1635,50 @@ export default function CalendarPage() {
         )}
 
         {/* Sophia's Daily Insight */}
-        {!loading && summary && (summary.conflicts > 0 || filteredEvents.some(e => e.layer === 'commitment' && (e.urgency || 0) > 7)) && (
-          <div className="mb-4 flex items-start gap-2.5 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl">
-            <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
-            <p className="text-sm text-violet-800">
-              {summary.conflicts > 0
-                ? `今天有 ${summary.conflicts} 个冲突需要处理。`
-                : ''}
-              {filteredEvents.filter(e => e.layer === 'commitment' && (e.urgency || 0) > 7).length > 0
-                ? ` ${filteredEvents.filter(e => e.layer === 'commitment' && (e.urgency || 0) > 7).map(e => e.title.replace(/^[📤📥💗]\s*/, '')).slice(0, 2).join('、')} 紧急度很高。`
-                : ' 今天日程清晰。'}
-            </p>
-          </div>
-        )}
+        {!loading && summary && (() => {
+          const todayKey = toDateKey(currentDate)
+          const todayEvents = filteredEvents.filter(e => e.start_time?.slice(0, 10) === todayKey)
+          const overdueCommitments = todayEvents
+            .filter(e => e.layer === 'commitment' && (e.urgency || 0) > 7)
+            .sort((a, b) => (b.urgency || 0) - (a.urgency || 0))
+          const conflictEvents = todayEvents.filter(e => e.is_conflict)
+
+          if (overdueCommitments.length === 0 && conflictEvents.length === 0) {
+            return (
+              <div className="mb-4 flex items-start gap-2.5 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl">
+                <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-violet-800">今天日程清晰，专注做事。</p>
+              </div>
+            )
+          }
+
+          const insights: string[] = []
+          if (overdueCommitments.length > 0) {
+            const top = overdueCommitments[0]
+            const title = top.title.replace(/^[\u{1F4E4}\u{1F4E5}\u{1F497}]\s*/u, '')
+            const overdueDays = Math.max(1, Math.round((new Date().getTime() - new Date(top.end_time).getTime()) / 86400000))
+            insights.push(
+              top.contact_name
+                ? `先处理 ${top.contact_name} 的「${title}」，已逾期 ${overdueDays} 天`
+                : `先处理「${title}」，已逾期 ${overdueDays} 天`
+            )
+          }
+          if (conflictEvents.length > 0) {
+            const c = conflictEvents[0]
+            insights.push(
+              c.conflict_with
+                ? `今天「${c.title.replace(/^[\u{1F4E4}\u{1F4E5}\u{1F497}]\s*/u, '')}」和「${c.conflict_with}」时间冲突，要不要调整？`
+                : `今天有 ${conflictEvents.length} 个时间冲突需要处理`
+            )
+          }
+
+          return (
+            <div className="mb-4 flex items-start gap-2.5 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl">
+              <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+              <p className="text-sm text-violet-800">{insights.join('；')}</p>
+            </div>
+          )
+        })()}
 
         {/* Content */}
         {loading ? (

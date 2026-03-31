@@ -895,7 +895,7 @@ const zh: typeof en = {
   people: '人脉',
 
   // Commitment Dashboard
-  commitmentDashboard: '承诺仪表盘',
+  commitmentDashboard: '必答仪表盘',
   needsYourAction: '需要你行动',
   familyCommitments: '家庭承诺',
   complianceRate: '守约率',
@@ -1003,7 +1003,7 @@ const zh: typeof en = {
   theyPromisedDiscovery: '等对方的',
   newlyDiscovered: '新发现',
   analyzingEmails: '正在分析邮件内容...',
-  enterDashboard: '进入承诺仪表盘',
+  enterDashboard: '进入必答仪表盘',
   daysOverdueDiscovery: '{days}天前到期',
   dueTodayDiscovery: '今天到期',
   dueTomorrow: '明天到期',

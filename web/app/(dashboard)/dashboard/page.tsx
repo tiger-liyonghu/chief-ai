@@ -289,6 +289,7 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
   const colorClass = urgencyColor(c.urgency_score, days)
   const [showActions, setShowActions] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   const handleAction = async (action: string) => {
     setShowActions(false)
@@ -391,7 +392,7 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
   }
 
   return (
-    <div className={cn('border rounded-xl p-4 transition-all hover:shadow-sm relative', colorClass)}>
+    <div className={cn('border rounded-xl p-4 transition-all hover:shadow-sm relative cursor-pointer', colorClass)} onClick={() => setExpanded(!expanded)}>
       <div className="flex items-start gap-3">
         {/* Type indicator */}
         <div className={cn('mt-0.5 p-1.5 rounded-lg', {
@@ -541,6 +542,49 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
           )}
         </div>
       </div>
+
+      {/* Expanded detail section */}
+      {expanded && (
+        <div className="mt-3 pt-3 border-t border-slate-200 space-y-2" onClick={e => e.stopPropagation()}>
+          {c.description && (
+            <p className="text-xs text-slate-600">{c.description}</p>
+          )}
+          <div className="flex flex-wrap gap-2 text-xs">
+            {c.contact_email && (
+              <span className="px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">📧 {c.contact_email}</span>
+            )}
+            {c.deadline && (
+              <span className="px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">📅 Deadline: {c.deadline}</span>
+            )}
+            {c.urgency_score != null && (
+              <span className={cn('px-2 py-0.5 rounded-md', c.urgency_score > 7 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600')}>
+                ⚡ Urgency: {c.urgency_score}/10
+              </span>
+            )}
+            {c.contacts?.importance === 'vip' && (
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md">⭐ VIP</span>
+            )}
+          </div>
+          <div className="flex gap-2 mt-2">
+            {c.type === 'i_promised' && c.contact_email && (
+              <button onClick={() => handleAction('draft_reply')} className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">
+                📝 Draft Reply
+              </button>
+            )}
+            {c.type === 'they_promised' && c.contact_email && (
+              <button onClick={() => handleAction('send_nudge')} className="px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100">
+                📤 Send Nudge
+              </button>
+            )}
+            <button onClick={() => handleAction('done')} className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 rounded-lg hover:bg-green-100">
+              ✓ Mark Done
+            </button>
+            <button onClick={() => handleAction('postpone')} className="px-3 py-1.5 text-xs font-medium bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100">
+              ⏭ Postpone 7d
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -689,7 +733,7 @@ function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved:
   )
 }
 
-/* ─── Chief Insight ─── */
+/* ─── Sophia Insight ─── */
 
 function ChiefInsight({ stats, commitments, t }: { stats: Stats | null; commitments: Commitment[]; t: ReturnType<typeof useI18n>['t'] }) {
   if (!stats) return null
@@ -882,7 +926,7 @@ export default function CommitmentDashboard() {
           </div>
         )}
 
-        {/* Chief insight */}
+        {/* Sophia insight */}
         {!loading && !scanning && commitments.length > 0 && (
           <ChiefInsight stats={stats} commitments={commitments} t={t} />
         )}
@@ -932,7 +976,7 @@ export default function CommitmentDashboard() {
             {commitments.length === 0 && (
               <>
                 <p className="text-sm text-slate-500 text-center max-w-sm mb-6">
-                  Chief tracks your promises &mdash; what you owe others, what others owe you, and what you promised your family.
+                  Sophia tracks your promises &mdash; what you owe others, what others owe you, and what you promised your family.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm">
                   <button
@@ -1031,7 +1075,7 @@ export default function CommitmentDashboard() {
             </button>
             <div className="text-center mb-4">
               <h2 className="text-lg font-bold text-slate-900">Discover Promises</h2>
-              <p className="text-sm text-slate-500">Chief is scanning your emails for commitments...</p>
+              <p className="text-sm text-slate-500">Sophia is scanning your emails for commitments...</p>
             </div>
             <CommitmentDiscovery onComplete={(count) => {
               setTimeout(() => { setShowScanModal(false); fetchData() }, 2000)

@@ -451,7 +451,7 @@ export function BriefingCard() {
           ...iPromised.filter((c: any) => c.status !== 'overdue' && c.deadline !== new Date().toISOString().split('T')[0]).slice(0, 1).map((c: any) => `🟢 ${c.contact_name || 'Someone'}: ${c.title}`),
         ].join('\n') || 'No urgent actions'
 
-        const fallbackBriefing = `## TODAY\n${todayLines}\n\n## ACTION\n${actionLines}\n\n## HORIZON\nChief is syncing your data for a full briefing.`
+        const fallbackBriefing = `## TODAY\n${todayLines}\n\n## ACTION\n${actionLines}\n\n## HORIZON\nSophia is syncing your data for a full briefing.`
 
         setData({
           briefing: fallbackBriefing,
