@@ -75,6 +75,20 @@ export interface ConnectResult {
 export async function connectWhatsApp(userId: string, phoneNumber?: string): Promise<ConnectResult> {
   console.log(`[WA] connectWhatsApp called for user=${userId}, phone=${phoneNumber || 'QR mode'}`)
 
+  // RULE: One phone number = one active handler. Period.
+  // If another user already has an active connection for this phone, skip.
+  if (phoneNumber) {
+    for (const [existingUserId, existingSock] of connections) {
+      if (existingUserId !== userId && existingSock?.user) {
+        const existingPhone = existingSock.user.id.split(':')[0]
+        if (existingPhone === phoneNumber) {
+          console.log(`[WA] Phone ${phoneNumber} already connected by user ${existingUserId.slice(0, 8)}, skipping ${userId.slice(0, 8)}`)
+          return { connected: false }
+        }
+      }
+    }
+  }
+
   // Mutex: prevent concurrent connects for same user
   if (connectingUsers.has(userId)) {
     console.log(`[WA] Already connecting for ${userId}, skipping`)
