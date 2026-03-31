@@ -5,8 +5,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# Cache bust: force Docker to re-copy source on every build
-ARG CACHEBUST=1
 COPY . .
 
 # Build-time env vars needed for Next.js to compile API routes
