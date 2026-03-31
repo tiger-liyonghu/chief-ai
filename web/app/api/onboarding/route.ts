@@ -8,9 +8,11 @@ export async function POST(request: NextRequest) {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      console.error('[Onboarding] Auth failed:', authError?.message || 'no user')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    console.log(`[Onboarding] User authenticated: ${user.id}, writing onboarding_completed_at`)
     const admin = createAdminClient()
 
     // Check if already onboarded
