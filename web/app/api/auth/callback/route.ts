@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { buildRedirectUrl } from '@/lib/auth/redirect'
+import { buildRedirectUrl, getPublicOrigin } from '@/lib/auth/redirect'
 import { getTokensFromCode, getOAuth2Client } from '@/lib/google/auth'
 import { google } from 'googleapis'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -8,14 +8,14 @@ import { encrypt } from '@/lib/google/tokens'
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code')
   if (!code) {
-    return NextResponse.redirect(buildRedirectUrl('/login?error=no_code', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=no_code', request.url, request.headers))
   }
 
   try {
     // Exchange code for tokens
-    const tokens = await getTokensFromCode(code)
+    const tokens = await getTokensFromCode(code, '/api/auth/callback', request.headers)
     if (!tokens.access_token || !tokens.refresh_token) {
-      return NextResponse.redirect(buildRedirectUrl('/login?error=no_tokens', request.url))
+      return NextResponse.redirect(buildRedirectUrl('/login?error=no_tokens', request.url, request.headers))
     }
 
     // Get user info from Google
@@ -114,8 +114,7 @@ export async function GET(request: NextRequest) {
     if (sessionError) throw sessionError
 
     // Redirect to the magic link which will set the session
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || request.url
-    const redirectUrl = new URL('/api/auth/session', baseUrl)
+    const redirectUrl = new URL('/api/auth/session', getPublicOrigin(request.url, request.headers))
     redirectUrl.searchParams.set('token_hash', session.properties.hashed_token)
     redirectUrl.searchParams.set('type', 'magiclink')
     redirectUrl.searchParams.set('user_id', userId)
@@ -135,6 +134,6 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error('OAuth callback error:', error)
-    return NextResponse.redirect(buildRedirectUrl('/login?error=auth_failed', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=auth_failed', request.url, request.headers))
   }
 }

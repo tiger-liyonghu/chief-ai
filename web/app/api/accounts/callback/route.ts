@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokensFromCode, getOAuth2Client } from '@/lib/google/auth'
+import { getPublicOrigin } from '@/lib/auth/redirect'
 import { google } from 'googleapis'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encrypt } from '@/lib/google/tokens'
 
 export async function GET(request: NextRequest) {
+  const origin = getPublicOrigin(request.url, request.headers)
   const code = request.nextUrl.searchParams.get('code')
   const stateParam = request.nextUrl.searchParams.get('state')
 
   if (!code || !stateParam) {
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=missing_params', request.url)
+      new URL('/dashboard/settings?error=missing_params', origin)
     )
   }
 
@@ -19,29 +21,29 @@ export async function GET(request: NextRequest) {
     const state = JSON.parse(Buffer.from(stateParam, 'base64url').toString())
     if (state.action !== 'add_account' || !state.userId) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings?error=invalid_state', request.url)
+        new URL('/dashboard/settings?error=invalid_state', origin)
       )
     }
 
     const userId = state.userId
 
     // Exchange code for tokens using the add-account callback URI
-    const tokens = await getTokensFromCode(code, '/api/accounts/callback')
+    const tokens = await getTokensFromCode(code, '/api/accounts/callback', request.headers)
     if (!tokens.access_token || !tokens.refresh_token) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings?error=no_tokens', request.url)
+        new URL('/dashboard/settings?error=no_tokens', origin)
       )
     }
 
     // Get user info from Google for this account
-    const auth = getOAuth2Client('/api/accounts/callback')
+    const auth = getOAuth2Client('/api/accounts/callback', request.headers)
     auth.setCredentials(tokens)
     const oauth2 = google.oauth2({ version: 'v2', auth })
     const { data: userInfo } = await oauth2.userinfo.get()
 
     if (!userInfo.email) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings?error=no_email', request.url)
+        new URL('/dashboard/settings?error=no_email', origin)
       )
     }
 
@@ -67,7 +69,7 @@ export async function GET(request: NextRequest) {
       }).eq('id', existing.id)
 
       return NextResponse.redirect(
-        new URL('/dashboard/settings?account_updated=' + encodeURIComponent(userInfo.email), request.url)
+        new URL('/dashboard/settings?account_updated=' + encodeURIComponent(userInfo.email), origin)
       )
     }
 
@@ -92,12 +94,12 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.redirect(
-      new URL('/dashboard/settings?account_added=' + encodeURIComponent(userInfo.email), request.url)
+      new URL('/dashboard/settings?account_added=' + encodeURIComponent(userInfo.email), origin)
     )
   } catch (error) {
     console.error('Add account callback error:', error)
     return NextResponse.redirect(
-      new URL('/dashboard/settings?error=add_failed', request.url)
+      new URL('/dashboard/settings?error=add_failed', origin)
     )
   }
 }

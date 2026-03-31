@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get('type')
 
   if (!tokenHash || !type) {
-    return NextResponse.redirect(buildRedirectUrl('/login?error=invalid_session', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=invalid_session', request.url, request.headers))
   }
 
   const cookieStore = await cookies()
@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     console.error('Session verification error:', error)
-    return NextResponse.redirect(buildRedirectUrl('/login?error=session_failed', request.url))
+    return NextResponse.redirect(buildRedirectUrl('/login?error=session_failed', request.url, request.headers))
   }
 
-  return NextResponse.redirect(buildRedirectUrl('/dashboard', request.url))
+  return NextResponse.redirect(buildRedirectUrl('/dashboard', request.url, request.headers))
 }

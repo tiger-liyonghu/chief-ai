@@ -1,4 +1,5 @@
 import { google } from 'googleapis'
+import { getPublicOrigin } from '@/lib/auth/redirect'
 
 const SCOPES = [
   'openid',
@@ -10,16 +11,17 @@ const SCOPES = [
   'https://www.googleapis.com/auth/calendar',
 ]
 
-export function getOAuth2Client(redirectPath = '/api/auth/callback') {
+export function getOAuth2Client(redirectPath = '/api/auth/callback', headers?: Headers) {
+  const origin = getPublicOrigin('http://localhost:3000', headers)
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID!,
     process.env.GOOGLE_CLIENT_SECRET!,
-    `${process.env.NEXT_PUBLIC_APP_URL}${redirectPath}`
+    `${origin}${redirectPath}`
   )
 }
 
-export function getAuthUrl(options?: { state?: string; redirectPath?: string; loginHint?: string }) {
-  const client = getOAuth2Client(options?.redirectPath)
+export function getAuthUrl(options?: { state?: string; redirectPath?: string; loginHint?: string; headers?: Headers }) {
+  const client = getOAuth2Client(options?.redirectPath, options?.headers)
   const params: Record<string, any> = {
     access_type: 'offline',
     prompt: 'consent select_account',
@@ -30,8 +32,8 @@ export function getAuthUrl(options?: { state?: string; redirectPath?: string; lo
   return client.generateAuthUrl(params)
 }
 
-export async function getTokensFromCode(code: string, redirectPath = '/api/auth/callback') {
-  const client = getOAuth2Client(redirectPath)
+export async function getTokensFromCode(code: string, redirectPath = '/api/auth/callback', headers?: Headers) {
+  const client = getOAuth2Client(redirectPath, headers)
   const { tokens } = await client.getToken(code)
   return tokens
 }
