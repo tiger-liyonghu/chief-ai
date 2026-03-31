@@ -20,13 +20,14 @@ export function getOAuth2Client(redirectPath = '/api/auth/callback') {
 
 export function getAuthUrl(options?: { state?: string; redirectPath?: string; loginHint?: string }) {
   const client = getOAuth2Client(options?.redirectPath)
-  return client.generateAuthUrl({
+  const params: Record<string, any> = {
     access_type: 'offline',
     prompt: 'consent',
     scope: SCOPES,
-    state: options?.state,
-    login_hint: options?.loginHint,
-  })
+  }
+  if (options?.state) params.state = options.state
+  if (options?.loginHint) params.login_hint = options.loginHint
+  return client.generateAuthUrl(params)
 }
 
 export async function getTokensFromCode(code: string, redirectPath = '/api/auth/callback') {
