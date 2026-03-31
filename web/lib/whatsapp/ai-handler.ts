@@ -306,7 +306,7 @@ export async function processMessageWithAI(
         form.append('file', file)
         form.append('model', 'FunAudioLLM/SenseVoiceSmall')
 
-        const resp = await fetch('https://api.siliconflow.cn/v1/audio/transcriptions', {
+        const resp = await fetch('https://api.siliconflow.com/v1/audio/transcriptions', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${sfKey}` },
           body: form,
