@@ -292,43 +292,10 @@ export async function processMessageWithAI(
 
     const tz = await getUserTimezone(userId)
 
-    // ── Voice message: transcribe with SiliconFlow SenseVoice ──
+    // ── Voice message: not yet supported ──
     if (message.audioBase64 && message.messageType === 'audio') {
-      try {
-        const sfKey = process.env.SILICONFLOW_API_KEY
-        if (!sfKey) throw new Error('SILICONFLOW_API_KEY not set')
-
-        const audioBuffer = Buffer.from(message.audioBase64, 'base64')
-        console.log(`[Apple] Voice: ${audioBuffer.length} bytes, sending to SiliconFlow...`)
-
-        const file = new File([audioBuffer], 'audio.ogg', { type: 'audio/ogg' })
-        const form = new FormData()
-        form.append('file', file)
-        form.append('model', 'FunAudioLLM/SenseVoiceSmall')
-
-        const resp = await fetch('https://api.siliconflow.com/v1/audio/transcriptions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${sfKey}` },
-          body: form,
-        })
-
-        if (!resp.ok) {
-          const errText = await resp.text()
-          throw new Error(`SiliconFlow STT ${resp.status}: ${errText}`)
-        }
-        const result = await resp.json()
-        console.log(`[Apple] SiliconFlow STT response:`, JSON.stringify(result).slice(0, 200))
-
-        if (result.text) {
-          console.log(`[Apple] Voice transcribed: "${result.text.slice(0, 100)}"`)
-          message.body = result.text
-          message.messageType = 'text'
-        }
-      } catch (err) {
-        console.error('[Apple] Voice transcription failed:', err)
-        message.body = '[语音消息，暂时无法识别]'
-        message.messageType = 'text'
-      }
+      message.body = '语音消息功能正在开发中，目前支持文字和图片消息。'
+      message.messageType = 'text'
     }
 
     // ── Document: extract text ──
