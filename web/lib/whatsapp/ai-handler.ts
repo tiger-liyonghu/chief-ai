@@ -299,9 +299,11 @@ export async function processMessageWithAI(
         if (!sfKey) throw new Error('SILICONFLOW_API_KEY not set')
 
         const audioBuffer = Buffer.from(message.audioBase64, 'base64')
-        const blob = new Blob([audioBuffer], { type: 'audio/ogg' })
+        console.log(`[Apple] Voice: ${audioBuffer.length} bytes, sending to SiliconFlow...`)
+
+        const file = new File([audioBuffer], 'audio.ogg', { type: 'audio/ogg' })
         const form = new FormData()
-        form.append('file', blob, 'audio.ogg')
+        form.append('file', file)
         form.append('model', 'FunAudioLLM/SenseVoiceSmall')
 
         const resp = await fetch('https://api.siliconflow.cn/v1/audio/transcriptions', {
@@ -315,9 +317,10 @@ export async function processMessageWithAI(
           throw new Error(`SiliconFlow STT ${resp.status}: ${errText}`)
         }
         const result = await resp.json()
+        console.log(`[Apple] SiliconFlow STT response:`, JSON.stringify(result).slice(0, 200))
 
         if (result.text) {
-          console.log(`[Apple] Voice transcribed: "${result.text.slice(0, 50)}"`)
+          console.log(`[Apple] Voice transcribed: "${result.text.slice(0, 100)}"`)
           message.body = result.text
           message.messageType = 'text'
         }
