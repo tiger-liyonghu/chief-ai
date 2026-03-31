@@ -743,17 +743,24 @@ export default function CommitmentDashboard() {
   const [filter, setFilter] = useState<'all' | 'i_promised' | 'they_promised' | 'family'>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showScanModal, setShowScanModal] = useState(false)
+  const [familyConflicts, setFamilyConflicts] = useState<Array<{ family_event: string; work_event: string; time: string }>>([])
+
   const [scanning, setScanning] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
   const [draftModal, setDraftModal] = useState<DraftData | null>(null)
 
   const fetchData = useCallback(async () => {
-    const [cRes, sRes] = await Promise.all([
+    const [cRes, sRes, fRes] = await Promise.all([
       fetch('/api/commitments'),
       fetch('/api/commitments/stats'),
+      fetch('/api/family-calendar/conflicts').catch(() => null),
     ])
     if (cRes.ok) setCommitments(await cRes.json())
     if (sRes.ok) setStats(await sRes.json())
+    if (fRes?.ok) {
+      const fData = await fRes.json()
+      setFamilyConflicts(fData.conflicts || [])
+    }
     setLoading(false)
   }, [])
 
@@ -822,6 +829,23 @@ export default function CommitmentDashboard() {
 
         {/* Morning Briefing */}
         <BriefingCard />
+
+        {/* Family conflict alert */}
+        {familyConflicts.length > 0 && (
+          <div className="bg-pink-50 border border-pink-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Heart className="w-4 h-4 text-pink-600" />
+              <span className="text-sm font-semibold text-pink-800">Family Guard Alert</span>
+            </div>
+            <div className="space-y-1.5">
+              {familyConflicts.map((c, i) => (
+                <div key={i} className="text-sm text-pink-700">
+                  <span className="font-medium">{c.time}</span> — {c.work_event} conflicts with <span className="font-medium">{c.family_event}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         {!loading && <StatsBanner stats={stats} t={t} />}
