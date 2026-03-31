@@ -66,8 +66,8 @@ export async function POST(request: NextRequest) {
   const llmConfig = await getUserLLMConfig(user.id)
   const useTools = supportsTools(llmConfig.provider)
 
-  // Gather user context (tasks, calendar, emails, follow-ups, alerts)
-  const { contextBlock, alertsBlock } = await gatherUserContext(admin, user.id)
+  // Gather user context — layered injection based on message intent
+  const { contextBlock, alertsBlock } = await gatherUserContext(admin, user.id, message)
 
   // Pick the right system prompt based on tool support
   const systemPrompt = useTools ? getChatSystemPrompt(assistantName) : getChatSystemPromptFallback(assistantName)
