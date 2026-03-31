@@ -251,6 +251,8 @@ export default function OnboardingPage() {
   }, [])
 
   const handleEnterDashboard = () => {
+    // Clear the onboarding cookie so middleware won't redirect back
+    document.cookie = 'chief-needs-onboarding=; path=/; max-age=0'
     router.push('/dashboard')
   }
 

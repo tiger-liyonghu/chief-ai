@@ -35,21 +35,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Onboarding check: only redirect to /onboarding from /dashboard (not sub-pages)
-  // This prevents loops — if DB query fails, user still gets through
+  // Onboarding check: use cookie set by auth callback, not DB query.
+  // DB query in middleware was unreliable — if /api/onboarding failed to write
+  // onboarding_completed_at for any reason, users got stuck in a redirect loop.
   if (user && request.nextUrl.pathname === '/dashboard') {
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('onboarding_completed_at')
-        .eq('id', user.id)
-        .single()
-
-      if (data && !data.onboarding_completed_at) {
-        return NextResponse.redirect(new URL('/onboarding', request.url))
-      }
-    } catch {
-      // DB error → let user through, don't block
+    const needsOnboarding = request.cookies.get('chief-needs-onboarding')?.value === 'true'
+    if (needsOnboarding) {
+      return NextResponse.redirect(new URL('/onboarding', request.url))
     }
   }
 
