@@ -17,6 +17,44 @@ export function startSchedulers(): void {
   startMorningBriefingScheduler()
   startTravelScheduler()
   startSelfReviewScheduler()
+  startHeartbeatScheduler()
+}
+
+// 🫀 Heart — Check intervention conditions every 30 minutes
+function startHeartbeatScheduler(): void {
+  setInterval(checkAndRunInterventions, 30 * 60 * 1000)
+  console.log('[Sophia] Heart intervention scheduler started (every 30 min)')
+}
+
+async function checkAndRunInterventions(): Promise<void> {
+  const admin = createAdminClient()
+  const { data: connections } = await admin
+    .from('whatsapp_connections')
+    .select('user_id, phone_number')
+    .eq('status', 'active')
+
+  if (!connections) return
+
+  const { checkInterventions, recordIntervention } = await import('@/lib/ai/heart/intervention')
+
+  for (const conn of connections) {
+    try {
+      const interventions = await checkInterventions(admin, conn.user_id)
+      if (interventions.length === 0) continue
+
+      // Send only the most important one
+      const intervention = interventions[0]
+      const sock = getConnection(conn.user_id)
+      if (!sock) continue
+
+      const selfJid = `${conn.phone_number}@s.whatsapp.net`
+      await sock.sendMessage(selfJid, { text: `🍎 ${intervention.message}` })
+      await recordIntervention(admin, conn.user_id, intervention, 'whatsapp')
+      console.log(`[Sophia] Heart intervention sent to ${conn.user_id}: ${intervention.type}`)
+    } catch (err) {
+      console.error(`[Sophia] Heart check error for ${conn.user_id}:`, err)
+    }
+  }
 }
 
 export function startMorningBriefingScheduler(): void {

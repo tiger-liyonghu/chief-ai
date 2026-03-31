@@ -67,16 +67,28 @@ export async function POST(request: NextRequest) {
   const useTools = supportsTools(llmConfig.provider)
 
   // Gather user context — layered injection based on message intent
-  const { contextBlock, alertsBlock } = await gatherUserContext(admin, user.id, message)
+  const { contextBlock, alertsBlock, timezone } = await gatherUserContext(admin, user.id, message)
+
+  // 👂 Emotion detection
+  const { detectEmotion, formatEmotionContext } = await import('@/lib/ai/emotion/detect')
+  const localHour = parseInt(new Date().toLocaleString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }))
+  const emotionResult = detectEmotion(message, localHour)
+  const emotionContext = formatEmotionContext(emotionResult)
+
+  // 🧠 Recall relevant memories
+  const { recallMemories, formatMemoriesForPrompt } = await import('@/lib/ai/memory/episodic-memory')
+  const keywords = message.split(/[\s，。！？,.\-]+/).filter(w => w.length > 1).slice(0, 5)
+  const memories = await recallMemories(admin, user.id, { keywords, limit: 3 }).catch(() => [])
+  const memoriesContext = formatMemoriesForPrompt(memories)
 
   // Pick the right system prompt based on tool support
   const systemPrompt = useTools ? getChatSystemPrompt(assistantName) : getChatSystemPromptFallback(assistantName)
 
-  // Build messages array
+  // Build messages array with layered context
   const messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [
     {
       role: 'system',
-      content: `${systemPrompt}\n\n--- USER CONTEXT ---\n${contextBlock}${alertsBlock}`,
+      content: `${systemPrompt}${emotionContext}${memoriesContext}\n\n--- USER CONTEXT ---\n${contextBlock}${alertsBlock}`,
     },
   ]
 

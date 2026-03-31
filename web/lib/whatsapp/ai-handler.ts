@@ -341,10 +341,16 @@ export async function processMessageWithAI(
       }
     }
 
+    // 👂 Emotion detection
+    const { detectEmotion, formatEmotionContext } = await import('@/lib/ai/emotion/detect')
+    const localHour = parseInt(new Date().toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false }))
+    const emotionResult = detectEmotion(message.body || '', localHour)
+    const emotionContext = formatEmotionContext(emotionResult)
+
     // Build messages
     const systemPrompt = personContext
-      ? getSystemPrompt(tz) + personContext
-      : getSystemPrompt(tz)
+      ? getSystemPrompt(tz) + personContext + emotionContext
+      : getSystemPrompt(tz) + emotionContext
     const msgs: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [
       { role: 'system', content: systemPrompt },
     ]
