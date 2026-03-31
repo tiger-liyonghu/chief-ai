@@ -335,7 +335,7 @@ function SettingsContent() {
   }, [])
 
   const disconnectWhatsApp = async () => {
-    if (!confirm('Disconnect WhatsApp? Messages already synced will be kept.')) return
+    if (!confirm(t('confirmDisconnectWhatsApp'))) return
     setWaDisconnecting(true)
     try {
       const res = await fetch('/api/whatsapp', { method: 'DELETE' })
@@ -480,7 +480,7 @@ function SettingsContent() {
   }
 
   const removeAccount = async (accountId: string) => {
-    if (!confirm('Remove this Google account? Emails already synced will be kept.')) return
+    if (!confirm(t('confirmRemoveAccount'))) return
 
     setRemovingId(accountId)
     try {
@@ -921,11 +921,11 @@ function SettingsContent() {
                 <div className="flex items-center gap-3">
                   <Mail className="w-5 h-5 text-text-tertiary" />
                   <div>
-                    <p className="text-sm font-medium">Daily Digest Email</p>
+                    <p className="text-sm font-medium">{t('dailyDigestEmail')}</p>
                     <p className="text-xs text-text-tertiary">
                       {digestEnabled
-                        ? `AI-powered summary delivered to your inbox every day`
-                        : 'Email digest is paused'}
+                        ? t('digestActive')
+                        : t('digestPaused')}
                     </p>
                   </div>
                 </div>
@@ -1376,10 +1376,10 @@ function SettingsContent() {
                 {deleting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Deleting...
+                    {t('deletingAccount')}
                   </>
                 ) : (
-                  'Delete My Account'
+                  t('deleteMyAccount')
                 )}
               </button>
             </div>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n/context'
 
 /* ---------- types ---------- */
 interface Expense {
@@ -34,12 +35,12 @@ interface Trip {
 const filters = ['All', 'By Trip', 'Pending', 'Exported'] as const
 type Filter = (typeof filters)[number]
 
-const categoryConfig: Record<string, { icon: typeof Plane; label: string; color: string }> = {
-  flight:    { icon: Plane,              label: 'Flight',    color: 'text-blue-600 bg-blue-50' },
-  hotel:     { icon: Hotel,              label: 'Hotel',     color: 'text-purple-600 bg-purple-50' },
-  transport: { icon: Car,                label: 'Transport', color: 'text-green-600 bg-green-50' },
-  meal:      { icon: UtensilsCrossed,    label: 'Meal',      color: 'text-orange-600 bg-orange-50' },
-  other:     { icon: Circle,             label: 'Other',     color: 'text-gray-600 bg-gray-50' },
+const categoryConfig: Record<string, { icon: typeof Plane; labelKey: 'expenseFlight' | 'expenseHotel' | 'expenseTransport' | 'expenseMeal' | 'expenseOther'; color: string }> = {
+  flight:    { icon: Plane,              labelKey: 'expenseFlight',    color: 'text-blue-600 bg-blue-50' },
+  hotel:     { icon: Hotel,              labelKey: 'expenseHotel',     color: 'text-purple-600 bg-purple-50' },
+  transport: { icon: Car,                labelKey: 'expenseTransport', color: 'text-green-600 bg-green-50' },
+  meal:      { icon: UtensilsCrossed,    labelKey: 'expenseMeal',      color: 'text-orange-600 bg-orange-50' },
+  other:     { icon: Circle,             labelKey: 'expenseOther',     color: 'text-gray-600 bg-gray-50' },
 }
 
 const statusBadge: Record<string, string> = {
@@ -62,6 +63,7 @@ function fmtDate(d: string) {
 
 /* ---------- page ---------- */
 export default function ExpensesPage() {
+  const { t } = useI18n()
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [trips, setTrips] = useState<Trip[]>([])
   const [loading, setLoading] = useState(true)
@@ -447,7 +449,7 @@ export default function ExpensesPage() {
                             )}
                           >
                             <Icon className="w-4 h-4" />
-                            {conf.label}
+                            {t(conf.labelKey)}
                           </button>
                         )
                       })}

@@ -522,6 +522,76 @@ const en = {
   pasteApiKey: 'Paste your API key',
   keyEncrypted: 'Key encrypted, used only for your AI requests',
   familyMemberPlaceholder: 'e.g. Emily, Wife, Son...',
+
+  // Dashboard - DraftEmailModal
+  emailSent: 'Email Sent',
+  reviewAndSend: 'Review & Send Email',
+  unknown: 'Unknown',
+
+  // Calendar - EventForm & EventCard
+  saveChanges: 'Save Changes',
+  createEvent: 'Create Event',
+  hidePrep: 'Hide Prep',
+  viewPrep: 'View Prep',
+  dayMon: 'Mon',
+  dayTue: 'Tue',
+  dayWed: 'Wed',
+  dayThu: 'Thu',
+  dayFri: 'Fri',
+  daySat: 'Sat',
+  daySun: 'Sun',
+
+  // Inbox
+  tryDifferentSearch: 'Try a different search term.',
+  copied: 'Copied',
+  copy: 'Copy',
+  noResultsForSearch: 'No results for "{q}"',
+
+  // Trips
+  tripActive: 'Active',
+  tripCompleted: 'Completed',
+  tripUpcoming: 'Upcoming',
+
+  // Expenses
+  expenseFlight: 'Flight',
+  expenseHotel: 'Hotel',
+  expenseTransport: 'Transport',
+  expenseMeal: 'Meal',
+  expenseOther: 'Other',
+
+  // Contacts - Temperature
+  tempHot: 'Hot',
+  tempWarm: 'Warm',
+  tempCooling: 'Cooling',
+  tempCold: 'Cold',
+
+  // Contacts - Timeline
+  email: 'Email',
+  whatsappLabel: 'WhatsApp',
+  commitment: 'Commitment',
+  meetingLabel: 'Meeting',
+  interactionTimeline: 'Interaction Timeline',
+  noInteractions: 'No interactions found yet.',
+  relationshipTemperature: 'Relationship Temperature',
+
+  // Settings
+  confirmDisconnectWhatsApp: 'Disconnect WhatsApp? Messages already synced will be kept.',
+  confirmRemoveAccount: 'Remove this Google account? Emails already synced will be kept.',
+  digestPaused: 'Email digest is paused',
+  digestActive: 'AI-powered summary delivered to your inbox every day',
+  deleteMyAccount: 'Delete My Account',
+  deletingAccount: 'Deleting...',
+
+  // Onboarding
+  setupSophia: 'Set Up Sophia',
+  sophiaLearning: 'Sophia is Learning About You...',
+  allSet: "You're All Set!",
+  onboardingChannelsDesc: 'Connect your channels so Sophia can track commitments and keep you on top of everything',
+  connectWhatsAppTitle: 'Connect WhatsApp',
+  onboardingWhatsAppDesc: 'Sophia uses WhatsApp as your real-time channel — morning briefings, commitment reminders, and voice commands all happen here.',
+  waConnectedReady: 'Connected — Sophia is ready',
+  waScanToConnect: 'Scan QR code to connect your WhatsApp',
+  waPrivacyNote: 'Sophia reads only your self-chat. Your private messages are never accessed.',
 }
 
 const zh: typeof en = {
@@ -1026,6 +1096,76 @@ const zh: typeof en = {
   pasteApiKey: '粘贴你的密钥',
   keyEncrypted: '密钥加密存储，仅用于你的 AI 请求',
   familyMemberPlaceholder: '如 Emily, 老婆, 儿子...',
+
+  // Dashboard - DraftEmailModal
+  emailSent: '邮件已发送',
+  reviewAndSend: '审核并发送邮件',
+  unknown: '未知',
+
+  // Calendar - EventForm & EventCard
+  saveChanges: '保存更改',
+  createEvent: '创建事件',
+  hidePrep: '隐藏准备',
+  viewPrep: '查看准备',
+  dayMon: '周一',
+  dayTue: '周二',
+  dayWed: '周三',
+  dayThu: '周四',
+  dayFri: '周五',
+  daySat: '周六',
+  daySun: '周日',
+
+  // Inbox
+  tryDifferentSearch: '试试其他搜索关键词。',
+  copied: '已复制',
+  copy: '复制',
+  noResultsForSearch: '没有找到 "{q}" 的结果',
+
+  // Trips
+  tripActive: '进行中',
+  tripCompleted: '已完成',
+  tripUpcoming: '即将开始',
+
+  // Expenses
+  expenseFlight: '机票',
+  expenseHotel: '酒店',
+  expenseTransport: '交通',
+  expenseMeal: '餐饮',
+  expenseOther: '其他',
+
+  // Contacts - Temperature
+  tempHot: '热络',
+  tempWarm: '温暖',
+  tempCooling: '降温中',
+  tempCold: '冷淡',
+
+  // Contacts - Timeline
+  email: '邮件',
+  whatsappLabel: 'WhatsApp',
+  commitment: '承诺',
+  meetingLabel: '会议',
+  interactionTimeline: '互动时间线',
+  noInteractions: '暂无互动记录。',
+  relationshipTemperature: '关系温度',
+
+  // Settings
+  confirmDisconnectWhatsApp: '断开 WhatsApp？已同步的消息将保留。',
+  confirmRemoveAccount: '移除此 Google 账户？已同步的邮件将保留。',
+  digestPaused: '邮件摘要已暂停',
+  digestActive: 'AI 每日摘要将投递到你的邮箱',
+  deleteMyAccount: '删除我的账户',
+  deletingAccount: '删除中...',
+
+  // Onboarding
+  setupSophia: '设置 Sophia',
+  sophiaLearning: 'Sophia 正在了解你...',
+  allSet: '全部就绪！',
+  onboardingChannelsDesc: '连接你的渠道，让 Sophia 追踪承诺并帮你掌控一切',
+  connectWhatsAppTitle: '连接 WhatsApp',
+  onboardingWhatsAppDesc: 'Sophia 以 WhatsApp 作为实时频道——晨间简报、承诺提醒和语音指令都在这里。',
+  waConnectedReady: '已连接——Sophia 已就绪',
+  waScanToConnect: '扫码连接你的 WhatsApp',
+  waPrivacyNote: 'Sophia 只读取你的自聊消息，不会访问你的私人对话。',
 }
 
 

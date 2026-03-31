@@ -500,11 +500,11 @@ export default function InboxPage() {
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
             <p className="text-lg font-medium text-text-primary mb-1">
-              {activeSearch ? `No results for "${activeSearch}"` : 'All caught up!'}
+              {activeSearch ? t('noResultsForSearch', { q: activeSearch }) : t('allCaughtUp')}
             </p>
             <p className="text-sm text-text-tertiary max-w-xs">
               {activeSearch
-                ? 'Try a different search term.'
+                ? t('tryDifferentSearch')
                 : 'Your assistant will notify you when something needs your attention.'}
             </p>
           </div>
@@ -738,7 +738,7 @@ export default function InboxPage() {
                                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-white rounded-lg transition-colors border border-border"
                                             >
                                               {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                                              {copied ? 'Copied' : 'Copy'}
+                                              {copied ? t('copied') : t('copy')}
                                             </button>
                                             <button
                                               onClick={() => handleDraft(item)}

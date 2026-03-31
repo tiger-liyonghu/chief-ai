@@ -158,11 +158,11 @@ function urgencyColor(score: number, days: number | null): string {
   return 'text-slate-700 bg-white border-slate-200'
 }
 
-function getGreeting(): string {
+function getGreetingKey(): 'goodMorning' | 'goodAfternoon' | 'goodEvening' {
   const hour = new Date().getHours()
-  if (hour < 12) return 'Good morning'
-  if (hour < 17) return 'Good afternoon'
-  return 'Good evening'
+  if (hour < 12) return 'goodMorning'
+  if (hour < 17) return 'goodAfternoon'
+  return 'goodEvening'
 }
 
 function formatEventTime(isoStr: string): string {
@@ -189,6 +189,7 @@ function extractMeetingPlatform(link?: string): string | null {
 /* ─── Draft Email Modal ─── */
 
 function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose: () => void; onSent: () => void }) {
+  const { t } = useI18n()
   const [to, setTo] = useState(draft.to)
   const [subject, setSubject] = useState(draft.subject)
   const [body, setBody] = useState(draft.body)
@@ -245,7 +246,7 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
           <div className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold">
-              {sent ? 'Email Sent' : 'Review & Send Email'}
+              {sent ? t('emailSent') : t('reviewAndSend')}
             </h3>
             {draft.tone && (
               <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium', {
@@ -623,10 +624,11 @@ function ScheduleEvent({ event, contacts }: { event: UnifiedEvent; contacts?: Ar
 /* ─── Waiting On Them Card ─── */
 
 function WaitingCard({ c, onDraft }: { c: Commitment; onDraft: (draft: DraftData) => void }) {
+  const { t } = useI18n()
   const days = daysUntil(c.deadline)
   const [actionLoading, setActionLoading] = useState(false)
 
-  const contactDisplay = c.contacts?.name || c.contact_name || c.contact_email || 'Unknown'
+  const contactDisplay = c.contacts?.name || c.contact_name || c.contact_email || t('unknown')
 
   const handleNudge = async () => {
     if (!c.contact_email) return
@@ -1355,7 +1357,7 @@ export default function TodayBriefing() {
         {/* ─── Greeting ─── */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-primary">
-            {getGreeting()}, Tiger.
+            {t(getGreetingKey())}, Tiger.
           </h1>
           <div className="flex items-center gap-2">
             <button

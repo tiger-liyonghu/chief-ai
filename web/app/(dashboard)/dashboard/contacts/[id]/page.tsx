@@ -114,16 +114,16 @@ const IMPORTANCE_STYLES: Record<string, { label: string; className: string }> = 
   low: { label: 'Low', className: 'bg-gray-50 text-gray-400 border border-gray-100' },
 }
 
-const RELATIONSHIP_LABELS: Record<string, string> = {
-  boss: 'Boss',
-  team: 'Team',
-  client: 'Client',
-  investor: 'Investor',
-  partner: 'Partner',
-  vendor: 'Vendor',
-  personal: 'Personal',
-  recruiter: 'Recruiter',
-  other: 'Other',
+const RELATIONSHIP_LABEL_KEYS: Record<string, 'contactBoss' | 'contactTeam' | 'contactClient' | 'contactInvestor' | 'contactPartner' | 'contactVendor' | 'contactPersonal' | 'contactRecruiter' | 'contactOther'> = {
+  boss: 'contactBoss',
+  team: 'contactTeam',
+  client: 'contactClient',
+  investor: 'contactInvestor',
+  partner: 'contactPartner',
+  vendor: 'contactVendor',
+  personal: 'contactPersonal',
+  recruiter: 'contactRecruiter',
+  other: 'contactOther',
 }
 
 /* ─── Helpers ─── */
@@ -168,13 +168,13 @@ function getTemperatureTextColor(status: string): string {
   }
 }
 
-function getTemperatureLabel(status: string): string {
+function getTemperatureLabelKey(status: string): 'tempHot' | 'tempWarm' | 'tempCooling' | 'tempCold' | 'unknown' {
   switch (status) {
-    case 'hot': return 'Hot'
-    case 'warm': return 'Warm'
-    case 'cooling': return 'Cooling'
-    case 'cold': return 'Cold'
-    default: return 'Unknown'
+    case 'hot': return 'tempHot'
+    case 'warm': return 'tempWarm'
+    case 'cooling': return 'tempCooling'
+    case 'cold': return 'tempCold'
+    default: return 'unknown'
   }
 }
 
@@ -193,15 +193,16 @@ function formatDateTime(dateStr: string): string {
 /* ─── Temperature Gauge ─── */
 
 function TemperatureGauge({ temperature, status }: { temperature: number; status: string }) {
+  const { t } = useI18n()
   return (
     <div className="bg-white rounded-2xl border border-border p-5">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Thermometer className="w-4 h-4 text-text-tertiary" />
-          <h3 className="text-sm font-semibold text-text-primary">Relationship Temperature</h3>
+          <h3 className="text-sm font-semibold text-text-primary">{t('relationshipTemperature')}</h3>
         </div>
         <span className={cn('text-sm font-bold', getTemperatureTextColor(status))}>
-          {getTemperatureLabel(status)}
+          {t(getTemperatureLabelKey(status))}
         </span>
       </div>
       <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
@@ -213,9 +214,9 @@ function TemperatureGauge({ temperature, status }: { temperature: number; status
         />
       </div>
       <div className="flex justify-between mt-1.5">
-        <span className="text-[10px] text-text-tertiary">Cold</span>
+        <span className="text-[10px] text-text-tertiary">{t('tempCold')}</span>
         <span className="text-xs font-medium text-text-secondary">{temperature}/100</span>
-        <span className="text-[10px] text-text-tertiary">Hot</span>
+        <span className="text-[10px] text-text-tertiary">{t('tempHot')}</span>
       </div>
     </div>
   )
@@ -224,6 +225,7 @@ function TemperatureGauge({ temperature, status }: { temperature: number; status
 /* ─── Profile Card ─── */
 
 function ProfileCard({ contact }: { contact: ContactDetail }) {
+  const { t } = useI18n()
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -250,7 +252,7 @@ function ProfileCard({ contact }: { contact: ContactDetail }) {
             </span>
             {contact.relationship && contact.relationship !== 'other' && (
               <span className="text-xs text-text-tertiary bg-surface-secondary px-2 py-0.5 rounded-full">
-                {RELATIONSHIP_LABELS[contact.relationship] || contact.relationship}
+                {RELATIONSHIP_LABEL_KEYS[contact.relationship] ? t(RELATIONSHIP_LABEL_KEYS[contact.relationship]) : contact.relationship}
               </span>
             )}
           </div>
@@ -292,15 +294,16 @@ function ProfileCard({ contact }: { contact: ContactDetail }) {
 /* ─── Interaction Timeline ─── */
 
 function InteractionTimeline({ items }: { items: TimelineItem[] }) {
+  const { t } = useI18n()
   if (items.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-border p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
           <Clock className="w-4 h-4 text-text-tertiary" />
-          Interaction Timeline
+          {t('interactionTimeline')}
         </h3>
         <p className="text-sm text-text-tertiary text-center py-6">
-          No interactions found yet.
+          {t('noInteractions')}
         </p>
       </div>
     )
@@ -317,10 +320,10 @@ function InteractionTimeline({ items }: { items: TimelineItem[] }) {
 
   function getLabel(type: TimelineItem['type']) {
     switch (type) {
-      case 'email': return 'Email'
-      case 'whatsapp': return 'WhatsApp'
-      case 'commitment': return 'Commitment'
-      case 'event': return 'Meeting'
+      case 'email': return t('email')
+      case 'whatsapp': return t('whatsappLabel')
+      case 'commitment': return t('commitment')
+      case 'event': return t('meetingLabel')
     }
   }
 
@@ -353,7 +356,7 @@ function InteractionTimeline({ items }: { items: TimelineItem[] }) {
     <div className="bg-white rounded-2xl border border-border p-5">
       <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
         <Clock className="w-4 h-4 text-text-tertiary" />
-        Interaction Timeline
+        {t('interactionTimeline')}
         <span className="text-xs text-text-tertiary font-normal ml-auto">
           {items.length} interactions
         </span>

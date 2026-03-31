@@ -272,12 +272,12 @@ export default function OnboardingPage() {
             <Sparkles className="w-8 h-8 text-white" />
           </motion.div>
           <h1 className="text-xl font-bold text-slate-900">
-            {step === 'channels' ? 'Set Up Sophia' :
-             step === 'scanning' ? 'Sophia is Learning About You...' :
-             'You\'re All Set!'}
+            {step === 'channels' ? t('setupSophia') :
+             step === 'scanning' ? t('sophiaLearning') :
+             t('allSet')}
           </h1>
           {step === 'channels' && (
-            <p className="text-sm text-slate-500 mt-1">Connect your channels so Sophia can track commitments and keep you on top of everything</p>
+            <p className="text-sm text-slate-500 mt-1">{t('onboardingChannelsDesc')}</p>
           )}
         </div>
 
@@ -334,23 +334,23 @@ export default function OnboardingPage() {
               {/* WhatsApp section — required */}
               <div>
                 <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" /> Connect WhatsApp
+                  <MessageSquare className="w-4 h-4" /> {t('connectWhatsAppTitle')}
                 </h2>
                 <p className="text-xs text-slate-500 mb-3">
-                  Sophia uses WhatsApp as your real-time channel — morning briefings, commitment reminders, and voice commands all happen here.
+                  {t('onboardingWhatsAppDesc')}
                 </p>
                 <div className="space-y-2">
                   <ChannelCard
                     icon={MessageSquare}
                     name="WhatsApp"
-                    description={whatsappConnected ? 'Connected — Sophia is ready' : 'Scan QR code to connect your WhatsApp'}
+                    description={whatsappConnected ? t('waConnectedReady') : t('waScanToConnect')}
                     connected={whatsappConnected}
                     onConnect={handleWhatsAppConnect}
                   />
                   {!whatsappConnected && (
                     <p className="text-xs text-amber-600 flex items-center gap-1">
                       <Shield className="w-3 h-3" />
-                      Sophia reads only your self-chat. Your private messages are never accessed.
+                      {t('waPrivacyNote')}
                     </p>
                   )}
                 </div>

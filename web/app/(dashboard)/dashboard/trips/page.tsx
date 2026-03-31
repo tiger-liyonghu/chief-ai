@@ -62,11 +62,11 @@ function formatCurrency(amount: number, currency: string): string {
 function getStatusConfig(status: string) {
   switch (status) {
     case 'active':
-      return { label: 'Active', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' }
+      return { labelKey: 'tripActive' as const, color: 'bg-green-100 text-green-700', dot: 'bg-green-500' }
     case 'completed':
-      return { label: 'Completed', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
+      return { labelKey: 'tripCompleted' as const, color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' }
     default:
-      return { label: 'Upcoming', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' }
+      return { labelKey: 'tripUpcoming' as const, color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' }
   }
 }
 
@@ -630,6 +630,7 @@ function TripCard({
   reportLoading?: boolean
   tripReport?: any
 }) {
+  const { t } = useI18n()
   const statusConfig = getStatusConfig(trip.status)
   const flag = countryFlag(trip.destination_country)
 
@@ -683,7 +684,7 @@ function TripCard({
             </h3>
             <span className={cn('text-xs px-2 py-0.5 rounded-full font-medium inline-flex items-center gap-1', statusConfig.color)}>
               <span className={cn('w-1.5 h-1.5 rounded-full', statusConfig.dot)} />
-              {statusConfig.label}
+              {t(statusConfig.labelKey)}
             </span>
           </div>
 

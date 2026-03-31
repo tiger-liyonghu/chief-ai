@@ -72,6 +72,7 @@ const EMPTY_FORM: EventFormData = {
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8) // 8 AM – 7 PM
 const COLORS = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-cyan-500']
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_NAME_KEYS = ['dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat', 'daySun'] as const
 
 // Layer color palettes
 const LAYER_COLORS: Record<EventLayer, { bg: string; border: string; dot: string; text: string; lightBg: string }> = {
@@ -311,7 +312,7 @@ function EventModal({
                 className="w-full py-2.5 bg-primary text-white font-medium text-sm rounded-xl hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editEventId ? 'Save Changes' : 'Create Event'}
+                {editEventId ? t('saveChanges') : t('createEvent')}
               </button>
             </form>
           </motion.div>
@@ -404,6 +405,7 @@ function EventCard({
   contextOpen?: boolean
   onToggleContext?: () => void
 }) {
+  const { t } = useI18n()
   const start = new Date(event.start_time)
   const end = new Date(event.end_time)
   const startStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -633,7 +635,7 @@ function EventCard({
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
                   >
                     <Brain className="w-3.5 h-3.5" />
-                    {contextOpen ? 'Hide Prep' : 'View Prep'}
+                    {contextOpen ? t('hidePrep') : t('viewPrep')}
                   </button>
                 )}
                 {onEdit && (
@@ -1035,6 +1037,7 @@ function DayView({
 // ─── Week View ───────────────────────────────────────────────────────────────
 
 function WeekView({ events, weekStart, onDayClick }: { events: CalendarEvent[]; weekStart: Date; onDayClick: (d: Date) => void }) {
+  const { t } = useI18n()
   const today = new Date()
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
 
@@ -1141,7 +1144,7 @@ function WeekView({ events, weekStart, onDayClick }: { events: CalendarEvent[]; 
                 isToday && 'bg-primary/5'
               )}
             >
-              <div className="text-xs text-text-tertiary font-medium">{DAY_NAMES[i]}</div>
+              <div className="text-xs text-text-tertiary font-medium">{t(DAY_NAME_KEYS[i])}</div>
               <div className={cn(
                 'text-lg font-semibold mt-0.5',
                 isToday ? 'text-primary' : 'text-text-primary'
@@ -1209,6 +1212,7 @@ function WeekView({ events, weekStart, onDayClick }: { events: CalendarEvent[]; 
 // ─── Month View ──────────────────────────────────────────────────────────────
 
 function MonthView({ events, month, onDayClick }: { events: CalendarEvent[]; month: Date; onDayClick: (d: Date) => void }) {
+  const { t } = useI18n()
   const today = new Date()
   const firstDay = startOfMonth(month)
   const totalDays = daysInMonth(month)
@@ -1244,9 +1248,9 @@ function MonthView({ events, month, onDayClick }: { events: CalendarEvent[]; mon
     <div>
       {/* Header row */}
       <div className="grid grid-cols-7 border-b border-border">
-        {DAY_NAMES.map(name => (
-          <div key={name} className="text-xs font-medium text-text-tertiary text-center py-2">
-            {name}
+        {DAY_NAME_KEYS.map(key => (
+          <div key={key} className="text-xs font-medium text-text-tertiary text-center py-2">
+            {t(key)}
           </div>
         ))}
       </div>
