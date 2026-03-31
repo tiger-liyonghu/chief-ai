@@ -21,6 +21,10 @@ export type AlertType =
   | 'overdue_commitment'
   | 'meeting_fatigue'
   | 'stale_urgent_task'
+  | 'commitment_chain_break'
+  | 'pre_trip_unfinished'
+  | 'vip_silence'
+  | 'family_work_conflict'
 
 export interface Alert {
   id: string
@@ -340,6 +344,109 @@ const SEVERITY_ORDER: Record<AlertSeverity, number> = {
   low: 2,
 }
 
+// ── New Detectors (Sophia Eyes upgrade) ──
+
+async function detectCommitmentChainBreak(
+  db: SupabaseClient,
+  userId: string,
+): Promise<Alert[]> {
+  // Find commitments that are blocked by other overdue commitments
+  const { data } = await db
+    .from('commitments')
+    .select('id, title, contact_name, description, deadline')
+    .eq('user_id', userId)
+    .in('status', ['pending', 'in_progress'])
+    .not('description', 'is', null)
+
+  const alerts: Alert[] = []
+  for (const c of data || []) {
+    if (c.description && /依赖|blocked|等.*先/.test(c.description)) {
+      alerts.push({
+        id: uid('chain_break', c.id),
+        type: 'commitment_chain_break',
+        severity: 'high',
+        title: `承诺链断裂：${c.title}`,
+        detail: `${c.contact_name || '?'} 的「${c.title}」可能被阻塞（${c.description.slice(0, 80)}）`,
+        created_at: new Date().toISOString(),
+        refs: [c.id],
+      })
+    }
+  }
+  return alerts
+}
+
+async function detectPreTripUnfinished(
+  db: SupabaseClient,
+  userId: string,
+): Promise<Alert[]> {
+  const threeDaysLater = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10)
+  const todayISO = new Date().toISOString().slice(0, 10)
+
+  // Find trips starting within 3 days
+  const { data: trips } = await db
+    .from('trips')
+    .select('id, title, destination_city, start_date')
+    .eq('user_id', userId)
+    .in('status', ['upcoming', 'pre_trip'])
+    .lte('start_date', threeDaysLater)
+    .gte('start_date', todayISO)
+
+  if (!trips || trips.length === 0) return []
+
+  // Find overdue/pending commitments due before trip starts
+  const alerts: Alert[] = []
+  for (const trip of trips) {
+    const { data: commitments } = await db
+      .from('commitments')
+      .select('title, contact_name, deadline')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'in_progress', 'overdue'])
+      .lte('deadline', trip.start_date)
+      .limit(3)
+
+    if (commitments && commitments.length > 0) {
+      alerts.push({
+        id: uid('pre_trip', trip.id),
+        type: 'pre_trip_unfinished',
+        severity: 'high',
+        title: `出差前有 ${commitments.length} 件事未完成`,
+        detail: `${trip.destination_city || trip.title} 出差 ${trip.start_date} 前：${commitments.map(c => c.title).join('、')}`,
+        created_at: new Date().toISOString(),
+        refs: [trip.id],
+      })
+    }
+  }
+  return alerts
+}
+
+async function detectVipSilence(
+  db: SupabaseClient,
+  userId: string,
+): Promise<Alert[]> {
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 86400000).toISOString()
+
+  const { data: coldVips } = await db
+    .from('contacts')
+    .select('id, name, company, last_contact_at')
+    .eq('user_id', userId)
+    .in('importance', ['vip', 'high'])
+    .lt('last_contact_at', fourteenDaysAgo)
+    .limit(3)
+
+  return (coldVips || []).map(v => {
+    const days = daysBetween(new Date(), new Date(v.last_contact_at))
+    return {
+      id: uid('vip_silence', v.id),
+      type: 'vip_silence' as AlertType,
+      severity: 'medium' as AlertSeverity,
+      title: `${v.name} 已 ${days} 天没联系`,
+      detail: `${v.name} (${v.company || 'VIP'}) 上次联系是 ${fmtDate(v.last_contact_at)}，可能需要跟进`,
+      created_at: new Date().toISOString(),
+      refs: [v.id],
+    }
+  })
+}
+
 export async function detectAlerts(
   db: SupabaseClient,
   userId: string,
@@ -355,6 +462,9 @@ export async function detectAlerts(
     overdueReplies,
     overdueCommitments,
     staleUrgentTasks,
+    chainBreaks,
+    preTripAlerts,
+    vipSilence,
   ] = await Promise.all([
     Promise.resolve(detectCalendarConflicts(events)),
     Promise.resolve(detectTransitImpossible(events)),
@@ -362,6 +472,9 @@ export async function detectAlerts(
     detectOverdueReplies(db, userId),
     detectOverdueCommitments(db, userId),
     detectStaleUrgentTasks(db, userId),
+    detectCommitmentChainBreak(db, userId),
+    detectPreTripUnfinished(db, userId),
+    detectVipSilence(db, userId),
   ])
 
   const allAlerts = [
@@ -371,6 +484,9 @@ export async function detectAlerts(
     ...overdueReplies,
     ...overdueCommitments,
     ...staleUrgentTasks,
+    ...chainBreaks,
+    ...preTripAlerts,
+    ...vipSilence,
   ]
 
   // Sort: high first, then by most recent
