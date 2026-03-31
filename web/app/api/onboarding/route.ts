@@ -41,12 +41,14 @@ export async function POST(request: NextRequest) {
       settingsUpdate.language = language
     }
 
-    if (Object.keys(settingsUpdate).length > 1) {
-      await admin.from('profiles').update(settingsUpdate).eq('id', user.id)
-    }
+    // Mark onboarding complete FIRST — this is the gate that prevents redirect loops.
+    // Background tasks (sync, process, trips, contacts) must never block this write.
+    settingsUpdate.onboarding_completed_at = new Date().toISOString()
+    await admin.from('profiles').update(settingsUpdate).eq('id', user.id)
 
-    // Step 2: Trigger all automatic setup steps in parallel
-    // We use internal fetch with the user's cookies forwarded
+    // Step 2: Trigger background setup steps (fire-and-forget)
+    // These run after onboarding_completed_at is already written,
+    // so even if they fail or timeout, the user can enter the dashboard.
     const baseUrl = getPublicOrigin(request.url, request.headers)
     const cookieHeader = request.headers.get('cookie') || ''
 
@@ -58,12 +60,9 @@ export async function POST(request: NextRequest) {
     const stepsTriggered: string[] = []
     const stepResults: Record<string, any> = {}
 
-    // Step 2a: Sync emails (metadata)
+    // Sync emails → process → trips + contacts
     try {
-      const syncRes = await fetch(`${baseUrl}/api/sync`, {
-        method: 'POST',
-        headers,
-      })
+      const syncRes = await fetch(`${baseUrl}/api/sync`, { method: 'POST', headers })
       const syncData = await syncRes.json()
       stepsTriggered.push('sync')
       stepResults.sync = syncData
@@ -72,12 +71,8 @@ export async function POST(request: NextRequest) {
       stepResults.sync = { error: 'failed' }
     }
 
-    // Step 2b: AI processing (runs after sync so there are emails to process)
     try {
-      const processRes = await fetch(`${baseUrl}/api/sync/process`, {
-        method: 'POST',
-        headers,
-      })
+      const processRes = await fetch(`${baseUrl}/api/sync/process`, { method: 'POST', headers })
       const processData = await processRes.json()
       stepsTriggered.push('process')
       stepResults.process = processData
@@ -86,19 +81,15 @@ export async function POST(request: NextRequest) {
       stepResults.process = { error: 'failed' }
     }
 
-    // Step 2c: Trip detection and contact detection (can run in parallel)
     const [tripResult, contactResult] = await Promise.allSettled([
-      fetch(`${baseUrl}/api/trips/detect`, { method: 'POST', headers })
-        .then(r => r.json()),
-      fetch(`${baseUrl}/api/contacts/detect`, { method: 'POST', headers })
-        .then(r => r.json()),
+      fetch(`${baseUrl}/api/trips/detect`, { method: 'POST', headers }).then(r => r.json()),
+      fetch(`${baseUrl}/api/contacts/detect`, { method: 'POST', headers }).then(r => r.json()),
     ])
 
     if (tripResult.status === 'fulfilled') {
       stepsTriggered.push('trips')
       stepResults.trips = tripResult.value
     } else {
-      console.error('Onboarding: trip detection failed', tripResult.reason)
       stepResults.trips = { error: 'failed' }
     }
 
@@ -106,14 +97,8 @@ export async function POST(request: NextRequest) {
       stepsTriggered.push('contacts')
       stepResults.contacts = contactResult.value
     } else {
-      console.error('Onboarding: contact detection failed', contactResult.reason)
       stepResults.contacts = { error: 'failed' }
     }
-
-    // Step 3: Mark onboarding complete
-    await admin.from('profiles').update({
-      onboarding_completed_at: new Date().toISOString(),
-    }).eq('id', user.id)
 
     return NextResponse.json({
       ok: true,
