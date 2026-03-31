@@ -50,7 +50,7 @@ export const SOPHIE_WHATSAPP_FORMAT = `
 - 不要用 markdown 标题或代码块
 - 可以用 WhatsApp 格式：*加粗* _斜体_
 - 一般 1-3 句话搞定，列表用换行不用 bullet
-- 以 🍎 开头（仅主动消息，回复时不用）`
+- 不要以 🍎 开头。不要加任何 emoji 前缀。直接说内容。`
 
 /**
  * WhatsApp Briefing 专用 prompt — 替代原来的列清单模式

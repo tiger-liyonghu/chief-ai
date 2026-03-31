@@ -229,6 +229,17 @@ function getSystemPrompt(timezone: string): string {
 
 // ── Main handler ──
 
+// Track recently processed message IDs to prevent duplicate processing on reconnect
+const recentlyProcessed = new Map<string, number>()
+
+// Clean old entries every 5 minutes
+setInterval(() => {
+  const fiveMinAgo = Date.now() - 5 * 60 * 1000
+  for (const [key, ts] of recentlyProcessed) {
+    if (ts < fiveMinAgo) recentlyProcessed.delete(key)
+  }
+}, 5 * 60 * 1000)
+
 export async function processMessageWithAI(
   userId: string,
   message: WhatsAppInboundMessage,
@@ -236,6 +247,14 @@ export async function processMessageWithAI(
 ): Promise<void> {
   const hasImage = message.messageType === 'image' && message.imageBase64
   if (!hasImage && !message.body.trim()) return
+
+  // Dedup: skip if this exact message was already processed (reconnect replay protection)
+  const dedupKey = `${userId}:${message.from}:${message.body?.slice(0, 100)}:${(message as any).timestamp || Date.now()}`
+  if (recentlyProcessed.has(dedupKey)) {
+    console.log(`[Sophia] Skipping duplicate message from ${message.from}`)
+    return
+  }
+  recentlyProcessed.set(dedupKey, Date.now())
 
   const aiEnabled = await isAIEnabled(userId)
   if (!aiEnabled) return
