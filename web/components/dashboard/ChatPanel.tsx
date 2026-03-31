@@ -661,6 +661,26 @@ export function ChatPanel() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Quick suggestions when no messages */}
+            {messages.length === 0 && (
+              <div className="px-3 pb-2 flex flex-wrap gap-1.5">
+                {[
+                  "What's overdue?",
+                  "Today's schedule",
+                  "Who do I need to reply to?",
+                  "Summarize my commitments",
+                ].map(suggestion => (
+                  <button
+                    key={suggestion}
+                    onClick={() => { setInput(suggestion); setTimeout(() => handleSend(), 150) }}
+                    className="px-3 py-1.5 text-xs bg-indigo-50 text-indigo-700 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-100"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Input */}
             <div className="p-3 border-t border-border bg-white shrink-0">
               <div className="flex items-center gap-2">
