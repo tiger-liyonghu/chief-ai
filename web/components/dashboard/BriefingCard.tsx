@@ -738,14 +738,29 @@ export function BriefingCard() {
                             ) : (
                               <PenLine className="w-3 h-3" />
                             )}
-                            起草
+                            Draft
                           </button>
                           <ActionDropdown
-                            onPostpone={() => {
-                              // Could integrate with commitment postpone API
+                            onPostpone={async () => {
+                              try {
+                                const res = await fetch(`/api/commitments?contact_name=${encodeURIComponent(item.person)}&status=pending,in_progress,waiting,overdue&limit=1`)
+                                const comms = await res.json()
+                                const c = Array.isArray(comms) ? comms[0] : comms?.commitments?.[0]
+                                if (c?.id) {
+                                  const newDeadline = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0]
+                                  await fetch('/api/commitments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, deadline: newDeadline, status: 'pending' }) })
+                                }
+                              } catch {}
                             }}
-                            onDone={() => {
-                              // Could integrate with commitment done API
+                            onDone={async () => {
+                              try {
+                                const res = await fetch(`/api/commitments?contact_name=${encodeURIComponent(item.person)}&status=pending,in_progress,waiting,overdue&limit=1`)
+                                const comms = await res.json()
+                                const c = Array.isArray(comms) ? comms[0] : comms?.commitments?.[0]
+                                if (c?.id) {
+                                  await fetch('/api/commitments', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, status: 'done' }) })
+                                }
+                              } catch {}
                             }}
                           />
                         </>
