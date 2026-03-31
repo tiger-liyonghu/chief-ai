@@ -71,6 +71,7 @@ function ChannelCard({ icon: Icon, name, description, connected, onConnect, disa
 /* ─── AI Config Section ─── */
 
 function AIConfig() {
+  const { t } = useI18n()
   const [useOwn, setUseOwn] = useState(false)
   const [provider, setProvider] = useState('openai')
   const [apiKey, setApiKey] = useState('')
@@ -113,9 +114,9 @@ function AIConfig() {
           <div className={cn('w-4 h-4 rounded-full border-2', !useOwn ? 'border-primary bg-primary' : 'border-slate-300')}>
             {!useOwn && <div className="w-2 h-2 bg-white rounded-full m-[2px]" />}
           </div>
-          <span className="font-medium text-sm">Chief 内置 AI（免费，推荐）</span>
+          <span className="font-medium text-sm">{t('builtInAI')}</span>
         </div>
-        <p className="text-xs text-slate-500 mt-1 ml-6">无需配置，立即可用</p>
+        <p className="text-xs text-slate-500 mt-1 ml-6">{t('builtInAIDesc')}</p>
       </div>
 
       <div
@@ -126,18 +127,18 @@ function AIConfig() {
           <div className={cn('w-4 h-4 rounded-full border-2', useOwn ? 'border-primary bg-primary' : 'border-slate-300')}>
             {useOwn && <div className="w-2 h-2 bg-white rounded-full m-[2px]" />}
           </div>
-          <span className="font-medium text-sm">用我自己的 AI 服务</span>
+          <span className="font-medium text-sm">{t('useOwnAI')}</span>
         </div>
 
         {useOwn && (
           <div className="mt-3 ml-6 space-y-3">
             <p className="text-xs text-slate-500">
-              如果你有 OpenAI、Claude 等 AI 服务的账号，可以让 Chief 用你自己的账号来处理数据。
+              {t('ownAIDesc')}
             </p>
             <div className="text-xs text-slate-600 space-y-1">
-              <div>· 你的数据只经过你自己的 AI 账号</div>
-              <div>· 没有使用次数限制</div>
-              <div>· 可以选择你喜欢的 AI</div>
+              <div>· {t('ownAIBullet1')}</div>
+              <div>· {t('ownAIBullet2')}</div>
+              <div>· {t('ownAIBullet3')}</div>
             </div>
             <select
               value={provider}
@@ -155,7 +156,7 @@ function AIConfig() {
                 type="password"
                 value={apiKey}
                 onChange={(e) => { setApiKey(e.target.value); setTestResult(null) }}
-                placeholder="粘贴你的密钥"
+                placeholder={t('pasteApiKey')}
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm pr-24"
               />
               <button
@@ -170,7 +171,7 @@ function AIConfig() {
             {testResult === 'fail' && <p className="text-xs text-red-600">Connection failed. Check your key.</p>}
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <Shield className="w-3 h-3" />
-              密钥加密存储，仅用于你的 AI 请求
+              {t('keyEncrypted')}
             </div>
             {testResult === 'success' && (
               <button onClick={handleSave} className="px-3 py-1.5 bg-primary text-white text-xs rounded-lg">Save</button>
@@ -236,7 +237,7 @@ export default function OnboardingPage() {
     setCommitmentCount(count)
     // Call onboarding API to mark onboarding complete
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const lang = navigator.language.startsWith('zh') ? 'zh' : navigator.language.startsWith('ms') ? 'ms' : 'en'
+    const lang = navigator.language.startsWith('zh') ? 'zh' : 'en'
     try {
       await fetch('/api/onboarding', {
         method: 'POST',

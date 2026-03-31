@@ -355,6 +355,7 @@ function ScoreBadge({ score }: { score: BriefingScore }) {
 /* ─── Action Item Dropdown ─── */
 
 function ActionDropdown({ onPostpone, onDone }: { onPostpone: () => void; onDone: () => void }) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -386,13 +387,13 @@ function ActionDropdown({ onPostpone, onDone }: { onPostpone: () => void; onDone
               onClick={() => { setOpen(false); onPostpone() }}
               className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              延期
+              {t('postponeBriefing')}
             </button>
             <button
               onClick={() => { setOpen(false); onDone() }}
               className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              完成
+              {t('markDoneBriefing')}
             </button>
           </motion.div>
         )}

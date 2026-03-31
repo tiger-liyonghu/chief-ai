@@ -60,9 +60,9 @@ export async function PATCH(request: NextRequest) {
 
   if ('language' in updates) {
     const lang = updates.language as string
-    if (!['en', 'zh', 'ms'].includes(lang)) {
+    if (!['en', 'zh'].includes(lang)) {
       return NextResponse.json(
-        { error: 'Language must be one of: en, zh, ms' },
+        { error: 'Language must be one of: en, zh' },
         { status: 400 }
       )
     }

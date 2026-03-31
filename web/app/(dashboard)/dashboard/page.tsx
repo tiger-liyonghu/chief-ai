@@ -648,7 +648,7 @@ function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved:
           ) : (
             <input
               type="text"
-              placeholder="Emily, 老婆, 儿子..."
+              placeholder={t('familyMemberPlaceholder')}
               value={familyMember}
               onChange={(e) => setFamilyMember(e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"

@@ -13,6 +13,8 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n/context'
+import type { TranslationKey } from '@/lib/i18n/translations'
 
 /* ─── Types ─── */
 
@@ -32,7 +34,11 @@ interface CommitmentDiscoveryProps {
 
 /* ─── Helpers ─── */
 
-function formatDeadline(deadline: string | null, fuzzy: string | null): string | null {
+function formatDeadline(
+  deadline: string | null,
+  fuzzy: string | null,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+): string | null {
   if (!deadline && !fuzzy) return null
   if (fuzzy && !deadline) return fuzzy
 
@@ -41,19 +47,22 @@ function formatDeadline(deadline: string | null, fuzzy: string | null): string |
   const diffMs = d.getTime() - now.getTime()
   const diffDays = Math.ceil(diffMs / 86400000)
 
-  if (diffDays < 0) return `${Math.abs(diffDays)}天前到期`
-  if (diffDays === 0) return '今天到期'
-  if (diffDays === 1) return '明天到期'
+  if (diffDays < 0) return t('daysOverdueDiscovery', { days: Math.abs(diffDays) })
+  if (diffDays === 0) return t('dueTodayDiscovery')
+  if (diffDays === 1) return t('dueTomorrow')
 
-  const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  if (diffDays <= 7) return `${weekday[d.getDay()]}到期`
+  if (diffDays <= 7) {
+    const dayLabel = d.toLocaleDateString(undefined, { weekday: 'short' })
+    return dayLabel
+  }
 
-  return `${diffDays}天后到期`
+  return t('daysLeft', { days: diffDays })
 }
 
 /* ─── Commitment Discovery Component ─── */
 
 export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
+  const { t } = useI18n()
   const [status, setStatus] = useState<'idle' | 'scanning' | 'done' | 'error'>('idle')
   const [commitments, setCommitments] = useState<DiscoveredCommitment[]>([])
   const [progress, setProgress] = useState({ processed: 0, total: 0 })
@@ -141,7 +150,7 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
         if (prev === 'done') return prev
         setCommitments((cList) => {
           if (cList.length > 0) return cList
-          setErrorMessage('无法连接到扫描服务，请检查网络后重试。')
+          setErrorMessage(t('scanError'))
           return cList
         })
         return 'done'
@@ -178,12 +187,12 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                {status === 'done' ? '扫描完成！' : '正在扫描你的邮件...'}
+                {status === 'done' ? t('scanComplete') : t('scanningEmails')}
               </h2>
               <p className="text-sm text-slate-500">
                 {status === 'done'
-                  ? `${duration}秒内发现 ${totalFound} 个承诺`
-                  : `过去7天的邮件 · ${duration}秒`}
+                  ? t('discoveredIn', { count: totalFound, seconds: duration })
+                  : t('scanSubtitle', { seconds: duration })}
               </p>
             </div>
           </div>
@@ -194,10 +203,10 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
               <div className="flex items-center justify-between text-xs text-slate-500 mb-1.5">
                 <span className="flex items-center gap-1.5">
                   <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
-                  扫描中...
+                  {t('scanning')}
                 </span>
                 <span>
-                  {progress.processed}/{progress.total > 0 ? progress.total : '—'} 封
+                  {progress.total > 0 ? t('scanProgress', { processed: progress.processed, total: progress.total }) : `${progress.processed}/—`}
                 </span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden relative">
@@ -233,7 +242,7 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
                   <div className="text-lg font-bold text-blue-700 leading-tight">
                     {stats.i_promised}
                   </div>
-                  <div className="text-xs text-blue-600">你承诺的</div>
+                  <div className="text-xs text-blue-600">{t('youPromisedDiscovery')}</div>
                 </div>
               </div>
               <div className="flex-1 flex items-center gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
@@ -242,7 +251,7 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
                   <div className="text-lg font-bold text-amber-700 leading-tight">
                     {stats.they_promised}
                   </div>
-                  <div className="text-xs text-amber-600">等对方的</div>
+                  <div className="text-xs text-amber-600">{t('theyPromisedDiscovery')}</div>
                 </div>
               </div>
             </div>
@@ -254,7 +263,7 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
           <div className="px-6 pb-2">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                新发现
+                {t('newlyDiscovered')}
               </span>
               <span className="text-xs text-slate-400">({totalFound})</span>
             </div>
@@ -266,11 +275,11 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
             ref={listRef}
             className="px-6 pb-4 max-h-80 overflow-y-auto scroll-smooth"
             role="list"
-            aria-label="发现的承诺"
+            aria-label={t('newlyDiscovered')}
           >
             <div className="space-y-2">
               {commitments.map((c, index) => (
-                <CommitmentItem key={c.id} commitment={c} index={index} />
+                <CommitmentItem key={c.id} commitment={c} index={index} t={t} />
               ))}
             </div>
           </div>
@@ -282,7 +291,7 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
             <div className="flex items-center justify-center py-8 text-slate-400">
               <div className="text-center">
                 <Mail className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">正在分析邮件内容...</p>
+                <p className="text-sm">{t('analyzingEmails')}</p>
               </div>
             </div>
           </div>
@@ -305,7 +314,7 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
               onClick={() => onComplete(totalFound)}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors"
             >
-              进入承诺仪表盘
+              {t('enterDashboard')}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -321,9 +330,11 @@ export function CommitmentDiscovery({ onComplete }: CommitmentDiscoveryProps) {
 function CommitmentItem({
   commitment,
   index,
+  t,
 }: {
   commitment: DiscoveredCommitment
   index: number
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string
 }) {
   const [visible, setVisible] = useState(false)
 
@@ -334,7 +345,7 @@ function CommitmentItem({
   }, [index])
 
   const isIPromised = commitment.type === 'i_promised'
-  const deadlineLabel = formatDeadline(commitment.deadline, commitment.deadline_fuzzy)
+  const deadlineLabel = formatDeadline(commitment.deadline, commitment.deadline_fuzzy, t)
 
   return (
     <div
@@ -366,7 +377,7 @@ function CommitmentItem({
         <p className="text-sm font-medium text-slate-800 truncate">{commitment.title}</p>
         {commitment.contact_name && (
           <p className="text-xs text-slate-500 truncate mt-0.5">
-            {isIPromised ? '给 ' : ''}
+            {isIPromised ? `${t('forContact')} ` : ''}
             {commitment.contact_name}
           </p>
         )}

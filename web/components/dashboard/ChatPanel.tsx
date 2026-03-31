@@ -374,7 +374,7 @@ export function ChatPanel() {
     const recognition = new SpeechRecognition()
     recognition.continuous = false
     recognition.interimResults = true
-    recognition.lang = locale === 'zh' ? 'zh-CN' : locale === 'ms' ? 'ms-MY' : 'en-US'
+    recognition.lang = locale === 'zh' ? 'zh-CN' : 'en-US'
 
     recognition.onresult = (event: any) => {
       let interim = ''

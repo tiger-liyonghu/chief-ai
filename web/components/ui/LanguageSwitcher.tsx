@@ -5,7 +5,7 @@ import { Locale, localeNames } from '@/lib/i18n/translations'
 import { Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const locales: Locale[] = ['en', 'zh', 'ms']
+const locales: Locale[] = ['en', 'zh']
 
 /**
  * Standalone language switcher — usable in landing page, sidebar, or anywhere.

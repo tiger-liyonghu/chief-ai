@@ -32,7 +32,7 @@ const navKeys = [
   { href: '/dashboard/insights', key: 'insightsNav' as const, icon: TrendingUp },
 ]
 
-const locales: Locale[] = ['en', 'zh', 'ms']
+const locales: Locale[] = ['en', 'zh']
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const pathname = usePathname()

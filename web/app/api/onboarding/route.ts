@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       settingsUpdate.timezone = timezone
     }
 
-    if (language && ['en', 'zh', 'ms'].includes(language)) {
+    if (language && ['en', 'zh'].includes(language)) {
       settingsUpdate.language = language
     }
 
