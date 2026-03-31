@@ -6,8 +6,8 @@ import { motion } from 'framer-motion'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatPanel } from '@/components/dashboard/ChatPanel'
 import { SyncManager } from '@/components/dashboard/SyncManager'
-import { Sun, Mail, CheckSquare, MessageCircle, CalendarDays, Menu } from 'lucide-react'
-import { useState } from 'react'
+import { Sun, Mail, CheckSquare, MessageCircle, CalendarDays, Menu, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useI18n } from '@/lib/i18n/context'
 
@@ -44,8 +44,32 @@ function BottomTabItem({ href, icon: Icon, label, active, onClick }: {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [toast, setToast] = useState<{message: string; actions?: {label: string; onClick: () => void}[]} | null>(null)
   const pathname = usePathname()
   const { t } = useI18n()
+
+  // Check for proactive notifications on mount
+  useEffect(() => {
+    const checkNotifications = async () => {
+      try {
+        const res = await fetch('/api/agents/radar')
+        if (!res.ok) return
+        const data = await res.json()
+        // Show first high-severity signal as toast
+        const highSignal = data.signals?.find((s: any) => s.severity === 'high')
+        if (highSignal) {
+          setToast({
+            message: `🍎 ${highSignal.detail || highSignal.title}`,
+            actions: [{ label: 'View', onClick: () => { /* navigate */ } }]
+          })
+          // Auto-dismiss after 8 seconds
+          setTimeout(() => setToast(null), 8000)
+        }
+      } catch { /* ignore */ }
+    }
+    const timer = setTimeout(checkNotifications, 3000) // 3s after page load
+    return () => clearTimeout(timer)
+  }, [])
 
   const openChat = () => {
     window.dispatchEvent(new CustomEvent('chief-open-chat'))
@@ -133,6 +157,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       >
         <MessageCircle className="w-5 h-5" />
       </button>
+
+      {/* Sophia Proactive Toast */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm animate-slide-up">
+          <div className="bg-white border border-violet-200 shadow-lg rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0">S</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-text-primary">{toast.message}</p>
+                {toast.actions && (
+                  <div className="flex gap-2 mt-2">
+                    {toast.actions.map((a, i) => (
+                      <button key={i} onClick={a.onClick} className="px-3 py-1 text-xs font-medium text-primary bg-primary/5 rounded-lg hover:bg-primary/10">{a.label}</button>
+                    ))}
+                    <button onClick={() => setToast(null)} className="px-3 py-1 text-xs text-text-tertiary hover:text-text-secondary">Later</button>
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setToast(null)} className="text-text-tertiary hover:text-text-secondary shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

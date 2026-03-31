@@ -106,6 +106,13 @@ interface UnifiedEvent {
   conflict_with?: string
 }
 
+interface StaleVip {
+  id: string
+  name: string
+  company: string | null
+  days_since_contact: number
+}
+
 interface DraftData {
   to: string
   subject: string
@@ -578,11 +585,33 @@ function ScheduleEvent({ event, contacts }: { event: UnifiedEvent; contacts?: Ar
           )}
         </div>
 
-        {/* Conflict inline */}
+        {/* Conflict resolution card */}
         {event.is_conflict && event.conflict_with && (
-          <div className="mt-1 flex items-center gap-1.5 text-xs text-red-600">
-            <AlertTriangle className="w-3 h-3 shrink-0" />
-            <span>Conflicts with {event.conflict_with}</span>
+          <div className="mt-1 p-3 bg-red-50 border border-red-200 rounded-xl">
+            <div className="flex items-center gap-2 text-sm text-red-700 font-medium mb-2">
+              <AlertTriangle className="w-4 h-4" />
+              和「{event.conflict_with}」时间冲突
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => alert('Coming soon')}
+                className="px-3 py-1.5 text-xs font-medium bg-white border border-red-200 rounded-lg hover:bg-red-50 text-red-700"
+              >
+                🔄 改到其他时间
+              </button>
+              <button
+                onClick={() => alert('Coming soon')}
+                className="px-3 py-1.5 text-xs font-medium bg-white border border-red-200 rounded-lg hover:bg-red-50 text-red-700"
+              >
+                💬 通知家人
+              </button>
+              <button
+                onClick={() => alert('Coming soon')}
+                className="px-3 py-1.5 text-xs font-medium text-red-400 hover:text-red-600"
+              >
+                保持不变
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -1196,17 +1225,19 @@ export default function TodayBriefing() {
   const [scanMessage, setScanMessage] = useState('')
   const [draftModal, setDraftModal] = useState<DraftData | null>(null)
   const [contactList, setContactList] = useState<Array<{ id: string; email: string; name: string | null }>>([])
+  const [coolVips, setCoolVips] = useState<StaleVip[]>([])
 
 
   const fetchData = useCallback(async () => {
     const todayISO = new Date().toISOString().slice(0, 10)
     const tomorrowISO = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
 
-    const [cRes, sRes, calRes, ctRes] = await Promise.all([
+    const [cRes, sRes, calRes, ctRes, weaverRes] = await Promise.all([
       fetch('/api/commitments'),
       fetch('/api/commitments/stats'),
       fetch(`/api/calendar/unified?from=${todayISO}&to=${tomorrowISO}`).catch(() => null),
       fetch('/api/contacts?limit=500').catch(() => null),
+      fetch('/api/agents/weaver').catch(() => null),
     ])
     if (cRes.ok) setCommitments(await cRes.json())
     if (sRes.ok) setStats(await sRes.json())
@@ -1218,6 +1249,20 @@ export default function TodayBriefing() {
       const ctData = await ctRes.json()
       const contacts = Array.isArray(ctData) ? ctData : (ctData.contacts || [])
       setContactList(contacts.map((c: any) => ({ id: c.id, email: c.email, name: c.name })))
+    }
+    if (weaverRes?.ok) {
+      try {
+        const weaverData = await weaverRes.json()
+        const stale = (weaverData.contacts || [])
+          .filter((c: any) => c.needs_attention === true)
+          .map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            company: c.company || null,
+            days_since_contact: c.days_since_contact || 14,
+          }))
+        setCoolVips(stale)
+      } catch { /* ignore parse errors */ }
     }
     setLoading(false)
   }, [])
@@ -1348,6 +1393,35 @@ export default function TodayBriefing() {
                     <WaitingCard key={c.id} c={c} onDraft={setDraftModal} />
                   ))}
                 </div>
+              </section>
+            )}
+
+            {/* ─── RECONNECT ─── */}
+            {coolVips.length > 0 && (
+              <section>
+                <SectionLabel>Reconnect</SectionLabel>
+                {coolVips.map(contact => (
+                  <div key={contact.id} className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-xl mb-2">
+                    <div>
+                      <span className="text-sm font-medium">{contact.name}</span>
+                      <span className="text-xs text-text-tertiary ml-2">{contact.company ? `${contact.company} · ` : ''}{contact.days_since_contact} days</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => alert('Coming soon')}
+                        className="px-3 py-1.5 text-xs font-medium bg-white border border-amber-200 rounded-lg hover:bg-amber-50"
+                      >
+                        📝 Send Check-in
+                      </button>
+                      <button
+                        onClick={() => alert('Coming soon')}
+                        className="px-3 py-1.5 text-xs font-medium bg-white border border-amber-200 rounded-lg hover:bg-amber-50"
+                      >
+                        📅 Schedule
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </section>
             )}
 
