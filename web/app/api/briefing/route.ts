@@ -56,14 +56,14 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .order('received_at', { ascending: false })
       .limit(5),
 
-    // Overdue commitments + today's due commitments
+    // Overdue commitments + today's due commitments (sorted by urgency, highest first)
     admin
       .from('commitments')
-      .select('contact_name, contact_email, title, deadline, type')
+      .select('contact_name, contact_email, title, deadline, type, urgency_score, status')
       .eq('user_id', userId)
       .in('status', ['pending', 'in_progress', 'overdue'])
       .lte('deadline', todayISO)
-      .order('due_date', { ascending: true })
+      .order('urgency_score', { ascending: false })
       .limit(10),
 
     // Recent important emails (last 24 hours)
@@ -83,15 +83,15 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .in('importance', ['vip', 'high'])
       .limit(50),
 
-    // My commitments due today or overdue (i_promised type)
+    // My commitments due today or overdue (i_promised type — credibility at stake)
     admin
       .from('commitments')
-      .select('contact_name, contact_email, title, deadline, description')
+      .select('contact_name, contact_email, title, deadline, description, urgency_score')
       .eq('user_id', userId)
       .in('status', ['pending', 'in_progress', 'overdue'])
       .eq('type', 'i_promised')
       .lte('deadline', todayISO)
-      .order('due_date', { ascending: true })
+      .order('urgency_score', { ascending: false })
       .limit(5),
 
     // Recent WhatsApp messages (last 24h, inbound only)

@@ -1,4 +1,7 @@
 import { NextRequest } from 'next/server'
+
+// Allow longer streaming responses (tool calls + email drafting can take 60s+)
+export const maxDuration = 120
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createUserAIClient, getUserLLMConfig } from '@/lib/ai/unified-client'
@@ -258,6 +261,7 @@ async function handleWithTools(
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no', // Disable Nginx/Railway proxy buffering for SSE
     },
   })
 }
@@ -323,6 +327,7 @@ async function handleWithTextParsing(
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   })
 }
