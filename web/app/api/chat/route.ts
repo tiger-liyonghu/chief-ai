@@ -223,6 +223,12 @@ async function handleWithTools(
           }
 
           // Second call: let the LLM summarize the tool results into a natural response
+          // Add explicit instruction to avoid think tags and respond directly
+          messages.push({
+            role: 'user',
+            content: '[SYSTEM: Based on the tool results above and the user context provided earlier, respond directly to the user. Do not use <think> tags. If search returned 0 results, use the commitments, contacts, and other context data already provided to answer. Be helpful and specific.]',
+          } as any)
+
           try {
             const followUp = await client.chat.completions.create({
               model,
