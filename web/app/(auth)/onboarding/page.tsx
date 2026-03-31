@@ -334,10 +334,10 @@ export default function OnboardingPage() {
               <div>
                 <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" /> 通讯工具
-                  <span className="text-xs font-normal text-red-500">（至少连接一个）</span>
+                  <span className="text-xs font-normal text-slate-400">（可选）</span>
                 </h2>
                 <p className="text-xs text-slate-500 mb-3">
-                  Chief 通过通讯工具给你推送简报、提醒承诺、接收你的语音指令。
+                  连接后，Chief 可以通过通讯工具推送简报、提醒承诺、接收语音指令。
                 </p>
                 <div className="space-y-2">
                   <ChannelCard
@@ -350,9 +350,11 @@ export default function OnboardingPage() {
                   <ChannelCard
                     icon={Bot}
                     name="Telegram"
-                    description="连接 Telegram Bot"
-                    connected={telegramConnected}
-                    onConnect={handleTelegramConnect}
+                    description="Telegram Bot 集成"
+                    connected={false}
+                    onConnect={() => {}}
+                    disabled
+                    badge="后续开发"
                   />
                   <ChannelCard
                     icon={MessageSquare}
@@ -361,7 +363,7 @@ export default function OnboardingPage() {
                     connected={false}
                     onConnect={() => {}}
                     disabled
-                    badge="即将推出"
+                    badge="后续开发"
                   />
                 </div>
               </div>
@@ -380,19 +382,9 @@ export default function OnboardingPage() {
               {/* CTA */}
               <button
                 onClick={handleStartScan}
-                disabled={!hasMessagingChannel}
-                className={cn(
-                  'w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all',
-                  hasMessagingChannel
-                    ? 'bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                )}
+                className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20"
               >
-                {hasMessagingChannel ? (
-                  <>下一步 <ArrowRight className="w-4 h-4" /></>
-                ) : (
-                  '请先连接至少一个通讯工具'
-                )}
+                下一步 <ArrowRight className="w-4 h-4" />
               </button>
             </motion.div>
           )}
