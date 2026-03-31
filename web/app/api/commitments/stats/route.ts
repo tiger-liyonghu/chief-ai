@@ -41,16 +41,16 @@ export async function GET(req: NextRequest) {
   const totalWithDeadline = commitments.filter(c => c.deadline)
   const completed = commitments.filter(c => c.status === 'done')
   const overdue = commitments.filter(c => c.status === 'overdue')
-  const complianceRate = totalWithDeadline.length > 0
+  const complianceRate = (completed.length + overdue.length) > 0
     ? Math.round((completed.length / (completed.length + overdue.length)) * 100)
-    : 100
+    : null
 
   // Family compliance
   const familyAll = commitments.filter(c => c.type === 'family')
   const familyDone = familyAll.filter(c => c.status === 'done')
   const familyComplianceRate = familyAll.length > 0
     ? Math.round((familyDone.length / familyAll.length) * 100)
-    : 100
+    : null
 
   // --- Response time metrics (last 30 days) ---
   const thirtyDaysAgo = new Date()

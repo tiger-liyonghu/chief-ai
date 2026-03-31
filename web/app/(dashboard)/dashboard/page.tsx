@@ -66,8 +66,8 @@ interface Stats {
   family_active: number
   due_today: number
   overdue: number
-  compliance_rate: number
-  family_compliance_rate: number
+  compliance_rate: number | null
+  family_compliance_rate: number | null
   period_total: number
   period_completed: number
   avg_response_hours: number
@@ -566,8 +566,10 @@ function StatsBanner({ stats, t }: { stats: Stats | null; t: ReturnType<typeof u
       </div>
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
         <div className="flex items-center gap-1">
-          <div className="text-2xl font-bold text-emerald-700">{stats.compliance_rate}%</div>
-          <TrendingUp className="w-4 h-4 text-emerald-500" />
+          <div className="text-2xl font-bold text-emerald-700">
+            {stats.compliance_rate != null ? `${stats.compliance_rate}%` : '—'}
+          </div>
+          {stats.compliance_rate != null && <TrendingUp className="w-4 h-4 text-emerald-500" />}
         </div>
         <div className="text-xs text-emerald-600 mt-1">{t('complianceRate')}</div>
       </div>
@@ -714,7 +716,7 @@ function ChiefInsight({ stats, commitments, t }: { stats: Stats | null; commitme
       return `${stats.due_today} commitment${stats.due_today > 1 ? 's' : ''} due today. Stay on top of them and keep your streak going.`
     }
 
-    if (stats.compliance_rate >= 90) {
+    if (stats.compliance_rate != null && stats.compliance_rate >= 90) {
       return `All clear today! Your compliance rate is at ${stats.compliance_rate}% \u2014 excellent work.`
     }
 
@@ -722,7 +724,8 @@ function ChiefInsight({ stats, commitments, t }: { stats: Stats | null; commitme
       return 'No active commitments right now. Scan your emails or add one manually to get started.'
     }
 
-    return `${stats.needs_action} thing${stats.needs_action !== 1 ? 's' : ''} need your action, ${stats.waiting_on_them} waiting on others. Compliance rate: ${stats.compliance_rate}%.`
+    const rateText = stats.compliance_rate != null ? ` Compliance rate: ${stats.compliance_rate}%.` : ''
+    return `${stats.needs_action} thing${stats.needs_action !== 1 ? 's' : ''} need your action, ${stats.waiting_on_them} waiting on others.${rateText}`
   })()
 
   return (

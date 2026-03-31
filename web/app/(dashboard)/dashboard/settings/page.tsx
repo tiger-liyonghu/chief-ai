@@ -3,7 +3,7 @@
 import { TopBar } from '@/components/layout/TopBar'
 import { Globe, Clock, Shield, Trash2, Download, Send, Check, Plus, X, Mail, User, MessageCircle, Loader2, Bot, Eye, EyeOff, Zap, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/context'
 
 interface Settings {
@@ -85,6 +85,13 @@ function SettingsContent() {
   const [llmTestResult, setLlmTestResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [llmProviders, setLlmProviders] = useState<Record<string, { baseURL: string; models: string[]; defaultModel: string }>>({})
   const llmDebounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Export & Delete state
+  const router = useRouter()
+  const [exporting, setExporting] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   // Check for success/error messages from OAuth callback
   useEffect(() => {
@@ -1264,8 +1271,29 @@ function SettingsContent() {
                     <p className="text-xs text-text-tertiary">Download all your data (GDPR)</p>
                   </div>
                 </div>
-                <button className="text-sm font-medium text-primary hover:underline">
-                  Export JSON
+                <button
+                  onClick={async () => {
+                    setExporting(true)
+                    try {
+                      const res = await fetch('/api/export')
+                      if (!res.ok) throw new Error('Export failed')
+                      const blob = await res.blob()
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `chief-export-${new Date().toISOString().slice(0, 10)}.json`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                    } catch {
+                      alert('Export failed. Please try again.')
+                    } finally {
+                      setExporting(false)
+                    }
+                  }}
+                  disabled={exporting}
+                  className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+                >
+                  {exporting ? 'Exporting...' : 'Export JSON'}
                 </button>
               </div>
             </div>
@@ -1283,7 +1311,10 @@ function SettingsContent() {
                     <p className="text-xs text-text-tertiary">Permanently delete your account and all data</p>
                   </div>
                 </div>
-                <button className="text-sm font-medium text-danger bg-red-50 px-4 py-1.5 rounded-lg hover:bg-red-100 transition-colors">
+                <button
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="text-sm font-medium text-danger bg-red-50 px-4 py-1.5 rounded-lg hover:bg-red-100 transition-colors"
+                >
                   Delete
                 </button>
               </div>
@@ -1291,6 +1322,70 @@ function SettingsContent() {
           </section>
         </div>
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-danger" />
+                </div>
+                <div>
+                  <p className="font-semibold text-danger">Delete Account</p>
+                  <p className="text-xs text-text-tertiary">This action cannot be undone</p>
+                </div>
+              </div>
+              <p className="text-sm text-text-secondary mb-4">
+                This will permanently delete your account and all associated data including commitments, contacts, emails, calendar events, and trips.
+              </p>
+              <p className="text-sm text-text-secondary mb-2">
+                Type <span className="font-mono font-semibold text-danger">DELETE</span> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE"
+                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-surface-secondary/50">
+              <button
+                onClick={() => { setDeleteConfirmOpen(false); setDeleteConfirmText('') }}
+                className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setDeleting(true)
+                  try {
+                    const res = await fetch('/api/account', { method: 'DELETE' })
+                    if (!res.ok) throw new Error('Delete failed')
+                    router.push('/login')
+                  } catch {
+                    alert('Failed to delete account. Please try again.')
+                    setDeleting(false)
+                  }
+                }}
+                disabled={deleteConfirmText !== 'DELETE' || deleting}
+                className="px-5 py-2 text-sm font-medium text-white bg-danger rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete My Account'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* IMAP / 163 Mail Modal */}
       {imapModalOpen && (
