@@ -1,5 +1,5 @@
 /**
- * Apple AI Engine — WhatsApp-native executive assistant.
+ * Sophia AI Engine — WhatsApp-native executive assistant.
  * Supports function calling for real operations (calendar, email, tasks, etc.)
  * Implements time-response strategy: instant / quick / acknowledge-then-reply.
  */
@@ -117,7 +117,7 @@ async function handleCommitmentAction(
           const draft = completion.choices[0]?.message?.content?.trim() || ''
           await sendReply(remoteJid, `📝 给${contactName}的邮件草稿：\n\n${draft}\n\n回复「发」确认发送，或告诉我要改什么。`)
         } catch (err) {
-          console.error('[Apple] Draft generation failed:', err)
+          console.error('[Sophia] Draft generation failed:', err)
           await sendReply(remoteJid, `起草邮件失败，请稍后再试。`)
         }
         return true
@@ -141,7 +141,7 @@ async function handleCommitmentAction(
           const draft = completion.choices[0]?.message?.content?.trim() || ''
           await sendReply(remoteJid, `📝 给${contactName}的催促邮件：\n\n${draft}\n\n回复「发」确认发送，或告诉我要改什么。`)
         } catch (err) {
-          console.error('[Apple] Nudge generation failed:', err)
+          console.error('[Sophia] Nudge generation failed:', err)
           await sendReply(remoteJid, `生成催促邮件失败，请稍后再试。`)
         }
         return true
@@ -165,7 +165,7 @@ async function handleCommitmentAction(
           const suggestions = completion.choices[0]?.message?.content?.trim() || ''
           await sendReply(remoteJid, `🔺 关于${contactName}「${title}」的升级跟进建议：\n\n${suggestions}`)
         } catch (err) {
-          console.error('[Apple] Escalation suggestion failed:', err)
+          console.error('[Sophia] Escalation suggestion failed:', err)
           await sendReply(remoteJid, `生成跟进建议失败，请稍后再试。`)
         }
         return true
@@ -223,7 +223,7 @@ export async function isAIEnabled(userId: string): Promise<boolean> {
 // ── System prompt ──
 
 function getSystemPrompt(timezone: string): string {
-  const { getSophieWhatsAppPrompt } = require('@/lib/ai/prompts/sophie-voice')
+  const { getSophieWhatsAppPrompt } = require('@/lib/ai/prompts/sophia-voice')
   return getSophieWhatsAppPrompt(timezone)
 }
 
@@ -241,7 +241,7 @@ export async function processMessageWithAI(
   if (!aiEnabled) return
 
   if (isRateLimited(userId)) {
-    console.log(`[Apple] Rate limited for user ${userId}`)
+    console.log(`[Sophia] Rate limited for user ${userId}`)
     return
   }
 
@@ -253,14 +253,14 @@ export async function processMessageWithAI(
     if (message.body && message.messageType === 'text') {
       const handled = await handleCommitmentAction(userId, message.body, sendReply, message.remoteJid)
       if (handled) {
-        // Store Apple's reply is handled inside handleCommitmentAction via sendReply
+        // Store Sophia's reply is handled inside handleCommitmentAction via sendReply
         // Store the user's command message
         await supabase.from('whatsapp_messages').insert({
           user_id: userId,
           wa_message_id: `cmd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           from_number: message.from,
           from_name: 'User',
-          to_number: 'apple',
+          to_number: 'sophia',
           body: message.body,
           message_type: 'text',
           direction: 'outbound',
@@ -301,17 +301,17 @@ export async function processMessageWithAI(
           docText = `[${name}] 文件已收到，格式暂不支持直接解析。请截图发送关键页面。`
         }
 
-        console.log(`[Apple] Document parsed: ${name}, ${docText.length} chars`)
+        console.log(`[Sophia] Document parsed: ${name}, ${docText.length} chars`)
         message.body = `${message.body || '请分析这个文件'}\n\n--- 文件内容: ${name} ---\n${docText}`
         message.messageType = 'text'
       } catch (err) {
-        console.error('[Apple] Document parsing failed:', err)
+        console.error('[Sophia] Document parsing failed:', err)
         message.body = `[文件 ${message.documentName} 已收到，解析失败]`
         message.messageType = 'text'
       }
     }
 
-    // Fetch recent conversation history (Apple ↔ Boss)
+    // Fetch recent conversation history (Sophia ↔ Boss)
     const { data: recentMessages } = await supabase
       .from('whatsapp_messages')
       .select('body, direction, from_name, received_at')
@@ -325,8 +325,8 @@ export async function processMessageWithAI(
       const chronological = [...recentMessages].reverse()
       for (const msg of chronological) {
         if (!msg.body) continue
-        // Messages from Apple (from_name='Apple') are assistant, others are user
-        const role = msg.from_name === 'Apple' ? 'assistant' : 'user'
+        // Messages from Sophia (from_name='Sophia') are assistant, others are user
+        const role = (msg.from_name === 'Sophia' || msg.from_name === 'Apple') ? 'assistant' : 'user'
         chatHistory.push({ role, content: msg.body })
       }
     }
@@ -337,7 +337,7 @@ export async function processMessageWithAI(
       try {
         personContext = await preFetchPersonContext(userId, message.body)
       } catch (err) {
-        console.error('[Apple] Pre-fetch context failed (non-fatal):', err)
+        console.error('[Sophia] Pre-fetch context failed (non-fatal):', err)
       }
     }
 
@@ -375,7 +375,7 @@ export async function processMessageWithAI(
       : (process.env.LLM_MODEL || 'deepseek-chat')
 
     if (hasImage) {
-      console.log(`[Apple] Vision call: model=${model}, imageSize=${message.imageBase64?.length || 0} chars, hasKey=${!!process.env.SILICONFLOW_API_KEY}`)
+      console.log(`[Sophia] Vision call: model=${model}, imageSize=${message.imageBase64?.length || 0} chars, hasKey=${!!process.env.SILICONFLOW_API_KEY}`)
     }
 
     // First LLM call — may include tool calls
@@ -396,7 +396,7 @@ export async function processMessageWithAI(
     while (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && rounds < 5) {
       rounds++
       const toolNames = assistantMessage.tool_calls.map(t => (t as any).function.name)
-      console.log(`[Apple] Tool call round ${rounds}: ${toolNames.join(', ')}`)
+      console.log(`[Sophia] Tool call round ${rounds}: ${toolNames.join(', ')}`)
 
       // For slow tools, send acknowledgment first (3-second principle)
       const SLOW_TOOLS = ['run_dev_task', 'search_company_news', 'get_cultural_brief', 'get_local_recommendations', 'run_custom_agent', 'check_travel_policy', 'create_custom_agent']
@@ -427,7 +427,7 @@ export async function processMessageWithAI(
           result = await executeTool(userId, (toolCall as any).function.name, toolArgs)
         } catch (err: any) {
           result = `工具执行失败：${err.message || 'unknown error'}`
-          console.error(`[Apple] Tool ${(toolCall as any).function.name} failed:`, err)
+          console.error(`[Sophia] Tool ${(toolCall as any).function.name} failed:`, err)
         }
         msgs.push({
           role: 'tool',
@@ -454,7 +454,7 @@ export async function processMessageWithAI(
 
     const elapsed = Date.now() - startTime
     const usage = completion.usage
-    console.log(`[Apple] Reply in ${elapsed}ms, ${rounds} tool rounds, ${usage?.total_tokens || '?'} tokens`)
+    console.log(`[Sophia] Reply in ${elapsed}ms, ${rounds} tool rounds, ${usage?.total_tokens || '?'} tokens`)
 
     // Track LLM usage
     const { trackLLMUsage } = await import('@/lib/whatsapp/notification-log')
@@ -463,12 +463,12 @@ export async function processMessageWithAI(
     // Send reply
     await sendReply(message.remoteJid, response)
 
-    // Store Apple's reply
+    // Store Sophia's reply
     await supabase.from('whatsapp_messages').insert({
       user_id: userId,
-      wa_message_id: `apple-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      from_number: 'apple',
-      from_name: 'Apple',
+      wa_message_id: `sophia-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      from_number: 'sophia',
+      from_name: 'Sophia',
       to_number: message.from,
       body: response,
       message_type: 'text',
@@ -476,9 +476,9 @@ export async function processMessageWithAI(
       received_at: new Date().toISOString(),
     })
 
-    console.log(`[Apple] Replied to boss for user ${userId}`)
+    console.log(`[Sophia] Replied to boss for user ${userId}`)
   } catch (err) {
-    console.error('[Apple] Error:', err)
+    console.error('[Sophia] Error:', err)
     // Send error acknowledgment so boss isn't left waiting
     try {
       await sendReply(message.remoteJid, '🍎 抱歉老板，刚才处理出了点问题，我再试一下。')

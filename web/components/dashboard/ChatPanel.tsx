@@ -312,7 +312,7 @@ export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
-  const [assistantName, setAssistantName] = useState('Chief')
+  const [assistantName, setAssistantName] = useState('Sophia')
   const [isListening, setIsListening] = useState(false)
   const [interimText, setInterimText] = useState('')
   const recognitionRef = useRef<any>(null)

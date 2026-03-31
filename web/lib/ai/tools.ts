@@ -1,5 +1,5 @@
 /**
- * OpenAI-compatible function/tool definitions for Chief AI.
+ * OpenAI-compatible function/tool definitions for Sophia AI.
  *
  * These replace the text-based [ACTION:] parsing with proper function calling.
  * Providers that support tools (OpenAI, DeepSeek, Groq, Claude) use these

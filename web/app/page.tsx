@@ -22,7 +22,7 @@ export default function LandingPage() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <span className="font-bold text-xl text-text-primary">Chief</span>
+          <span className="font-bold text-xl text-text-primary">Sophia</span>
         </div>
         <div className="flex items-center gap-4">
           <LanguageSwitcher compact />
@@ -103,7 +103,7 @@ export default function LandingPage() {
                     <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
                       <Sparkles className="w-3.5 h-3.5 text-white" />
                     </div>
-                    <span className="font-semibold text-sm text-text-primary">Chief</span>
+                    <span className="font-semibold text-sm text-text-primary">Sophia</span>
                   </div>
                   {[t('commitmentsNav'), t('inbox'), t('calendar'), t('familyNav')].map((item, i) => (
                     <div key={item} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs mb-1 ${i === 0 ? 'bg-primary/10 text-primary font-medium' : 'text-text-secondary'}`}>

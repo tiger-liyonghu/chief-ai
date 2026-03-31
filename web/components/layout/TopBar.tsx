@@ -24,7 +24,7 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
   const [syncError, setSyncError] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [lastSyncLabel, setLastSyncLabel] = useState('')
-  const [assistantName, setAssistantName] = useState('Chief')
+  const [assistantName, setAssistantName] = useState('Sophia')
   const hasSynced = useRef(false)
 
   // Fetch assistant name for the chat button

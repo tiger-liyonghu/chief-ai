@@ -1,10 +1,10 @@
 /**
- * System prompt for Chief AI — tool-capable version.
- * Uses Sophie personality layer for consistent voice across all channels.
+ * System prompt for Sophia AI — tool-capable version.
+ * Uses Sophia personality layer for consistent voice across all channels.
  */
-import { SOPHIE_IDENTITY } from './sophie-voice'
+import { SOPHIE_IDENTITY } from './sophia-voice'
 
-export function getChatSystemPrompt(assistantName: string = 'Chief'): string {
+export function getChatSystemPrompt(assistantName: string = 'Sophia'): string {
   return `${SOPHIE_IDENTITY}
 
 ## Dashboard Chat 补充规则
@@ -26,13 +26,13 @@ export function getChatSystemPrompt(assistantName: string = 'Chief'): string {
 }
 
 /** Keep the old constant for backward compatibility */
-export const CHAT_SYSTEM_PROMPT = getChatSystemPrompt('Chief')
+export const CHAT_SYSTEM_PROMPT = getChatSystemPrompt('Sophia')
 
 /**
  * Fallback system prompt for providers without function-calling support.
  * Uses text-based [ACTION:] blocks that get parsed server-side.
  */
-export function getChatSystemPromptFallback(assistantName: string = 'Chief'): string {
+export function getChatSystemPromptFallback(assistantName: string = 'Sophia'): string {
   return `${SOPHIE_IDENTITY}
 
 ## Dashboard Chat（无工具模式）
@@ -53,7 +53,7 @@ export function getChatSystemPromptFallback(assistantName: string = 'Chief'): st
 }
 
 /** Keep the old constant for backward compatibility */
-export const CHAT_SYSTEM_PROMPT_FALLBACK = getChatSystemPromptFallback('Chief')
+export const CHAT_SYSTEM_PROMPT_FALLBACK = getChatSystemPromptFallback('Sophia')
 
 interface Task {
   title: string

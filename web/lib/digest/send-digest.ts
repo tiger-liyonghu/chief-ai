@@ -132,7 +132,7 @@ function buildDigestHtml(opts: {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="x-apple-disable-message-reformatting">
-  <title>Your Chief Briefing</title>
+  <title>Your Sophia Briefing</title>
   <!--[if mso]>
   <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
   <![endif]-->
@@ -213,7 +213,7 @@ function buildDigestHtml(opts: {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto;">
                 <tr>
                   <td style="border-radius:14px;background:#6366f1;">
-                    <a href="${dashboardUrl}" target="_blank" style="display:inline-block;padding:14px 40px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">Open Chief Dashboard</a>
+                    <a href="${dashboardUrl}" target="_blank" style="display:inline-block;padding:14px 40px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:0.01em;">Open Sophia Dashboard</a>
                   </td>
                 </tr>
               </table>
@@ -224,7 +224,7 @@ function buildDigestHtml(opts: {
           <tr>
             <td style="padding:0 0 24px 0;text-align:center;">
               <p style="margin:0 0 8px 0;font-size:12px;color:#9ca3af;line-height:1.5;">
-                You're receiving this because you enabled Daily Digest in Chief.
+                You're receiving this because you enabled Daily Digest in Sophia.
               </p>
               <a href="${preferencesUrl}" style="font-size:12px;color:#6366f1;text-decoration:underline;">Manage preferences</a>
             </td>
@@ -393,7 +393,7 @@ export async function sendDigestForUser(userId: string): Promise<{ ok: boolean; 
     dashboardUrl: `${dashboardUrl}/dashboard`,
   })
 
-  const subject = `Your Chief Briefing \u2014 ${dateStr}`
+  const subject = `Your Sophia Briefing \u2014 ${dateStr}`
 
   try {
     const accessToken = await getValidAccessToken(userId)

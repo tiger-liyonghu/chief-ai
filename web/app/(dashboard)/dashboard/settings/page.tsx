@@ -31,7 +31,7 @@ function SettingsContent() {
     daily_brief_time: '08:00',
     gdpr_data_retention_days: 90,
     writing_style_notes: '',
-    assistant_name: 'Chief',
+    assistant_name: 'Sophia',
   })
   const [loading, setLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
@@ -383,7 +383,7 @@ function SettingsContent() {
             daily_brief_time: data.daily_brief_time?.slice(0, 5) || '08:00',
             gdpr_data_retention_days: data.gdpr_data_retention_days || 90,
             writing_style_notes: data.writing_style_notes || '',
-            assistant_name: data.assistant_name || 'Chief',
+            assistant_name: data.assistant_name || 'Sophia',
           })
         }
       } catch {
@@ -845,7 +845,7 @@ function SettingsContent() {
                   value={settings.assistant_name}
                   onChange={(e) => updateField('assistant_name', e.target.value)}
                   disabled={loading}
-                  placeholder="e.g., Friday, Jarvis, Sophie..."
+                  placeholder="e.g., Friday, Jarvis, Sophia..."
                   maxLength={30}
                   className="text-sm bg-surface-secondary border border-border rounded-lg px-3 py-1.5 w-40 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:opacity-50"
                 />

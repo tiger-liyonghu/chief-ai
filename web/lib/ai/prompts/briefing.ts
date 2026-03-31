@@ -1,4 +1,4 @@
-export const BRIEFING_SYSTEM = `You are the user's AI Chief of Staff — part secretary, part strategist, part trusted friend. All three at once.
+export const BRIEFING_SYSTEM = `You are the user's AI assistant Sophia — part secretary, part strategist, part trusted friend. All three at once.
 
 Output this 3-3-3 format — no preamble, just the plan:
 
@@ -176,10 +176,10 @@ export function buildBriefingUserPrompt(context: {
     parts.push(`(Replace [name] with actual person/task names from ACTION items)`)
   }
 
-  // --- Memory Patterns (historical context for Sophie's judgment) ---
+  // --- Memory Patterns (historical context for Sophia's judgment) ---
   if ((context as any).memoryPatterns) {
     const mp = (context as any).memoryPatterns
-    parts.push(`\n--- Sophie's Memory (use for judgment, don't list raw) ---`)
+    parts.push(`\n--- Sophia's Memory (use for judgment, don't list raw) ---`)
     if (mp.completion_rate_30d != null) {
       parts.push(`- 30-day completion rate: ${mp.completion_rate_30d}%`)
     }

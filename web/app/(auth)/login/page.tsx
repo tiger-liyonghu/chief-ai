@@ -41,7 +41,7 @@ function LoginContent() {
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
-          <span className="font-bold text-2xl text-text-primary">Chief</span>
+          <span className="font-bold text-2xl text-text-primary">Sophia</span>
         </Link>
 
         {/* Card */}

@@ -1,5 +1,5 @@
 /**
- * Morning Briefing — Apple proactively pushes a daily battle plan via WhatsApp.
+ * Morning Briefing — Sophia proactively pushes a daily battle plan via WhatsApp.
  * Runs on a timer, checks user's preferred briefing time, sends to self-chat.
  */
 
@@ -8,7 +8,7 @@ import OpenAI from 'openai'
 import { getConnection } from '@/lib/whatsapp/client'
 import { wasNotificationSent, markNotificationSent } from '@/lib/whatsapp/notification-log'
 import { startTravelScheduler } from '@/lib/whatsapp/travel-brain'
-import { SOPHIE_BRIEFING_SYSTEM, SOPHIE_SELF_REVIEW_SYSTEM } from '@/lib/ai/prompts/sophie-voice'
+import { SOPHIE_BRIEFING_SYSTEM, SOPHIE_SELF_REVIEW_SYSTEM } from '@/lib/ai/prompts/sophia-voice'
 import { createUserAIClient } from '@/lib/ai/unified-client'
 
 const BRIEFING_SYSTEM = SOPHIE_BRIEFING_SYSTEM
@@ -30,7 +30,7 @@ export function startMorningBriefingScheduler(): void {
   setInterval(checkTripExpenseSummary, 60 * 60 * 1000)
   // Run scheduled custom agents every hour
   setInterval(runScheduledAgents, 60 * 60 * 1000)
-  console.log('[Apple] Morning briefing + overdue reminder + commitment alerts + expense + agent scheduler started')
+  console.log('[Sophia] Morning briefing + overdue reminder + commitment alerts + expense + agent scheduler started')
 }
 
 async function checkAndSendBriefings(): Promise<void> {
@@ -47,7 +47,7 @@ async function checkAndSendBriefings(): Promise<void> {
     try {
       await maybeSendBriefing(conn.user_id, conn.phone_number)
     } catch (err) {
-      console.error(`[Apple] Briefing error for ${conn.user_id}:`, err)
+      console.error(`[Sophia] Briefing error for ${conn.user_id}:`, err)
     }
   }
 }
@@ -87,7 +87,7 @@ async function maybeSendBriefing(userId: string, phoneNumber: string): Promise<v
   if (!sock?.user) return
 
   const userTime = `${String(userHour).padStart(2, '0')}:${String(userMinute).padStart(2, '0')}`
-  console.log(`[Apple] Sending morning briefing to ${userId} at ${userTime} ${tz}`)
+  console.log(`[Sophia] Sending morning briefing to ${userId} at ${userTime} ${tz}`)
 
   // Mark as sent before starting (prevent double-send)
   await markNotificationSent(userId, 'briefing', 'daily', userDate)
@@ -110,8 +110,8 @@ async function maybeSendBriefing(userId: string, phoneNumber: string): Promise<v
   await supabase.from('whatsapp_messages').insert({
     user_id: userId,
     wa_message_id: `briefing-${userDate}-${Math.random().toString(36).slice(2, 8)}`,
-    from_number: 'apple',
-    from_name: 'Apple',
+    from_number: 'sophia',
+    from_name: 'Sophia',
     to_number: myNumber,
     body: briefingText,
     message_type: 'text',
@@ -119,7 +119,7 @@ async function maybeSendBriefing(userId: string, phoneNumber: string): Promise<v
     received_at: now.toISOString(),
   })
 
-  console.log(`[Apple] Morning briefing sent to ${userId}`)
+  console.log(`[Sophia] Morning briefing sent to ${userId}`)
 }
 
 interface BriefingContext {
@@ -308,7 +308,7 @@ async function generateBriefing(context: BriefingContext, tz: string): Promise<s
 
     return completion.choices[0]?.message?.content?.trim() || null
   } catch (err) {
-    console.error('[Apple] Briefing generation error:', err)
+    console.error('[Sophia] Briefing generation error:', err)
     return null
   }
 }
@@ -344,7 +344,7 @@ async function checkAndSendOverdueReminders(): Promise<void> {
     try {
       await maybeSendOverdueReminder(conn.user_id)
     } catch (err) {
-      console.error(`[Apple] Overdue reminder error for ${conn.user_id}:`, err)
+      console.error(`[Sophia] Overdue reminder error for ${conn.user_id}:`, err)
     }
   }
 }
@@ -420,8 +420,8 @@ async function maybeSendOverdueReminder(userId: string): Promise<void> {
   await supabase.from('whatsapp_messages').insert({
     user_id: userId,
     wa_message_id: `reminder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    from_number: 'apple',
-    from_name: 'Apple',
+    from_number: 'sophia',
+    from_name: 'Sophia',
     to_number: myNumber,
     body: text,
     message_type: 'text',
@@ -429,7 +429,7 @@ async function maybeSendOverdueReminder(userId: string): Promise<void> {
     received_at: new Date().toISOString(),
   })
 
-  console.log(`[Apple] Overdue reminder sent to ${userId}: ${items.length} items`)
+  console.log(`[Sophia] Overdue reminder sent to ${userId}: ${items.length} items`)
 }
 
 // ── Commitment Alert Scheduler ──
@@ -447,7 +447,7 @@ async function checkAndSendCommitmentAlerts(): Promise<void> {
     try {
       await maybeSendCommitmentAlerts(conn.user_id)
     } catch (err) {
-      console.error(`[Apple] Commitment alert error for ${conn.user_id}:`, err)
+      console.error(`[Sophia] Commitment alert error for ${conn.user_id}:`, err)
     }
   }
 }
@@ -546,8 +546,8 @@ async function maybeSendCommitmentAlerts(userId: string): Promise<void> {
       await supabase.from('whatsapp_messages').insert({
         user_id: userId,
         wa_message_id: `commitment-alert-${c.id.slice(0, 8)}-${Date.now()}`,
-        from_number: 'apple',
-        from_name: 'Apple',
+        from_number: 'sophia',
+        from_name: 'Sophia',
         to_number: myNumber,
         body: alertText,
         message_type: 'text',
@@ -555,7 +555,7 @@ async function maybeSendCommitmentAlerts(userId: string): Promise<void> {
         received_at: now.toISOString(),
       })
 
-      console.log(`[Apple] Commitment alert sent: ${dedupKey} for ${userId}`)
+      console.log(`[Sophia] Commitment alert sent: ${dedupKey} for ${userId}`)
     }
   }
 }
@@ -586,7 +586,7 @@ async function checkTripExpenseSummary(): Promise<void> {
       // Mark trip as completed
       await supabase.from('trips').update({ status: 'completed' }).eq('id', trip.id)
     } catch (err) {
-      console.error(`[Apple] Expense summary error for trip ${trip.id}:`, err)
+      console.error(`[Sophia] Expense summary error for trip ${trip.id}:`, err)
     }
   }
 }
@@ -680,8 +680,8 @@ async function sendExpenseSummary(trip: any): Promise<void> {
   await supabase.from('whatsapp_messages').insert({
     user_id: trip.user_id,
     wa_message_id: `expense-summary-${trip.id}-${Math.random().toString(36).slice(2, 8)}`,
-    from_number: 'apple',
-    from_name: 'Apple',
+    from_number: 'sophia',
+    from_name: 'Sophia',
     to_number: myNumber,
     body: text,
     message_type: 'text',
@@ -690,7 +690,7 @@ async function sendExpenseSummary(trip: any): Promise<void> {
   })
 
   const summaryStr = [...totalByCurrency.entries()].map(([cur, total]) => `${cur} ${total.toFixed(0)}`).join(', ')
-  console.log(`[Apple] Expense summary sent for trip ${trip.id}: ${summaryStr}`)
+  console.log(`[Sophia] Expense summary sent for trip ${trip.id}: ${summaryStr}`)
 }
 
 // ── Scheduled Custom Agents ──
@@ -723,7 +723,7 @@ async function runScheduledAgents(): Promise<void> {
       const sock = getConnection(agent.user_id)
       if (!sock?.user) continue
 
-      console.log(`[Apple] Running scheduled agent "${agent.name}" for ${agent.user_id}`)
+      console.log(`[Sophia] Running scheduled agent "${agent.name}" for ${agent.user_id}`)
 
       // Run agent with data access
       const { executeTool } = await import('@/lib/whatsapp/tools/registry')
@@ -783,9 +783,9 @@ async function runScheduledAgents(): Promise<void> {
 
       await markNotificationSent(agent.user_id, `agent_${agent.id}`, agent.id, todayStr)
       await supabase.from('custom_agents').update({ last_run_at: now.toISOString() }).eq('id', agent.id)
-      console.log(`[Apple] Agent "${agent.name}" completed`)
+      console.log(`[Sophia] Agent "${agent.name}" completed`)
     } catch (err) {
-      console.error(`[Apple] Agent "${agent.name}" failed:`, err)
+      console.error(`[Sophia] Agent "${agent.name}" failed:`, err)
     }
   }
 }
@@ -812,7 +812,7 @@ function shouldRunAgent(agent: any, now: Date, dayOfWeek: number, hour: number):
 }
 
 // ── Self-Review Scheduler ──
-// Sophie 的复盘引擎：每 8 小时用推理模型复核最近的承诺
+// Sophia 的复盘引擎：每 8 小时用推理模型复核最近的承诺
 // 对了 → 沉默。错了 → 先改数据库，再 WhatsApp 通知。
 
 let lastSelfReviewRun = 0
@@ -820,7 +820,7 @@ let lastSelfReviewRun = 0
 function startSelfReviewScheduler(): void {
   // Run every 30 minutes, but only actually execute every 8 hours
   setInterval(checkAndRunSelfReview, 30 * 60 * 1000)
-  console.log('[Sophie] Self-review scheduler started (every 8 hours)')
+  console.log('[Sophia] Self-review scheduler started (every 8 hours)')
 }
 
 async function checkAndRunSelfReview(): Promise<void> {
@@ -842,7 +842,7 @@ async function checkAndRunSelfReview(): Promise<void> {
     .limit(50)
 
   if (error || !recentCommitments || recentCommitments.length === 0) {
-    console.log('[Sophie] Self-review: no recent commitments to review')
+    console.log('[Sophia] Self-review: no recent commitments to review')
     return
   }
 
@@ -917,7 +917,7 @@ async function checkAndRunSelfReview(): Promise<void> {
           verdicts = Array.isArray(parsed) ? parsed : [parsed]
         }
       } catch {
-        console.error(`[Sophie] Self-review: failed to parse result for user ${userId}`)
+        console.error(`[Sophia] Self-review: failed to parse result for user ${userId}`)
         continue
       }
 
@@ -978,13 +978,13 @@ async function checkAndRunSelfReview(): Promise<void> {
             }
           }
         } catch (err) {
-          console.error(`[Sophie] Self-review: failed to notify ${userId}:`, err)
+          console.error(`[Sophia] Self-review: failed to notify ${userId}:`, err)
         }
       }
     } catch (err) {
-      console.error(`[Sophie] Self-review error for user ${userId}:`, err)
+      console.error(`[Sophia] Self-review error for user ${userId}:`, err)
     }
   }
 
-  console.log(`[Sophie] Self-review complete: reviewed=${totalReviewed}, fixed=${totalFixed}, deleted=${totalDeleted}`)
+  console.log(`[Sophia] Self-review complete: reviewed=${totalReviewed}, fixed=${totalFixed}, deleted=${totalDeleted}`)
 }

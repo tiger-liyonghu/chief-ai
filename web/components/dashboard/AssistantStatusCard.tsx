@@ -17,7 +17,7 @@ export function AssistantStatusCard({
   followUpsTracked,
 }: AssistantStatusCardProps) {
   const { t } = useI18n()
-  const [assistantName, setAssistantName] = useState('Chief')
+  const [assistantName, setAssistantName] = useState('Sophia')
 
   useEffect(() => {
     async function fetchName() {

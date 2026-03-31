@@ -54,7 +54,7 @@ export const definitions: ToolDefinition[] = [
     type: 'function',
     function: {
       name: 'save_boss_preference',
-      description: '保存老板的偏好（饮食、住宿、出行、作息等），Apple 观察到或老板主动说的',
+      description: '保存老板的偏好（饮食、住宿、出行、作息等），Sophia 观察到或老板主动说的',
       parameters: {
         type: 'object',
         properties: {

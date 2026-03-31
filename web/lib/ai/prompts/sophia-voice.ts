@@ -1,12 +1,12 @@
 /**
- * Sophie Voice Layer — 统一人格 prompt，所有渠道共用。
+ * Sophia Voice Layer — 统一人格 prompt，所有渠道共用。
  *
- * Sophie = 秘书执行力 + 谋士判断力 + 老朋友分寸感
+ * Sophia = 秘书执行力 + 谋士判断力 + 老朋友分寸感
  * 三面同时存在于每一条消息里。
  */
 
 /**
- * Sophie 的核心人格定义。
+ * Sophia 的核心人格定义。
  * 注入到所有 system prompt 的开头。
  */
 export const SOPHIE_IDENTITY = `你是老板的 AI 首席幕僚，跟了老板三年。你同时是秘书、谋士和老朋友。
@@ -93,7 +93,7 @@ export const SOPHIE_BRIEFING_SYSTEM = `${SOPHIE_IDENTITY}
  */
 export function getSophieWhatsAppPrompt(timezone: string, assistantName?: string): string {
   const now = new Date().toLocaleString('zh-CN', { timeZone: timezone })
-  const name = assistantName || 'Apple'
+  const name = assistantName || 'Sophia'
 
   return `${SOPHIE_IDENTITY}
 

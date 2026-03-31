@@ -235,7 +235,7 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .gte('created_at', thirtyDaysAgo)
       .in('status', ['done', 'overdue', 'pending', 'in_progress']),
 
-    // Recent self-review corrections (so Sophie can mention them)
+    // Recent self-review corrections (so Sophia can mention them)
     admin
       .from('alerts')
       .select('title, body, created_at')

@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       // Unknown user — prompt them to connect via the app
       await sendMessage(
         chatId,
-        'I don\'t recognize this chat yet. Please connect your Telegram account in the Chief of Staff app first.',
+        'I don\'t recognize this chat yet. Please connect your Telegram account in the Sophia app first.',
       )
       return NextResponse.json({ ok: true })
     }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       chat_id: String(chatId),
       message_id: sent.message_id,
       from_username: null,
-      from_first_name: 'Chief',
+      from_first_name: 'Sophia',
       text: reply,
       direction: 'outbound',
       received_at: new Date().toISOString(),

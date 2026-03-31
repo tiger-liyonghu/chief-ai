@@ -357,25 +357,25 @@ function setupMessageHandler(userId: string) {
         .from('whatsapp_messages')
         .select('id')
         .eq('user_id', userId)
-        .eq('from_name', 'Apple')
+        .in('from_name', ['Sophia', 'Apple'])
         .gt('received_at', new Date(Date.now() - 120000).toISOString()) // last 2 min
         .limit(1)
         .maybeSingle()
 
-      // If Apple replied very recently, skip to avoid storm
-      const recentAppleReplies = await supabase
+      // If Sophia replied very recently, skip to avoid storm
+      const recentSophiaReplies = await supabase
         .from('whatsapp_messages')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId)
-        .eq('from_name', 'Apple')
+        .in('from_name', ['Sophia', 'Apple'])
         .gt('received_at', new Date(Date.now() - 10000).toISOString()) // last 10 sec
 
-      if ((recentAppleReplies.count || 0) >= 3) {
-        console.log('[WA] Rate limit: Apple sent 3+ replies in 10s, skipping to prevent loop')
+      if ((recentSophiaReplies.count || 0) >= 3) {
+        console.log('[WA] Rate limit: Sophia sent 3+ replies in 10s, skipping to prevent loop')
         continue
       }
 
-      // Send to Apple AI
+      // Send to Sophia AI
       if (isFromMe) {
         const { processMessageWithAI } = await import('@/lib/whatsapp/ai-handler')
         processMessageWithAI(userId, {

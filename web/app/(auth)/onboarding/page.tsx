@@ -272,12 +272,12 @@ export default function OnboardingPage() {
             <Sparkles className="w-8 h-8 text-white" />
           </motion.div>
           <h1 className="text-xl font-bold text-slate-900">
-            {step === 'channels' ? 'Set Up Your Chief' :
-             step === 'scanning' ? 'Chief is Learning About You...' :
+            {step === 'channels' ? 'Set Up Sophia' :
+             step === 'scanning' ? 'Sophia is Learning About You...' :
              'You\'re All Set!'}
           </h1>
           {step === 'channels' && (
-            <p className="text-sm text-slate-500 mt-1">Connect your channels so Chief can track commitments and keep you on top of everything</p>
+            <p className="text-sm text-slate-500 mt-1">Connect your channels so Sophia can track commitments and keep you on top of everything</p>
           )}
         </div>
 
@@ -337,20 +337,20 @@ export default function OnboardingPage() {
                   <MessageSquare className="w-4 h-4" /> Connect WhatsApp
                 </h2>
                 <p className="text-xs text-slate-500 mb-3">
-                  Chief uses WhatsApp as your real-time channel — morning briefings, commitment reminders, and voice commands all happen here.
+                  Sophia uses WhatsApp as your real-time channel — morning briefings, commitment reminders, and voice commands all happen here.
                 </p>
                 <div className="space-y-2">
                   <ChannelCard
                     icon={MessageSquare}
                     name="WhatsApp"
-                    description={whatsappConnected ? 'Connected — Chief is ready' : 'Scan QR code to connect your WhatsApp'}
+                    description={whatsappConnected ? 'Connected — Sophia is ready' : 'Scan QR code to connect your WhatsApp'}
                     connected={whatsappConnected}
                     onConnect={handleWhatsAppConnect}
                   />
                   {!whatsappConnected && (
                     <p className="text-xs text-amber-600 flex items-center gap-1">
                       <Shield className="w-3 h-3" />
-                      Chief reads only your self-chat. Your private messages are never accessed.
+                      Sophia reads only your self-chat. Your private messages are never accessed.
                     </p>
                   )}
                 </div>
@@ -359,10 +359,10 @@ export default function OnboardingPage() {
               {/* AI section */}
               <div>
                 <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> Chief's Brain
+                  <Sparkles className="w-4 h-4" /> Sophia's Brain
                 </h2>
                 <p className="text-xs text-slate-500 mb-3">
-                  Chief uses AI to analyze emails, draft replies, and track commitments.
+                  Sophia uses AI to analyze emails, draft replies, and track commitments.
                 </p>
                 <AIConfig />
               </div>
@@ -411,14 +411,14 @@ export default function OnboardingPage() {
                 <Target className="w-8 h-8 text-indigo-600 mx-auto mb-3" />
                 <div className="text-3xl font-bold text-indigo-700">{commitmentCount}</div>
                 <div className="text-sm text-indigo-600 mt-1">commitments discovered</div>
-                <p className="text-xs text-indigo-500 mt-2">Chief will track every promise — nothing falls through the cracks</p>
+                <p className="text-xs text-indigo-500 mt-2">Sophia will track every promise — nothing falls through the cracks</p>
               </div>
 
               <button
                 onClick={handleEnterDashboard}
                 className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold text-sm shadow-lg shadow-indigo-200 hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
               >
-                Enter Chief <ArrowRight className="w-4 h-4" />
+                Enter Sophia <ArrowRight className="w-4 h-4" />
               </button>
             </motion.div>
           )}

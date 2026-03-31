@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     .select('assistant_name')
     .eq('id', user.id)
     .single()
-  const assistantName = profile?.assistant_name || 'Chief'
+  const assistantName = profile?.assistant_name || 'Sophia'
 
   // Determine provider capabilities
   const llmConfig = await getUserLLMConfig(user.id)

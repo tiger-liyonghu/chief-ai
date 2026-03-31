@@ -1,5 +1,5 @@
 /**
- * Travel Brain — Apple's travel intelligence layer.
+ * Travel Brain — Sophia's travel intelligence layer.
  * Handles: pre-trip bible, landing briefing, cultural brief, local recommendations.
  * Proactively pushes via WhatsApp at the right time.
  */
@@ -22,7 +22,7 @@ import { wasNotificationSent, markNotificationSent } from '@/lib/whatsapp/notifi
 
 export function startTravelScheduler(): void {
   setInterval(checkTravelEvents, 10 * 60 * 1000) // every 10 min
-  console.log('[Apple] Travel brain scheduler started')
+  console.log('[Sophia] Travel brain scheduler started')
 }
 
 async function checkTravelEvents(): Promise<void> {
@@ -39,7 +39,7 @@ async function checkTravelEvents(): Promise<void> {
       await checkPreTrip(conn.user_id)
       await checkLanding(conn.user_id)
     } catch (err) {
-      console.error(`[Apple] Travel check error for ${conn.user_id}:`, err)
+      console.error(`[Sophia] Travel check error for ${conn.user_id}:`, err)
     }
   }
 }
@@ -112,10 +112,10 @@ async function sendPreTripBible(userId: string, trip: any): Promise<void> {
   if (!briefing) return
 
   await sendToSelfChat(userId, sock, briefing)
-  console.log(`[Apple] Pre-trip bible sent for trip ${trip.id} (${trip.destination_city})`)
+  console.log(`[Sophia] Pre-trip bible sent for trip ${trip.id} (${trip.destination_city})`)
 }
 
-const PRE_TRIP_SYSTEM = `你是 Apple，老板的 AI 首席幕僚。现在生成出差行前整理。
+const PRE_TRIP_SYSTEM = `你是 Sophia，老板的 AI 首席幕僚。现在生成出差行前整理。
 
 格式要求：
 - 以 🍎 开头
@@ -191,10 +191,10 @@ async function sendLandingBriefing(userId: string, trip: any): Promise<void> {
   if (!briefing) return
 
   await sendToSelfChat(userId, sock, briefing)
-  console.log(`[Apple] Landing briefing sent for trip ${trip.id}`)
+  console.log(`[Sophia] Landing briefing sent for trip ${trip.id}`)
 }
 
-const LANDING_SYSTEM = `你是 Apple，老板的 AI 首席幕僚。老板刚到达出差目的地。
+const LANDING_SYSTEM = `你是 Sophia，老板的 AI 首席幕僚。老板刚到达出差目的地。
 生成一条简短的落地简报。
 
 格式要求：
@@ -218,7 +218,7 @@ export async function generateCulturalBrief(country: string): Promise<string | n
   return callLLM(CULTURAL_SYSTEM, prompt)
 }
 
-const CULTURAL_SYSTEM = `你是 Apple，生成当地商务文化简报。
+const CULTURAL_SYSTEM = `你是 Sophia，生成当地商务文化简报。
 - 以 🍎 开头
 - 实用、具体、不要泛泛而谈
 - 列出真正会踩的坑
@@ -254,7 +254,7 @@ ${guestPreferences ? `客户偏好：${guestPreferences}` : ''}
   return callLLM(RECOMMENDATION_SYSTEM, prompt)
 }
 
-const RECOMMENDATION_SYSTEM = `你是 Apple，推荐当地的餐厅/体验/礼品。
+const RECOMMENDATION_SYSTEM = `你是 Sophia，推荐当地的餐厅/体验/礼品。
 - 以 🍎 开头
 - 推荐本地人去的地方，不要旅游景点
 - 如果有客户偏好（如清真、不喝酒），必须匹配
@@ -282,7 +282,7 @@ export async function generateMeetingPreBrief(
   return callLLM(MEETING_BRIEF_SYSTEM, prompt)
 }
 
-const MEETING_BRIEF_SYSTEM = `你是 Apple，为老板准备会前简报。
+const MEETING_BRIEF_SYSTEM = `你是 Sophia，为老板准备会前简报。
 - 以 🍎 开头
 - 简短、有用、不编造
 - 如果信息不足就如实说"我了解有限"
@@ -304,7 +304,7 @@ async function callLLM(systemPrompt: string, userPrompt: string): Promise<string
     })
     return completion.choices[0]?.message?.content?.trim() || null
   } catch (err) {
-    console.error('[Apple] LLM call error:', err)
+    console.error('[Sophia] LLM call error:', err)
     return null
   }
 }
@@ -320,8 +320,8 @@ async function sendToSelfChat(userId: string, sock: any, text: string): Promise<
   await supabase.from('whatsapp_messages').insert({
     user_id: userId,
     wa_message_id: `travel-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    from_number: 'apple',
-    from_name: 'Apple',
+    from_number: 'sophia',
+    from_name: 'Sophia',
     to_number: myNumber,
     body: text,
     message_type: 'text',

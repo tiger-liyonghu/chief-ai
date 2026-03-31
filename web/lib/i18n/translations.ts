@@ -34,7 +34,7 @@ const en = {
   briefingCached: 'Updated {time}',
 
   // Sidebar
-  chief: 'Chief',
+  chief: 'Sophia',
   dailyBrief: 'Daily Brief',
   inbox: 'Inbox',
   tasks: 'Tasks',
@@ -50,7 +50,7 @@ const en = {
   // Tabs
   overview: 'Overview',
   meetings: 'Meetings',
-  chiefAI: 'Chief AI',
+  chiefAI: 'Sophia AI',
   typeMessage: 'Type a message...',
   send: 'Send',
 
@@ -167,7 +167,7 @@ const en = {
   getStarted: 'Get Started',
   aiPoweredProductivity: 'AI-Powered Productivity',
   heroTitle1: 'Your AI',
-  heroTitle2: 'Chief of Staff',
+  heroTitle2: 'Chief of Staff, Sophia',
   heroSubtitle: 'Automatically knows what you need to do, who to reply to, and what to prepare for. Connects to your Gmail and Calendar — works in seconds.',
   connectGmail: 'Connect Your Gmail',
   freeToStart: 'Free to start. No credit card required.',
@@ -185,7 +185,7 @@ const en = {
   gdprCompliant: 'GDPR Compliant',
   realTimeSync: 'Real-time Sync',
   gmailCalendar: 'Gmail & Google Calendar',
-  footerText: '© {year} Chief. Built for founders who move fast.',
+  footerText: '© {year} Sophia. Built for founders who move fast.',
 
   // Landing mock dashboard
   mockSummary: '{tasks} tasks, {emails} emails, {meetings} meetings today',
@@ -197,8 +197,8 @@ const en = {
   heroMockTask3: 'Emily — weekend zoo trip',
 
   // Login page
-  welcomeBack: 'Welcome to Chief',
-  signInSubtitle: 'Your AI Chief of Staff. Tracks every promise, switches cities seamlessly, guards your family time.',
+  welcomeBack: 'Welcome to Sophia',
+  signInSubtitle: 'Your AI Chief of Staff, Sophia. Tracks every promise, switches cities seamlessly, guards your family time.',
   continueWithGoogle: 'Continue with Google',
   continueWithMicrosoft: 'Continue with Microsoft',
   microsoftComingSoon: 'Microsoft login coming soon',
@@ -223,7 +223,7 @@ const en = {
   waWaitingScan: 'Waiting for scan...',
   waMessages: '{n} messages synced',
   waAiAutoReply: 'AI Auto-Reply',
-  waAiAutoReplyDesc: 'Chief AI will automatically reply to your WhatsApp messages',
+  waAiAutoReplyDesc: 'Sophia AI will automatically reply to your WhatsApp messages',
   noWhatsAppMessages: 'No WhatsApp messages yet',
   whatsAppNotConnected: 'WhatsApp not connected',
   whatsAppSetupPrompt: 'Connect your WhatsApp from Settings to see messages here.',
@@ -266,7 +266,7 @@ const en = {
   emails: 'Emails',
 
   // Onboarding
-  onboardingTitle: 'Setting up your AI Chief of Staff...',
+  onboardingTitle: 'Setting up Sophia...',
   onboardingConnected: 'Connected your Gmail',
   onboardingSyncing: 'Syncing your emails...',
   onboardingSynced: 'Synced {n} emails',
@@ -278,7 +278,7 @@ const en = {
   onboardingContactsDone: 'Categorized {n} contacts',
   onboardingTimezone: 'Detecting timezone...',
   onboardingTimezoneSet: 'Timezone set to {tz}',
-  onboardingReady: 'All set! Your AI Chief of Staff is ready.',
+  onboardingReady: 'All set! Sophia is ready.',
   onboardingGo: "Let's go",
 
   // Recommendations
@@ -428,7 +428,7 @@ const en = {
   familyCommitmentsCalendar: 'Promises to family',
   addFamilyEvent: 'Add family event',
   conflictDetected: 'Conflict with family event!',
-  noFamilyEvents: 'No family events yet. Tell Chief about your family schedule.',
+  noFamilyEvents: 'No family events yet. Tell Sophia about your family schedule.',
   recurring: 'Recurring',
   everyWeek: 'Every week',
   everyMonth: 'Every month',
@@ -481,7 +481,7 @@ const en = {
   daysWaiting: '{n} days',
 
   // Empty state onboarding
-  welcomeTitle: 'Welcome to Chief',
+  welcomeTitle: 'Welcome to Sophia',
   welcomeStep1: 'Connect your Gmail',
   welcomeStep2: 'Wait for sync',
   welcomeStep3: 'View your briefing',
@@ -512,10 +512,10 @@ const en = {
   markDoneBriefing: 'Done',
 
   // AIConfig (onboarding)
-  builtInAI: 'Chief Built-in AI (Free, Recommended)',
+  builtInAI: 'Sophia Built-in AI (Free, Recommended)',
   builtInAIDesc: 'No setup needed, ready to use',
   useOwnAI: 'Use my own AI service',
-  ownAIDesc: 'If you have an OpenAI, Claude, or other AI account, Chief can use it to process your data.',
+  ownAIDesc: 'If you have an OpenAI, Claude, or other AI account, Sophia can use it to process your data.',
   ownAIBullet1: 'Your data only goes through your own AI account',
   ownAIBullet2: 'No usage limits',
   ownAIBullet3: 'Choose your preferred AI',
@@ -550,7 +550,7 @@ const zh: typeof en = {
   briefingRefresh: '刷新',
   briefingCached: '{time} 更新',
 
-  chief: 'Chief',
+  chief: 'Sophia',
   dailyBrief: '每日简报',
   inbox: '收件箱',
   tasks: '待办任务',
@@ -565,7 +565,7 @@ const zh: typeof en = {
 
   overview: '概览',
   meetings: '会议',
-  chiefAI: 'Chief AI',
+  chiefAI: 'Sophia AI',
   typeMessage: '输入消息...',
   send: '发送',
 
@@ -674,7 +674,7 @@ const zh: typeof en = {
   getStarted: '开始使用',
   aiPoweredProductivity: 'AI 驱动的生产力',
   heroTitle1: '你的 AI',
-  heroTitle2: '首席幕僚',
+  heroTitle2: '首席幕僚 Sophia',
   heroSubtitle: '自动了解你需要做什么、回复谁、准备什么。连接 Gmail 和日历——几秒即可使用。',
   connectGmail: '连接 Gmail',
   freeToStart: '免费开始，无需信用卡。',
@@ -692,7 +692,7 @@ const zh: typeof en = {
   gdprCompliant: 'GDPR 合规',
   realTimeSync: '实时同步',
   gmailCalendar: 'Gmail 和 Google 日历',
-  footerText: '© {year} Chief。为行动派创始人而生。',
+  footerText: '© {year} Sophia。为行动派创始人而生。',
 
   mockSummary: '{tasks} 个任务、{emails} 封邮件、{meetings} 场会议',
   mockTask1: '审阅合作提案',
@@ -702,8 +702,8 @@ const zh: typeof en = {
   heroMockTask2: '跟进 Ben（投资人）',
   heroMockTask3: 'Emily — 周末动物园',
 
-  welcomeBack: '欢迎使用 Chief',
-  signInSubtitle: '你的 AI 幕僚长。盯住每一个承诺，无缝切换城市，守住家庭时间。',
+  welcomeBack: '欢迎使用 Sophia',
+  signInSubtitle: '你的 AI 幕僚长 Sophia。盯住每一个承诺，无缝切换城市，守住家庭时间。',
   continueWithGoogle: '使用 Google 登录',
   continueWithMicrosoft: '使用 Microsoft 登录',
   microsoftComingSoon: 'Microsoft 登录即将上线',
@@ -728,7 +728,7 @@ const zh: typeof en = {
   waWaitingScan: '等待扫描...',
   waMessages: '{n} 条消息已同步',
   waAiAutoReply: 'AI 自动回复',
-  waAiAutoReplyDesc: 'Chief AI 将自动回复你的 WhatsApp 消息',
+  waAiAutoReplyDesc: 'Sophia AI 将自动回复你的 WhatsApp 消息',
   noWhatsAppMessages: '暂无 WhatsApp 消息',
   whatsAppNotConnected: 'WhatsApp 未连接',
   whatsAppSetupPrompt: '在设置中连接你的 WhatsApp 以在这里查看消息。',
@@ -771,7 +771,7 @@ const zh: typeof en = {
   emails: '邮件',
 
   // Onboarding
-  onboardingTitle: '正在设置你的 AI 幕僚长...',
+  onboardingTitle: '正在设置 Sophia...',
   onboardingConnected: '已连接你的 Gmail',
   onboardingSyncing: '正在同步邮件...',
   onboardingSynced: '已同步 {n} 封邮件',
@@ -783,7 +783,7 @@ const zh: typeof en = {
   onboardingContactsDone: '已分类 {n} 个联系人',
   onboardingTimezone: '检测时区...',
   onboardingTimezoneSet: '时区已设为 {tz}',
-  onboardingReady: '全部就绪！你的 AI 幕僚长已准备好。',
+  onboardingReady: '全部就绪！Sophia 已准备好。',
   onboardingGo: '开始使用',
 
   // Recommendations
@@ -932,7 +932,7 @@ const zh: typeof en = {
   familyCommitmentsCalendar: '对家人的承诺',
   addFamilyEvent: '添加家庭事件',
   conflictDetected: '与家庭事件冲突！',
-  noFamilyEvents: '还没有家庭事件。告诉 Chief 你的家庭安排吧。',
+  noFamilyEvents: '还没有家庭事件。告诉 Sophia 你的家庭安排吧。',
   recurring: '重复',
   everyWeek: '每周',
   everyMonth: '每月',
@@ -985,7 +985,7 @@ const zh: typeof en = {
   daysWaiting: '{n} 天',
 
   // Empty state onboarding
-  welcomeTitle: '欢迎使用 Chief',
+  welcomeTitle: '欢迎使用 Sophia',
   welcomeStep1: '连接 Gmail',
   welcomeStep2: '等待同步',
   welcomeStep3: '查看简报',
@@ -1016,10 +1016,10 @@ const zh: typeof en = {
   markDoneBriefing: '完成',
 
   // AIConfig (onboarding)
-  builtInAI: 'Chief 内置 AI（免费，推荐）',
+  builtInAI: 'Sophia 内置 AI（免费，推荐）',
   builtInAIDesc: '无需配置，立即可用',
   useOwnAI: '用我自己的 AI 服务',
-  ownAIDesc: '如果你有 OpenAI、Claude 等 AI 服务的账号，可以让 Chief 用你自己的账号来处理数据。',
+  ownAIDesc: '如果你有 OpenAI、Claude 等 AI 服务的账号，可以让 Sophia 用你自己的账号来处理数据。',
   ownAIBullet1: '你的数据只经过你自己的 AI 账号',
   ownAIBullet2: '没有使用次数限制',
   ownAIBullet3: '可以选择你喜欢的 AI',
