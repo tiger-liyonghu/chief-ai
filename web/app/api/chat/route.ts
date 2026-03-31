@@ -11,17 +11,26 @@ import { parseActions, executeActions, executeToolCall } from '@/lib/ai/actions'
 import { CHIEF_TOOLS, supportsTools } from '@/lib/ai/tools'
 import type OpenAI from 'openai'
 
-/** Strip DeepSeek internal DSML tags that leak into text content.
- *  Once a DSML tag is detected, everything after it is tool markup — strip it all. */
+/** Strip DeepSeek internal tags that leak into text content:
+ *  - DSML tags (tool markup)
+ *  - <think> reasoning tags (DeepSeek R1 / reasoner mode leaks) */
 function sanitizeContent(text: string): string {
-  // Find first DSML tag occurrence and truncate everything from there
-  const dsmlIdx = text.indexOf('<\uFF5CDSML')  // ｜ = U+FF5C
-  if (dsmlIdx === -1) {
-    const dsmlIdx2 = text.indexOf('<|DSML')  // fallback: ASCII pipe
-    if (dsmlIdx2 === -1) return text
-    return text.slice(0, dsmlIdx2).trim()
+  let clean = text
+
+  // Strip <think>...</think> blocks (DeepSeek reasoning that leaks into chat mode)
+  clean = clean.replace(/<think>[\s\S]*?<\/think>/g, '')
+  // Strip incomplete <think> at the end (still reasoning)
+  if (clean.includes('<think>') && !clean.includes('</think>')) {
+    clean = clean.slice(0, clean.indexOf('<think>'))
   }
-  return text.slice(0, dsmlIdx).trim()
+
+  // Strip DSML tags
+  const dsmlIdx = clean.indexOf('<\uFF5CDSML')  // ｜ = U+FF5C
+  if (dsmlIdx !== -1) return clean.slice(0, dsmlIdx).trim()
+  const dsmlIdx2 = clean.indexOf('<|DSML')  // fallback: ASCII pipe
+  if (dsmlIdx2 !== -1) return clean.slice(0, dsmlIdx2).trim()
+
+  return clean.trim()
 }
 
 export async function POST(request: NextRequest) {
