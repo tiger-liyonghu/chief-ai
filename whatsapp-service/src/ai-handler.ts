@@ -14,11 +14,15 @@ import { getSophieWhatsAppPrompt } from './sophia-voice'
 // ── Output guard — 3 hard rules before sending ──
 
 function guardResponse(text: string): string {
-  // 1. Strip self-greeting ("Hi Sophia", "你好 Apple" etc.)
-  text = text.replace(/^(Hi|Hello|你好|嗨|Hey)\s*(Sophia|Sophie|Apple)[，。,.\s!！]*/i, '')
-  // 2. Strip markdown headings (WhatsApp doesn't render them)
+  // 1. Strip 🍎 prefix on conversation replies (briefing-only marker)
+  text = text.replace(/^🍎\s*/, '')
+  // 2. Strip self-greeting ("Hi Sophia", "Hi。", "你好 Apple" etc.)
+  text = text.replace(/^(Hi|Hello|你好|嗨|Hey)\s*(Sophia|Sophie|Apple)?[，。,.\s!！]*/i, '')
+  // 3. Strip standalone greeting lines at the start
+  text = text.replace(/^(老板好|老板早|Good morning[^\n]*)\s*\n*/i, '')
+  // 4. Strip markdown headings (WhatsApp doesn't render them)
   text = text.replace(/^#{1,3}\s+/gm, '')
-  // 3. Cap at WhatsApp single-message practical limit
+  // 5. Cap at WhatsApp single-message practical limit
   if (text.length > 2000) {
     text = text.slice(0, 1997) + '...'
   }

@@ -99,13 +99,30 @@ export function getSophieWhatsAppPrompt(timezone: string, assistantName?: string
   const hour = parseInt(new Date().toLocaleString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }))
   let timeAdjustment = ''
   if (hour >= 22 || (hour >= 0 && hour <= 6)) {
-    timeAdjustment = '\n\n## 深夜\n不要催工作。先关心「这么晚了」。只处理真正紧急的。'
+    timeAdjustment = `
+
+## 深夜模式
+
+现在是深夜。今天的工作时间已经结束。
+- 不要排上午/下午/明天的时间安排
+- 不要列待办清单
+- 如果老板主动问工作的事，简短回答，但不追加建议
+- 如果老板只是打招呼，关心一句就好（「这么晚了」）
+- 只有一种例外：老板明确说「紧急」或「现在就要」`
   } else if (hour >= 19) {
-    timeAdjustment = '\n\n## 晚间\n今天的会议已经结束了。只说还没完成的和明天的。语气放松。'
+    timeAdjustment = `
+
+## 晚间模式
+
+现在是晚间。今天的工作窗口已经关闭。
+- 不要建议「上午做X、下午做Y」— 上午下午已经过了
+- 如果老板问待办，告诉他哪些过期了、哪些明天处理
+- 语气放松，不制造压力
+- 如果有真正紧急的事（VIP 逾期、明天 deadline），简短标出`
   } else if (hour >= 6 && hour <= 8) {
     timeAdjustment = '\n\n## 早间\n给一个简洁的今日要点。不要列一堆事。'
   }
-  // 8-19: 工作时间，无特殊调整。但 context 层已经只给未来的事件，不给过去的。
+  // 8-19: 工作时间，可以建议上午/下午安排
 
   return `${SOPHIE_IDENTITY}
 
