@@ -196,6 +196,10 @@ export default function OnboardingPage() {
   const [emailAddress, setEmailAddress] = useState('')
   const [whatsappConnected, setWhatsappConnected] = useState(false)
   const [telegramConnected, setTelegramConnected] = useState(false)
+  const [waPhoneInput, setWaPhoneInput] = useState('')
+  const [waConnecting, setWaConnecting] = useState(false)
+  const [waPairingCode, setWaPairingCode] = useState('')
+  const [waError, setWaError] = useState('')
 
   const hasMessagingChannel = whatsappConnected || telegramConnected
 
@@ -209,22 +213,44 @@ export default function OnboardingPage() {
     }).catch(() => {})
   }, [router])
 
-  const handleWhatsAppConnect = () => {
-    // Open WhatsApp QR modal or redirect to settings
-    window.open('/dashboard/settings?connect=whatsapp', '_blank')
-    // For now, mark as connected after a delay (user will scan QR in new tab)
-    // In production, poll for connection status
-    const interval = setInterval(async () => {
-      const res = await fetch('/api/whatsapp/status').catch(() => null)
-      if (res?.ok) {
-        const data = await res.json()
-        if (data.connected) {
-          setWhatsappConnected(true)
-          clearInterval(interval)
-        }
+  const handleWhatsAppConnect = async () => {
+    if (!waPhoneInput.trim()) return
+    setWaConnecting(true)
+    setWaError('')
+    setWaPairingCode('')
+
+    try {
+      const res = await fetch('/api/whatsapp/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: waPhoneInput.trim() }),
+      })
+      const data = await res.json()
+
+      if (data.pairing_code) {
+        setWaPairingCode(data.pairing_code)
+        // Poll for connection status
+        const interval = setInterval(async () => {
+          const statusRes = await fetch('/api/whatsapp/status').catch(() => null)
+          if (statusRes?.ok) {
+            const statusData = await statusRes.json()
+            if (statusData.connected) {
+              setWhatsappConnected(true)
+              setWaPairingCode('')
+              clearInterval(interval)
+            }
+          }
+        }, 3000)
+        setTimeout(() => clearInterval(interval), 120000)
+      } else if (data.connected) {
+        setWhatsappConnected(true)
+      } else {
+        setWaError(data.error || 'Connection failed')
       }
-    }, 3000)
-    setTimeout(() => clearInterval(interval), 120000) // stop after 2 min
+    } catch {
+      setWaError('Connection failed. Please try again.')
+    }
+    setWaConnecting(false)
   }
 
   const handleTelegramConnect = () => {
@@ -336,40 +362,56 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              {/* WhatsApp section — required */}
+              {/* WhatsApp section — required, phone number only */}
               <div>
                 <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" /> {t('connectWhatsAppTitle')}
+                  <MessageSquare className="w-4 h-4" /> WhatsApp
                 </h2>
                 <p className="text-xs text-slate-500 mb-3">
                   {t('onboardingWhatsAppDesc')}
                 </p>
-                <div className="space-y-2">
-                  <ChannelCard
-                    icon={MessageSquare}
-                    name="WhatsApp"
-                    description={whatsappConnected ? t('waConnectedReady') : t('waScanToConnect')}
-                    connected={whatsappConnected}
-                    onConnect={handleWhatsAppConnect}
-                  />
-                  {!whatsappConnected && (
-                    <p className="text-xs text-amber-600 flex items-center gap-1">
+
+                {whatsappConnected ? (
+                  <div className="border border-emerald-300 bg-emerald-50 rounded-xl p-3">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span className="text-sm font-medium text-emerald-800">WhatsApp connected</span>
+                    </div>
+                  </div>
+                ) : waPairingCode ? (
+                  <div className="border border-primary/30 bg-primary/5 rounded-xl p-4 text-center space-y-3">
+                    <p className="text-sm font-medium">Enter this code on your phone</p>
+                    <p className="text-xs text-slate-500">WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number</p>
+                    <div className="bg-white p-4 rounded-xl border border-slate-200 inline-block">
+                      <p className="text-3xl font-mono font-bold tracking-[0.3em] text-primary">{waPairingCode}</p>
+                    </div>
+                    <p className="text-xs text-slate-400">Waiting for confirmation...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        value={waPhoneInput}
+                        onChange={(e) => { setWaPhoneInput(e.target.value); setWaError('') }}
+                        placeholder="+65 8012 3456"
+                        className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      />
+                      <button
+                        onClick={handleWhatsAppConnect}
+                        disabled={waConnecting || !waPhoneInput.trim()}
+                        className="px-4 py-2.5 bg-primary text-white text-sm font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {waConnecting ? 'Connecting...' : 'Connect'}
+                      </button>
+                    </div>
+                    {waError && <p className="text-xs text-red-600">{waError}</p>}
+                    <p className="text-xs text-slate-400 flex items-center gap-1">
                       <Shield className="w-3 h-3" />
                       {t('waPrivacyNote')}
                     </p>
-                  )}
-                </div>
-              </div>
-
-              {/* AI section */}
-              <div>
-                <h2 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" /> Sophia's Brain
-                </h2>
-                <p className="text-xs text-slate-500 mb-3">
-                  Sophia uses AI to analyze emails, draft replies, and track commitments.
-                </p>
-                <AIConfig />
+                  </div>
+                )}
               </div>
 
               {/* CTA */}

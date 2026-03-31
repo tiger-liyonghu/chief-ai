@@ -40,5 +40,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(buildRedirectUrl('/login?error=session_failed', request.url, request.headers))
   }
 
+  // Check if user needs onboarding (new user without completed onboarding)
+  const userId = request.nextUrl.searchParams.get('user_id')
+  if (userId) {
+    const admin = createAdminClient()
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('onboarding_completed_at')
+      .eq('id', userId)
+      .single()
+
+    if (!profile?.onboarding_completed_at) {
+      return NextResponse.redirect(buildRedirectUrl('/onboarding', request.url, request.headers))
+    }
+  }
+
   return NextResponse.redirect(buildRedirectUrl('/dashboard', request.url, request.headers))
 }
