@@ -8,13 +8,15 @@ import OpenAI from 'openai'
 import { getConnection } from '@/lib/whatsapp/client'
 import { wasNotificationSent, markNotificationSent } from '@/lib/whatsapp/notification-log'
 import { startTravelScheduler } from '@/lib/whatsapp/travel-brain'
-import { SOPHIE_BRIEFING_SYSTEM } from '@/lib/ai/prompts/sophie-voice'
+import { SOPHIE_BRIEFING_SYSTEM, SOPHIE_SELF_REVIEW_SYSTEM } from '@/lib/ai/prompts/sophie-voice'
+import { createUserAIClient } from '@/lib/ai/unified-client'
 
 const BRIEFING_SYSTEM = SOPHIE_BRIEFING_SYSTEM
 
 export function startSchedulers(): void {
   startMorningBriefingScheduler()
   startTravelScheduler()
+  startSelfReviewScheduler()
 }
 
 export function startMorningBriefingScheduler(): void {
@@ -807,4 +809,182 @@ function shouldRunAgent(agent: any, now: Date, dayOfWeek: number, hour: number):
     return hour >= 8 && hour <= 10
   }
   return false
+}
+
+// ── Self-Review Scheduler ──
+// Sophie 的复盘引擎：每 8 小时用推理模型复核最近的承诺
+// 对了 → 沉默。错了 → 先改数据库，再 WhatsApp 通知。
+
+let lastSelfReviewRun = 0
+
+function startSelfReviewScheduler(): void {
+  // Run every 30 minutes, but only actually execute every 8 hours
+  setInterval(checkAndRunSelfReview, 30 * 60 * 1000)
+  console.log('[Sophie] Self-review scheduler started (every 8 hours)')
+}
+
+async function checkAndRunSelfReview(): Promise<void> {
+  const now = Date.now()
+  const eightHours = 8 * 60 * 60 * 1000
+  if (now - lastSelfReviewRun < eightHours) return
+  lastSelfReviewRun = now
+
+  const admin = createAdminClient()
+  const eightHoursAgo = new Date(now - eightHours).toISOString()
+
+  // Find commitments created in the last 8 hours
+  const { data: recentCommitments, error } = await admin
+    .from('commitments')
+    .select('id, user_id, type, title, contact_name, contact_email, deadline, status, source_email_id, confidence, created_at')
+    .gte('created_at', eightHoursAgo)
+    .in('status', ['pending', 'in_progress', 'overdue'])
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error || !recentCommitments || recentCommitments.length === 0) {
+    console.log('[Sophie] Self-review: no recent commitments to review')
+    return
+  }
+
+  // Group by user
+  const byUser = new Map<string, typeof recentCommitments>()
+  for (const c of recentCommitments) {
+    const existing = byUser.get(c.user_id) || []
+    existing.push(c)
+    byUser.set(c.user_id, existing)
+  }
+
+  let totalReviewed = 0
+  let totalFixed = 0
+  let totalDeleted = 0
+
+  for (const [userId, commitments] of byUser) {
+    try {
+      // Fetch source emails
+      const emailIds = commitments.map(c => c.source_email_id).filter(Boolean)
+      const emailMap = new Map<string, any>()
+      if (emailIds.length > 0) {
+        const { data: emails } = await admin
+          .from('emails')
+          .select('id, subject, from_address, to_address, body_text, date')
+          .in('id', emailIds)
+        for (const e of emails || []) emailMap.set(e.id, e)
+      }
+
+      // Build review items
+      const reviewItems = commitments.map(c => {
+        const email = c.source_email_id ? emailMap.get(c.source_email_id) : null
+        return {
+          commitment_id: c.id,
+          type: c.type,
+          title: c.title,
+          contact_name: c.contact_name,
+          contact_email: c.contact_email,
+          deadline: c.deadline,
+          confidence: c.confidence,
+          source_email: email ? {
+            subject: email.subject,
+            from: email.from_address,
+            to: email.to_address,
+            date: email.date,
+            body: (email.body_text || '').slice(0, 2000),
+          } : null,
+        }
+      })
+
+      // Call reasoning model
+      const { client: ai } = await createUserAIClient(userId)
+      const res = await ai.chat.completions.create({
+        model: 'deepseek-reasoner',
+        messages: [
+          { role: 'system', content: SOPHIE_SELF_REVIEW_SYSTEM },
+          { role: 'user', content: `请复核以下 ${reviewItems.length} 个承诺：\n\n${JSON.stringify(reviewItems, null, 2)}` },
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
+      })
+
+      const reviewResult = res.choices?.[0]?.message?.content
+      if (!reviewResult) continue
+
+      // Parse result
+      let verdicts: any[] = []
+      try {
+        const jsonMatch = reviewResult.match(/\[[\s\S]*\]/) || reviewResult.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          if (parsed.all_correct) { totalReviewed += commitments.length; continue }
+          verdicts = Array.isArray(parsed) ? parsed : [parsed]
+        }
+      } catch {
+        console.error(`[Sophie] Self-review: failed to parse result for user ${userId}`)
+        continue
+      }
+
+      // Process verdicts
+      const userCorrections: string[] = []
+      for (const verdict of verdicts) {
+        if (!verdict.commitment_id || verdict.verdict === 'correct') continue
+        const commitment = commitments.find(c => c.id === verdict.commitment_id)
+        if (!commitment) continue
+
+        if (verdict.verdict === 'should_delete') {
+          await admin.from('commitments').delete().eq('id', verdict.commitment_id)
+          totalDeleted++
+          await admin.from('commitment_feedback').upsert({
+            user_id: userId, commitment_id: verdict.commitment_id,
+            feedback_type: 'rejected', original_title: commitment.title,
+            llm_confidence: commitment.confidence,
+            llm_rejected_reason: `Self-review: ${(verdict.issues || []).join('; ')}`,
+          }, { onConflict: 'commitment_id' })
+          userCorrections.push(`「${commitment.title}」不是承诺，已删除。${verdict.issues?.[0] ? `（${verdict.issues[0]}）` : ''}`)
+        } else if (verdict.verdict === 'needs_fix' && verdict.fix) {
+          const updates: Record<string, any> = { updated_at: new Date().toISOString() }
+          for (const [field, value] of Object.entries(verdict.fix)) {
+            if (['title', 'deadline', 'type', 'contact_name', 'contact_email', 'status'].includes(field)) {
+              updates[field] = value
+            }
+          }
+          if (Object.keys(updates).length > 1) {
+            await admin.from('commitments').update(updates).eq('id', verdict.commitment_id)
+            totalFixed++
+            userCorrections.push(`「${commitment.title}」${verdict.issues?.[0] || '信息有误'}，已更正。`)
+          }
+        }
+        totalReviewed++
+      }
+
+      // Send WhatsApp notification if corrections found
+      if (userCorrections.length > 0) {
+        const message = `🍎 复核了最近的承诺，有 ${userCorrections.length} 处修正：\n\n${userCorrections.join('\n')}`
+
+        // Store as alert
+        await admin.from('alerts').insert({
+          user_id: userId, type: 'self_review_correction',
+          title: `复核修正 ${userCorrections.length} 处`, body: message, severity: 'info',
+        })
+
+        // Send via WhatsApp
+        try {
+          const { data: waConn } = await admin
+            .from('whatsapp_connections')
+            .select('phone_number')
+            .eq('user_id', userId).eq('status', 'active').single()
+          if (waConn) {
+            const sock = getConnection(userId)
+            if (sock) {
+              const selfJid = `${waConn.phone_number}@s.whatsapp.net`
+              await sock.sendMessage(selfJid, { text: message })
+            }
+          }
+        } catch (err) {
+          console.error(`[Sophie] Self-review: failed to notify ${userId}:`, err)
+        }
+      }
+    } catch (err) {
+      console.error(`[Sophie] Self-review error for user ${userId}:`, err)
+    }
+  }
+
+  console.log(`[Sophie] Self-review complete: reviewed=${totalReviewed}, fixed=${totalFixed}, deleted=${totalDeleted}`)
 }
