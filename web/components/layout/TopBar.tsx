@@ -164,14 +164,7 @@ export function TopBar({ title, subtitle, onSyncComplete, autoSync = false }: {
           <span className="hidden sm:inline">{syncing ? t('syncing') : t('syncNow')}</span>
         </button>
 
-        {/* Ask Assistant button — desktop only */}
-        <button
-          onClick={openChat}
-          className="hidden sm:flex items-center gap-2 bg-primary/10 text-primary rounded-xl px-4 py-2 text-sm font-medium hover:bg-primary/20 transition-all duration-200"
-        >
-          <MessageCircle className="w-4 h-4" />
-          <span>{t('askAssistant' as any, { name: assistantName })}</span>
-        </button>
+        {/* Ask Sophia via FAB (bottom-right) — TopBar button removed to avoid duplicate */}
       </div>
 
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />

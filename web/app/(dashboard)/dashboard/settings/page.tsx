@@ -1066,8 +1066,8 @@ function SettingsContent() {
             </div>
           </section>
 
-          {/* LLM Configuration Section */}
-          <section>
+          {/* LLM Configuration Section — hidden from users, managed internally */}
+          <section className="hidden">
             <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">AI Model Configuration</h2>
             <div className="bg-white rounded-2xl border border-border divide-y divide-border">
               {llmLoading ? (

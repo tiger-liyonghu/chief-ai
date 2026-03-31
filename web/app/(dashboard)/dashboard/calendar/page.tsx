@@ -1543,20 +1543,41 @@ export default function CalendarPage() {
 
   const weekStart = useMemo(() => startOfWeek(currentDate), [currentDate])
 
+  // Detect timezone display name
+  const tzLabel = useMemo(() => {
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const short = new Date().toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || ''
+      const city = tz.split('/').pop()?.replace(/_/g, ' ') || ''
+      return `${city} (${short})`
+    } catch { return '' }
+  }, [])
+
+  // Detect if on a trip today (different timezone)
+  const tripTzLabel = useMemo(() => {
+    const todayTrip = events.find(e => e.layer === 'trip' && e.start_time?.slice(0, 10) <= toDateKey(new Date()) && e.end_time?.slice(0, 10) >= toDateKey(new Date()))
+    if (!todayTrip?.trip_destination) return null
+    return todayTrip.trip_destination
+  }, [events])
+
   const subtitle = useMemo(() => {
+    const tzSuffix = tripTzLabel
+      ? ` · 📍 ${tripTzLabel} | 🏠 ${tzLabel}`
+      : tzLabel ? ` · ${tzLabel}` : ''
+
     if (view === 'day') {
-      return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+      return currentDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) + tzSuffix
     }
     if (view === 'week') {
       const end = addDays(weekStart, 6)
       const sameMonth = weekStart.getMonth() === end.getMonth()
       if (sameMonth) {
-        return `${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${end.getDate()}, ${end.getFullYear()}`
+        return `${weekStart.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - ${end.getDate()}, ${end.getFullYear()}` + tzSuffix
       }
-      return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+      return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` + tzSuffix
     }
-    return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  }, [view, currentDate, weekStart])
+    return currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) + tzSuffix
+  }, [view, currentDate, weekStart, tzLabel, tripTzLabel])
 
   const isToday = isSameDay(currentDate, new Date())
 
