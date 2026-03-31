@@ -251,13 +251,30 @@ function setupMessageHandler(userId: string) {
   const selfLidJid = myLid ? `${myLid}@lid` : ''
   console.log(`[WA] Handler registered: selfJid=${selfJid}, selfLid=${selfLidJid}`)
 
+  // Message ID dedup at the earliest possible point — before ANY processing
+  const processedMsgIds = new Set<string>()
+  setInterval(() => {
+    // Keep set manageable: clear entries older than 10 minutes
+    // (We can't track age per entry in a Set, so just clear if too big)
+    if (processedMsgIds.size > 500) processedMsgIds.clear()
+  }, 10 * 60 * 1000)
+
   sock.ev.on('messages.upsert', async ({ messages }) => {
     const supabase = createAdminClient()
     for (const msg of messages) {
       if (!msg.message) continue
+
+      // FIRST: dedup by WhatsApp native message ID — the SAME ID on reconnect replay
+      const msgId = msg.key.id || ''
+      if (msgId && processedMsgIds.has(msgId)) {
+        console.log(`[WA] Skipping duplicate message ${msgId.slice(0, 12)}...`)
+        continue
+      }
+      if (msgId) processedMsgIds.add(msgId)
+
       const remoteJid = msg.key.remoteJid || ''
 
-      // Immediately mark as read — prevents replay on reconnect
+      // Mark as read — prevents future replays
       try {
         await sock.readMessages([msg.key])
       } catch { /* non-fatal */ }
@@ -267,7 +284,6 @@ function setupMessageHandler(userId: string) {
       if (!isSelfChat) continue
 
       // Skip Sophia's own replies to avoid loops
-      const msgId = msg.key.id || ''
       if (appleMessageIds.has(msgId)) {
         appleMessageIds.delete(msgId)
         continue
