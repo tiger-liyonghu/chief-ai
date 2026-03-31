@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
-import { Calendar, Users, MapPin, Video, ChevronLeft, ChevronRight, Loader2, Plus, X, Pencil, Trash2, Sparkles, ExternalLink, Brain } from 'lucide-react'
+import { Calendar, Users, MapPin, Video, ChevronLeft, ChevronRight, Loader2, Plus, X, Pencil, Trash2, Sparkles, ExternalLink, Brain, AlertTriangle, Heart, Plane, Clock, Lock } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { MeetingContextCard } from '@/components/dashboard/MeetingContextCard'
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -12,6 +12,7 @@ import { useI18n } from '@/lib/i18n/context'
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ViewMode = 'day' | 'week' | 'month'
+type EventLayer = 'work' | 'family' | 'commitment' | 'trip'
 
 interface CalendarEvent {
   id: string
@@ -22,6 +23,26 @@ interface CalendarEvent {
   attendees: any
   location?: string
   meeting_link?: string
+  // Unified calendar fields
+  layer?: EventLayer
+  all_day?: boolean
+  urgency?: number              // commitment only
+  commitment_type?: string      // commitment only (e.g. "i_promised")
+  contact_name?: string         // commitment only
+  family_member?: string        // family only
+  event_type?: string           // family only (e.g. "hard_constraint")
+  trip_destination?: string     // trip only
+  is_conflict?: boolean
+  conflict_with?: string
+}
+
+interface CalendarSummary {
+  total: number
+  work: number
+  family: number
+  commitments: number
+  trips: number
+  conflicts: number
 }
 
 interface EventFormData {
@@ -51,6 +72,37 @@ const EMPTY_FORM: EventFormData = {
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 8) // 8 AM – 7 PM
 const COLORS = ['bg-blue-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500', 'bg-red-500', 'bg-cyan-500']
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+// Layer color palettes
+const LAYER_COLORS: Record<EventLayer, { bg: string; border: string; dot: string; text: string; lightBg: string }> = {
+  work:       { bg: 'bg-blue-500',    border: 'border-blue-400',    dot: 'bg-blue-500',    text: 'text-blue-700',    lightBg: 'bg-blue-50' },
+  family:     { bg: 'bg-pink-500',    border: 'border-pink-400',    dot: 'bg-pink-500',    text: 'text-pink-700',    lightBg: 'bg-pink-50' },
+  commitment: { bg: 'bg-amber-500',   border: 'border-amber-400',   dot: 'bg-amber-500',   text: 'text-amber-700',   lightBg: 'bg-amber-50' },
+  trip:       { bg: 'bg-emerald-500', border: 'border-emerald-400', dot: 'bg-emerald-500', text: 'text-emerald-700', lightBg: 'bg-emerald-50' },
+}
+
+const LAYER_LABELS: Record<EventLayer, string> = {
+  work: 'work',
+  family: 'family',
+  commitment: 'commitments',
+  trip: 'trips',
+}
+
+const LAYER_ICONS: Record<EventLayer, string> = {
+  work: '\u{1F4C5}',       // calendar
+  family: '\u{1F497}',     // heart
+  commitment: '\u{1F4CB}', // clipboard
+  trip: '\u{2708}\uFE0F',  // airplane
+}
+
+function getLayerColor(event: CalendarEvent) {
+  const layer = event.layer || 'work'
+  // Commitment overdue: red
+  if (layer === 'commitment' && event.urgency && event.urgency > 7) {
+    return { bg: 'bg-red-500', border: 'border-red-400', dot: 'bg-red-500', text: 'text-red-700', lightBg: 'bg-red-50' }
+  }
+  return LAYER_COLORS[layer]
+}
 const VIEW_TAB_KEYS: { key: ViewMode; labelKey: string }[] = [
   { key: 'day', labelKey: 'day' },
   { key: 'week', labelKey: 'week' },
@@ -357,13 +409,16 @@ function EventCard({
   const startStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
   const endStr = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
   const attendees = typeof event.attendees === 'string' ? JSON.parse(event.attendees) : (event.attendees || [])
-  const color = COLORS[colorIndex % COLORS.length]
+  const layerColor = getLayerColor(event)
+  const layer = event.layer || 'work'
 
   if (compact) {
     return (
       <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded text-[11px] leading-tight truncate">
-        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', color)} />
+        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', layerColor.dot)} />
+        {layer === 'family' && <span className="shrink-0 text-[10px]">{'\u{1F497}'}</span>}
         <span className="truncate text-text-primary">{event.title}</span>
+        {event.is_conflict && <span className="shrink-0 text-[10px]">{'\u26A0\uFE0F'}</span>}
       </div>
     )
   }
@@ -372,17 +427,59 @@ function EventCard({
     <motion.div
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
-      className="bg-white rounded-xl border border-border hover:shadow-md transition-all duration-200 cursor-pointer mb-2"
+      className={cn(
+        'bg-white rounded-xl border border-border hover:shadow-md transition-all duration-200 cursor-pointer mb-2',
+        event.is_conflict && 'border-l-[3px] border-l-red-500',
+      )}
       onClick={onToggle}
     >
       <div className="flex items-stretch gap-3 p-3">
-        <div className={cn('w-1 rounded-full shrink-0', color)} />
+        <div className={cn('w-1 rounded-full shrink-0', layerColor.bg)} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
+            {layer === 'family' && <Heart className="w-3.5 h-3.5 text-pink-500 shrink-0" />}
+            {layer === 'commitment' && <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+            {layer === 'trip' && <Plane className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
             <p className="text-sm font-medium text-text-primary truncate">{event.title}</p>
-            <span className="text-xs text-text-tertiary whitespace-nowrap">{startStr} - {endStr}</span>
+            {event.is_conflict && (
+              <span className="flex items-center gap-0.5 text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full shrink-0">
+                <AlertTriangle className="w-3 h-3" />
+                {event.conflict_with ? `vs ${event.conflict_with}` : 'Conflict'}
+              </span>
+            )}
+            {!event.all_day && (
+              <span className="text-xs text-text-tertiary whitespace-nowrap">{startStr} - {endStr}</span>
+            )}
+            {event.all_day && (
+              <span className="text-xs text-text-tertiary whitespace-nowrap">All day</span>
+            )}
           </div>
-          <div className="flex items-center gap-4 mt-1.5">
+          <div className="flex items-center gap-4 mt-1.5 flex-wrap">
+            {/* Layer-specific metadata */}
+            {layer === 'family' && event.family_member && (
+              <div className="flex items-center gap-1 text-xs text-pink-600">
+                <Users className="w-3.5 h-3.5" />
+                {event.family_member}
+                {event.event_type === 'hard_constraint' && <Lock className="w-3 h-3 ml-0.5" />}
+              </div>
+            )}
+            {layer === 'commitment' && event.contact_name && (
+              <div className="flex items-center gap-1 text-xs text-amber-600">
+                <Users className="w-3.5 h-3.5" />
+                {event.commitment_type === 'i_promised' ? 'Promised to' : 'From'} {event.contact_name}
+              </div>
+            )}
+            {layer === 'commitment' && event.urgency != null && (
+              <div className={cn('text-xs font-medium px-1.5 py-0.5 rounded-full', event.urgency > 7 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')}>
+                Urgency {event.urgency}/10
+              </div>
+            )}
+            {layer === 'trip' && event.trip_destination && (
+              <div className="flex items-center gap-1 text-xs text-emerald-600">
+                <MapPin className="w-3.5 h-3.5" />
+                {event.trip_destination}
+              </div>
+            )}
             {attendees.length > 0 && (
               <div className="flex items-center gap-1 text-xs text-text-tertiary">
                 <Users className="w-3.5 h-3.5" />
@@ -627,8 +724,15 @@ function DayView({
   onToggleContext: (id: string) => void
 }) {
   const dayKey = toDateKey(date)
+  const allDayEvents = events
+    .filter(e => e.start_time?.slice(0, 10) === dayKey && e.all_day)
+    .sort((a, b) => {
+      // trips first, then commitments, then family
+      const order: Record<string, number> = { trip: 0, commitment: 1, family: 2, work: 3 }
+      return (order[a.layer || 'work'] ?? 3) - (order[b.layer || 'work'] ?? 3)
+    })
   const dayEvents = events
-    .filter(e => e.start_time?.slice(0, 10) === dayKey)
+    .filter(e => e.start_time?.slice(0, 10) === dayKey && !e.all_day)
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
 
   // Precompute gaps between consecutive events (>30 min)
@@ -651,12 +755,57 @@ function DayView({
     return gaps
   }, [dayEvents])
 
-  if (dayEvents.length === 0) {
+  if (dayEvents.length === 0 && allDayEvents.length === 0) {
     return <EmptyState message="No events this day" hint='Click "+ New Event" to create one, or "Sync now" to pull from Google Calendar' />
   }
 
   return (
-    <div className="grid grid-cols-[72px_1fr] gap-0">
+    <div>
+      {/* All-day events section */}
+      {allDayEvents.length > 0 && (
+        <div className="mb-4 border border-border rounded-xl overflow-hidden">
+          <div className="px-4 py-2 bg-surface-secondary/50 text-xs font-medium text-text-secondary">
+            All Day
+          </div>
+          <div className="p-2 space-y-1.5">
+            {allDayEvents.map((event, idx) => {
+              const lc = getLayerColor(event)
+              const layer = event.layer || 'work'
+              return (
+                <div
+                  key={event.id}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg transition-colors cursor-pointer hover:shadow-sm',
+                    lc.lightBg,
+                    event.is_conflict && 'border-l-[3px] border-l-red-500',
+                    layer === 'trip' && 'bg-emerald-50 border border-emerald-200',
+                  )}
+                  onClick={() => onToggleExpand(event.id)}
+                >
+                  <span className={cn('w-2 h-2 rounded-full shrink-0', lc.dot)} />
+                  {layer === 'family' && <Heart className="w-3.5 h-3.5 text-pink-500 shrink-0" />}
+                  {layer === 'commitment' && <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+                  {layer === 'trip' && <Plane className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}
+                  <span className={cn('text-sm font-medium truncate', lc.text)}>{event.title}</span>
+                  {layer === 'family' && event.event_type === 'hard_constraint' && <Lock className="w-3 h-3 text-pink-500" />}
+                  {layer === 'trip' && event.trip_destination && (
+                    <span className="text-xs text-emerald-600 ml-auto shrink-0">{event.trip_destination}</span>
+                  )}
+                  {layer === 'commitment' && event.contact_name && (
+                    <span className="text-xs text-amber-600 ml-auto shrink-0">{event.contact_name}</span>
+                  )}
+                  {event.is_conflict && (
+                    <span className="text-[10px] text-red-600 ml-1 shrink-0">{'\u26A0\uFE0F'}</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Hourly grid */}
+      <div className="grid grid-cols-[72px_1fr] gap-0">
       {HOURS.map((hour) => {
         const eventsAtHour = dayEvents.filter(e => new Date(e.start_time).getHours() === hour)
         const gap = gapMap.get(hour)
@@ -692,6 +841,7 @@ function DayView({
           </div>
         )
       })}
+      </div>
     </div>
   )
 }
@@ -760,11 +910,11 @@ function WeekView({ events, weekStart, onDayClick }: { events: CalendarEvent[]; 
                   isToday && 'bg-primary/[0.02]'
                 )}
               >
-                {hourEvents.map((event, idx) => {
+                {hourEvents.filter(e => !e.all_day).map((event) => {
                   const start = new Date(event.start_time)
                   const end = new Date(event.end_time)
                   const timeStr = `${start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })} - ${end.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}`
-                  const color = COLORS[idx % COLORS.length]
+                  const lc = getLayerColor(event)
                   return (
                     <motion.div
                       key={event.id}
@@ -772,13 +922,15 @@ function WeekView({ events, weekStart, onDayClick }: { events: CalendarEvent[]; 
                       animate={{ opacity: 1, scale: 1 }}
                       className={cn(
                         'rounded-md px-2 py-1 mb-0.5 cursor-pointer border border-border hover:shadow-sm transition-shadow',
-                        'bg-white'
+                        'bg-white',
+                        event.is_conflict && 'border-l-[3px] border-l-red-500',
                       )}
                       onClick={() => onDayClick(d)}
                     >
                       <div className="flex items-center gap-1">
-                        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', color)} />
+                        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', lc.dot)} />
                         <span className="text-[11px] font-medium text-text-primary truncate">{event.title}</span>
+                        {event.is_conflict && <span className="text-[9px] shrink-0">{'\u26A0\uFE0F'}</span>}
                       </div>
                       <div className="text-[10px] text-text-tertiary ml-2.5 truncate">{timeStr}</div>
                     </motion.div>
@@ -860,19 +1012,39 @@ function MonthView({ events, month, onDayClick }: { events: CalendarEvent[]; mon
                   !isCurrentMonth && 'opacity-40'
                 )}
               >
-                <div className={cn(
-                  'text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full mb-1',
-                  isToday ? 'bg-primary text-white' : 'text-text-primary'
-                )}>
-                  {day.getDate()}
+                <div className="flex items-center gap-1 mb-1">
+                  <div className={cn(
+                    'text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full',
+                    isToday ? 'bg-primary text-white' : 'text-text-primary'
+                  )}>
+                    {day.getDate()}
+                  </div>
+                  {/* Commitment deadline dots */}
+                  {(() => {
+                    const commitments = dayEvts.filter(e => e.layer === 'commitment')
+                    if (commitments.length === 0) return null
+                    return (
+                      <div className="flex gap-0.5">
+                        {commitments.slice(0, 3).map((c) => (
+                          <span key={c.id} className={cn('w-1.5 h-1.5 rounded-full', c.urgency && c.urgency > 7 ? 'bg-red-500' : 'bg-amber-500')} />
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
-                {/* Show up to 3 event previews */}
+                {/* Trip banners */}
+                {dayEvts.filter(e => e.layer === 'trip').map((evt) => (
+                  <div key={evt.id} className="bg-emerald-100 text-emerald-700 text-[10px] font-medium px-1.5 py-0.5 rounded mb-0.5 truncate">
+                    {'\u{2708}\uFE0F'} {evt.trip_destination || evt.title}
+                  </div>
+                ))}
+                {/* Non-trip event previews */}
                 <div className="space-y-0.5">
-                  {dayEvts.slice(0, 3).map((evt, idx) => (
+                  {dayEvts.filter(e => e.layer !== 'trip').slice(0, 3).map((evt, idx) => (
                     <EventCard key={evt.id} event={evt} colorIndex={idx} compact />
                   ))}
-                  {dayEvts.length > 3 && (
-                    <div className="text-[10px] text-text-tertiary pl-1.5">+{dayEvts.length - 3} more</div>
+                  {dayEvts.filter(e => e.layer !== 'trip').length > 3 && (
+                    <div className="text-[10px] text-text-tertiary pl-1.5">+{dayEvts.filter(e => e.layer !== 'trip').length - 3} more</div>
                   )}
                 </div>
               </button>
@@ -889,8 +1061,10 @@ function MonthView({ events, month, onDayClick }: { events: CalendarEvent[]; mon
 export default function CalendarPage() {
   const { t } = useI18n()
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [summary, setSummary] = useState<CalendarSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<ViewMode>('day')
+  const [visibleLayers, setVisibleLayers] = useState<Set<EventLayer>>(new Set(['work', 'family', 'commitment', 'trip']))
   const [currentDate, setCurrentDate] = useState(() => {
     const d = new Date()
     d.setHours(0, 0, 0, 0)
@@ -913,12 +1087,31 @@ export default function CalendarPage() {
   const [deleteTarget, setDeleteTarget] = useState<CalendarEvent | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  const toggleLayer = useCallback((layer: EventLayer) => {
+    setVisibleLayers(prev => {
+      const next = new Set(prev)
+      if (next.has(layer)) {
+        next.delete(layer)
+      } else {
+        next.add(layer)
+      }
+      return next
+    })
+  }, [])
+
   const fetchEvents = useCallback(async () => {
     try {
-      const res = await fetch('/api/calendar')
+      const res = await fetch('/api/calendar/unified')
       if (res.ok) {
         const data = await res.json()
-        setEvents(data)
+        // Support both unified format { events, summary } and legacy array format
+        if (Array.isArray(data)) {
+          setEvents(data)
+          setSummary(null)
+        } else {
+          setEvents(data.events || [])
+          setSummary(data.summary || null)
+        }
       }
     } finally {
       setLoading(false)
@@ -1093,11 +1286,16 @@ export default function CalendarPage() {
 
   const isToday = isSameDay(currentDate, new Date())
 
+  // ── Filtered events by visible layers ──
+  const filteredEvents = useMemo(() => {
+    return events.filter(e => visibleLayers.has(e.layer || 'work'))
+  }, [events, visibleLayers])
+
   // ── Count for day view header ──
   const dayEventCount = useMemo(() => {
     const key = toDateKey(currentDate)
-    return events.filter(e => e.start_time?.slice(0, 10) === key).length
-  }, [events, currentDate])
+    return filteredEvents.filter(e => e.start_time?.slice(0, 10) === key).length
+  }, [filteredEvents, currentDate])
 
   return (
     <div>
@@ -1169,6 +1367,44 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* Summary bar + Layer filters */}
+        {summary && (
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {([
+              { layer: 'work' as EventLayer, icon: '\u{1F4C5}', count: summary.work, label: 'work' },
+              { layer: 'family' as EventLayer, icon: '\u{1F497}', count: summary.family, label: 'family' },
+              { layer: 'commitment' as EventLayer, icon: '\u{1F4CB}', count: summary.commitments, label: 'commitments' },
+              { layer: 'trip' as EventLayer, icon: '\u{2708}\uFE0F', count: summary.trips, label: 'trips' },
+            ]).map(({ layer, icon, count, label }) => {
+              const lc = LAYER_COLORS[layer]
+              const active = visibleLayers.has(layer)
+              return (
+                <button
+                  key={layer}
+                  onClick={() => toggleLayer(layer)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border',
+                    active
+                      ? `${lc.lightBg} ${lc.text} ${lc.border}`
+                      : 'bg-gray-50 text-gray-400 border-gray-200 opacity-50'
+                  )}
+                >
+                  <span>{icon}</span>
+                  <span>{count}</span>
+                  <span>{label}</span>
+                </button>
+              )
+            })}
+            {summary.conflicts > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 border border-red-200">
+                <span>{'\u26A0\uFE0F'}</span>
+                <span>{summary.conflicts}</span>
+                <span>conflicts</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Content */}
         {loading ? (
           <div className="space-y-3">
@@ -1185,7 +1421,7 @@ export default function CalendarPage() {
             >
               {view === 'day' && (
                 <DayView
-                  events={events}
+                  events={filteredEvents}
                   date={currentDate}
                   expandedId={expandedEventId}
                   onToggleExpand={(id) => {
@@ -1201,8 +1437,8 @@ export default function CalendarPage() {
                   onToggleContext={(id) => setContextOpenId(prev => prev === id ? null : id)}
                 />
               )}
-              {view === 'week' && <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"><WeekView events={events} weekStart={weekStart} onDayClick={handleDayClick} /></div>}
-              {view === 'month' && <MonthView events={events} month={currentDate} onDayClick={handleDayClick} />}
+              {view === 'week' && <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0"><WeekView events={filteredEvents} weekStart={weekStart} onDayClick={handleDayClick} /></div>}
+              {view === 'month' && <MonthView events={filteredEvents} month={currentDate} onDayClick={handleDayClick} />}
             </motion.div>
           </AnimatePresence>
         )}
