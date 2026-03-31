@@ -2,34 +2,36 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getMicrosoftTokensFromCode, getMicrosoftProfile } from '@/lib/microsoft/auth'
 import { encrypt } from '@/lib/google/tokens'
+import { getPublicOrigin } from '@/lib/auth/redirect'
 
 /**
  * GET /api/accounts/outlook-callback
  * Microsoft OAuth callback — store tokens and redirect back to settings.
  */
 export async function GET(request: NextRequest) {
+  const origin = getPublicOrigin(request.url, request.headers)
   const code = request.nextUrl.searchParams.get('code')
   const stateParam = request.nextUrl.searchParams.get('state')
   const error = request.nextUrl.searchParams.get('error')
 
   if (error) {
     console.error('Microsoft OAuth error:', error, request.nextUrl.searchParams.get('error_description'))
-    return NextResponse.redirect(new URL('/dashboard/settings?error=microsoft_auth_failed', request.url))
+    return NextResponse.redirect(new URL('/dashboard/settings?error=microsoft_auth_failed', origin))
   }
 
   if (!code || !stateParam) {
-    return NextResponse.redirect(new URL('/dashboard/settings?error=missing_code', request.url))
+    return NextResponse.redirect(new URL('/dashboard/settings?error=missing_code', origin))
   }
 
   let state: { action: string; userId: string }
   try {
     state = JSON.parse(Buffer.from(stateParam, 'base64').toString())
   } catch {
-    return NextResponse.redirect(new URL('/dashboard/settings?error=invalid_state', request.url))
+    return NextResponse.redirect(new URL('/dashboard/settings?error=invalid_state', origin))
   }
 
   if (state.action !== 'add_outlook' || !state.userId) {
-    return NextResponse.redirect(new URL('/dashboard/settings?error=invalid_state', request.url))
+    return NextResponse.redirect(new URL('/dashboard/settings?error=invalid_state', origin))
   }
 
   try {
@@ -62,10 +64,10 @@ export async function GET(request: NextRequest) {
     }, { onConflict: 'user_id,google_email,provider' })
 
     return NextResponse.redirect(
-      new URL(`/dashboard/settings?account_added=${encodeURIComponent(email)}`, request.url),
+      new URL(`/dashboard/settings?account_added=${encodeURIComponent(email)}`, origin),
     )
   } catch (err: any) {
     console.error('Microsoft OAuth callback error:', err)
-    return NextResponse.redirect(new URL('/dashboard/settings?error=microsoft_token_failed', request.url))
+    return NextResponse.redirect(new URL('/dashboard/settings?error=microsoft_token_failed', origin))
   }
 }

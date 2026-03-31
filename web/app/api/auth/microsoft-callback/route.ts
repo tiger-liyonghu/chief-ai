@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
     })
     if (sessionError) throw sessionError
 
-    const redirectUrl = buildRedirectUrl('/api/auth/session', request.url)
+    const redirectUrl = buildRedirectUrl('/api/auth/session', request.url, request.headers)
     redirectUrl.searchParams.set('token_hash', session.properties.hashed_token)
     redirectUrl.searchParams.set('type', 'magiclink')
     redirectUrl.searchParams.set('user_id', userId)

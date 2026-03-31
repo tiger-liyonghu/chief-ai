@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getPublicOrigin } from '@/lib/auth/redirect'
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     // Step 2: Trigger all automatic setup steps in parallel
     // We use internal fetch with the user's cookies forwarded
-    const baseUrl = request.nextUrl.origin
+    const baseUrl = getPublicOrigin(request.url, request.headers)
     const cookieHeader = request.headers.get('cookie') || ''
 
     const headers: HeadersInit = {
