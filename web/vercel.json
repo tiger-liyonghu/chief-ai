@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/commitment-check",
       "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/self-review",
+      "schedule": "0 */8 * * *"
     }
   ]
 }

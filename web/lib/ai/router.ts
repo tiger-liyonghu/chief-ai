@@ -16,6 +16,7 @@ export type TaskType =
   | 'chat'              // Conversational
   | 'classification'    // Simple classification
   | 'translation'       // Translation
+  | 'self_review'       // Deep reasoning for accuracy verification
 
 export interface LLMConfig {
   provider: string
@@ -38,7 +39,7 @@ export interface ModelSelection {
  * - Quality writing: reply_draft, meeting_prep (medium temp, longer output)
  * - Creative/warm: briefing, chat, translation (higher temp, medium output)
  */
-const DEEPSEEK_TASK_PROFILES: Record<TaskType, { temperature: number; maxTokens: number }> = {
+const DEEPSEEK_TASK_PROFILES: Record<TaskType, { temperature: number; maxTokens: number; model?: string }> = {
   classification:    { temperature: 0.1, maxTokens: 300 },
   task_extraction:   { temperature: 0.1, maxTokens: 300 },
   commitment_scan:   { temperature: 0.2, maxTokens: 300 },
@@ -47,6 +48,7 @@ const DEEPSEEK_TASK_PROFILES: Record<TaskType, { temperature: number; maxTokens:
   briefing:          { temperature: 0.7, maxTokens: 400 },
   chat:              { temperature: 0.7, maxTokens: 400 },
   translation:       { temperature: 0.7, maxTokens: 400 },
+  self_review:       { temperature: 0.1, maxTokens: 2000, model: 'deepseek-reasoner' },
 }
 
 /**
@@ -63,6 +65,7 @@ const GENERIC_TASK_PROFILES: Record<TaskType, { temperature: number; maxTokens: 
   briefing:          { temperature: 0.7, maxTokens: 400 },
   chat:              { temperature: 0.7, maxTokens: 400 },
   translation:       { temperature: 0.5, maxTokens: 400 },
+  self_review:       { temperature: 0.0, maxTokens: 2000 },
 }
 
 /**
@@ -74,7 +77,7 @@ export function getModelForTask(taskType: TaskType, userConfig: LLMConfig): Mode
   if (isDefaultDeepSeek) {
     const profile = DEEPSEEK_TASK_PROFILES[taskType]
     return {
-      model: 'deepseek-chat',
+      model: (profile as any).model || 'deepseek-chat',
       temperature: profile.temperature,
       maxTokens: profile.maxTokens,
     }

@@ -8,25 +8,9 @@ import OpenAI from 'openai'
 import { getConnection } from '@/lib/whatsapp/client'
 import { wasNotificationSent, markNotificationSent } from '@/lib/whatsapp/notification-log'
 import { startTravelScheduler } from '@/lib/whatsapp/travel-brain'
+import { SOPHIE_BRIEFING_SYSTEM } from '@/lib/ai/prompts/sophie-voice'
 
-const BRIEFING_SYSTEM = `你是 Apple，老板的 AI 首席幕僚。现在生成今日晨间简报。
-
-格式要求：
-- 以 🍎 开头
-- 先打招呼（"老板早"或"Good morning boss"，看历史消息判断语言）
-- 最多列 3-5 件最重要的事，不要贪多
-- 逾期的承诺要用 ⚠️ 标出
-- 用换行分隔，不用 bullet 符号
-- 简短干练，整体不超过 10 行
-- 不要用 markdown 标题或代码块
-- 如果今天没什么特别的，就简短说"今天安排轻松"
-
-内容优先级：
-1. ⚠️ 逾期承诺/跟进（你答应的事过期了）
-2. 今天的会议（时间+人+要准备什么）
-3. 待回复邮件（等了超过2天的优先）
-4. 紧急任务
-5. Heads up（不紧急但应该知道的）`
+const BRIEFING_SYSTEM = SOPHIE_BRIEFING_SYSTEM
 
 export function startSchedulers(): void {
   startMorningBriefingScheduler()

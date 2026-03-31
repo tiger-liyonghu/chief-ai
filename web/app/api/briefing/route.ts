@@ -222,6 +222,46 @@ async function gatherBriefingContext(userId: string, timezone: string) {
     })
   }
 
+  // --- Phase 3: Memory Engine — historical patterns ---
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const [completionTrendRes, recentCorrectionsRes] = await Promise.all([
+    // Completion rate trend: last 30 days vs previous 30 days
+    admin
+      .from('commitments')
+      .select('status, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', thirtyDaysAgo)
+      .in('status', ['done', 'overdue', 'pending', 'in_progress']),
+
+    // Recent self-review corrections (so Sophie can mention them)
+    admin
+      .from('alerts')
+      .select('title, body, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'self_review_correction')
+      .gte('created_at', sevenDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(3),
+  ])
+
+  // Calculate completion rate trend
+  const allRecent = completionTrendRes.data || []
+  const done = allRecent.filter(c => c.status === 'done').length
+  const overdue = allRecent.filter(c => c.status === 'overdue').length
+  const completionRate = (done + overdue) > 0
+    ? Math.round((done / (done + overdue)) * 100)
+    : null
+  const totalActive = allRecent.filter(c => ['pending', 'in_progress', 'overdue'].includes(c.status)).length
+
+  const memoryPatterns = {
+    completion_rate_30d: completionRate,
+    total_active_commitments: totalActive,
+    recent_corrections: (recentCorrectionsRes.data || []).map((a: any) => a.title),
+    overcommit_warning: totalActive > 10, // Simple heuristic: > 10 active = overcommitted
+  }
+
   return {
     todayEvents: eventsRes.data || [],
     pendingTasks: tasksRes.data || [],
@@ -241,6 +281,7 @@ async function gatherBriefingContext(userId: string, timezone: string) {
     pendingDecisions: pendingDecisionsRes.data || [],
     horizonEvents: horizonEventsRes.data || [],
     staleVipContacts: staleVipRes.data || [],
+    memoryPatterns,
     todayDate: now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone }),
     timezone,
   }
