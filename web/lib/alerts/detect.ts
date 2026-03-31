@@ -346,6 +346,56 @@ const SEVERITY_ORDER: Record<AlertSeverity, number> = {
 
 // ── New Detectors (Sophia Eyes upgrade) ──
 
+async function detectEmailToneShift(
+  db: SupabaseClient,
+  userId: string,
+): Promise<Alert[]> {
+  // Find VIP contacts whose recent emails have negative tone signals
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+
+  const { data: vipContacts } = await db
+    .from('contacts')
+    .select('id, name, email, company')
+    .eq('user_id', userId)
+    .in('importance', ['vip', 'high'])
+    .limit(10)
+
+  if (!vipContacts || vipContacts.length === 0) return []
+
+  const alerts: Alert[] = []
+  const coldSignals = /unfortunately|regret|disappoint|concern|delay|waiting|still waiting|没收到|还没|失望|遗憾|催/i
+
+  for (const contact of vipContacts.slice(0, 5)) {
+    const { data: recentEmails } = await db
+      .from('emails')
+      .select('subject, snippet, received_at')
+      .eq('user_id', userId)
+      .eq('from_address', contact.email)
+      .gte('received_at', sevenDaysAgo)
+      .order('received_at', { ascending: false })
+      .limit(3)
+
+    if (!recentEmails || recentEmails.length === 0) continue
+
+    const coldCount = recentEmails.filter(e =>
+      coldSignals.test(e.subject || '') || coldSignals.test(e.snippet || '')
+    ).length
+
+    if (coldCount >= 2) {
+      alerts.push({
+        id: uid('tone_shift', contact.id),
+        type: 'vip_silence' as AlertType, // reuse type, different detection
+        severity: 'medium',
+        title: `${contact.name} 最近语气变冷`,
+        detail: `${contact.name} (${contact.company || 'VIP'}) 最近 ${coldCount} 封邮件带有催促/不满信号，可能需要关注`,
+        created_at: new Date().toISOString(),
+        refs: [contact.id],
+      })
+    }
+  }
+  return alerts
+}
+
 async function detectCommitmentChainBreak(
   db: SupabaseClient,
   userId: string,
@@ -465,6 +515,7 @@ export async function detectAlerts(
     chainBreaks,
     preTripAlerts,
     vipSilence,
+    toneShifts,
   ] = await Promise.all([
     Promise.resolve(detectCalendarConflicts(events)),
     Promise.resolve(detectTransitImpossible(events)),
@@ -475,6 +526,7 @@ export async function detectAlerts(
     detectCommitmentChainBreak(db, userId),
     detectPreTripUnfinished(db, userId),
     detectVipSilence(db, userId),
+    detectEmailToneShift(db, userId),
   ])
 
   const allAlerts = [
@@ -487,6 +539,7 @@ export async function detectAlerts(
     ...chainBreaks,
     ...preTripAlerts,
     ...vipSilence,
+    ...toneShifts,
   ]
 
   // Sort: high first, then by most recent

@@ -1405,6 +1405,21 @@ export default function CalendarPage() {
           </div>
         )}
 
+        {/* Sophia's Daily Insight */}
+        {!loading && summary && (summary.conflicts > 0 || filteredEvents.some(e => e.layer === 'commitment' && (e.urgency || 0) > 7)) && (
+          <div className="mb-4 flex items-start gap-2.5 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl">
+            <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-violet-800">
+              {summary.conflicts > 0
+                ? `今天有 ${summary.conflicts} 个冲突需要处理。`
+                : ''}
+              {filteredEvents.filter(e => e.layer === 'commitment' && (e.urgency || 0) > 7).length > 0
+                ? ` ${filteredEvents.filter(e => e.layer === 'commitment' && (e.urgency || 0) > 7).map(e => e.title.replace(/^[📤📥💗]\s*/, '')).slice(0, 2).join('、')} 紧急度很高。`
+                : ' 今天日程清晰。'}
+            </p>
+          </div>
+        )}
+
         {/* Content */}
         {loading ? (
           <div className="space-y-3">
