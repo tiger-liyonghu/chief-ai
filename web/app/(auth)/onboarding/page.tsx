@@ -199,12 +199,15 @@ export default function OnboardingPage() {
 
   const hasMessagingChannel = whatsappConnected || telegramConnected
 
-  // Fetch connected email from profile
+  // If already onboarded, redirect to dashboard
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(data => {
       setEmailAddress(data?.email || '')
+      if (data?.onboarding_completed_at) {
+        router.replace('/dashboard')
+      }
     }).catch(() => {})
-  }, [])
+  }, [router])
 
   const handleWhatsAppConnect = () => {
     // Open WhatsApp QR modal or redirect to settings

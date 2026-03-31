@@ -19,7 +19,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('timezone, language, daily_brief_time, gdpr_data_retention_days, writing_style_notes, assistant_name')
+    .select('email, timezone, language, daily_brief_time, gdpr_data_retention_days, writing_style_notes, assistant_name, onboarding_completed_at')
     .eq('id', user.id)
     .single()
 

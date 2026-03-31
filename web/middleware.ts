@@ -30,19 +30,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Authenticated users on /login → always send to dashboard
+  // Authenticated users on /login → send to dashboard (or onboarding if not completed)
   if (user && request.nextUrl.pathname === '/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  }
-
-  // Onboarding check: use cookie set by auth callback, not DB query.
-  // DB query in middleware was unreliable — if /api/onboarding failed to write
-  // onboarding_completed_at for any reason, users got stuck in a redirect loop.
-  if (user && request.nextUrl.pathname === '/dashboard') {
     const needsOnboarding = request.cookies.get('chief-needs-onboarding')?.value === 'true'
-    if (needsOnboarding) {
-      return NextResponse.redirect(new URL('/onboarding', request.url))
-    }
+    return NextResponse.redirect(new URL(needsOnboarding ? '/onboarding' : '/dashboard', request.url))
   }
 
   return response
