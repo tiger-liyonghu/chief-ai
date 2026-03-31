@@ -259,8 +259,22 @@ function ContactCard({ contact, weaverData }: {
             </div>
           </div>
 
-          {/* Temperature */}
+          {/* Commitments + Temperature */}
           <div className="flex items-center gap-3 shrink-0">
+            {weaverData?.open_commitments && (weaverData.open_commitments.promised > 0 || weaverData.open_commitments.waiting > 0) && (
+              <div className="hidden sm:flex items-center gap-1.5">
+                {weaverData.open_commitments.promised > 0 && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200">
+                    {weaverData.open_commitments.promised} owed
+                  </span>
+                )}
+                {weaverData.open_commitments.waiting > 0 && (
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200">
+                    {weaverData.open_commitments.waiting} waiting
+                  </span>
+                )}
+              </div>
+            )}
             <div className="text-right hidden sm:block">
               <p className="text-xs text-text-tertiary">
                 {getTemperatureLabel(status)}

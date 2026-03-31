@@ -687,9 +687,9 @@ function TripCard({
             )}
 
             {trip.meetings_count > 0 && (
-              <span className="text-xs text-text-tertiary flex items-center gap-1">
+              <span className="text-xs text-indigo-600 font-medium flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded-full">
                 <Users className="w-3.5 h-3.5" />
-                {trip.meetings_count} meeting(s)
+                {trip.meetings_count} meeting{trip.meetings_count > 1 ? 's' : ''} scheduled
               </span>
             )}
 
