@@ -78,8 +78,7 @@ function detectIntent(message: string): Intent[] {
 // ─── Core Context（永远注入，~300 tokens） ───
 
 async function gatherCoreContext(admin: SupabaseClient, userId: string) {
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
+  const now = new Date()
   const todayEnd = new Date()
   todayEnd.setHours(23, 59, 59, 999)
 
@@ -95,12 +94,12 @@ async function gatherCoreContext(admin: SupabaseClient, userId: string) {
       .order('urgency_score', { ascending: false })
       .limit(5),
 
-    // Today's calendar count (just count, not full list)
+    // Upcoming events from NOW (not from midnight — past events are irrelevant)
     admin
       .from('calendar_events')
       .select('title, start_time', { count: 'exact', head: false })
       .eq('user_id', userId)
-      .gte('start_time', todayStart.toISOString())
+      .gte('start_time', now.toISOString())
       .lte('start_time', todayEnd.toISOString())
       .order('start_time', { ascending: true })
       .limit(3),
@@ -116,10 +115,7 @@ async function gatherCoreContext(admin: SupabaseClient, userId: string) {
 // ─── On-Demand Context（按意图加载） ───
 
 async function gatherScheduleContext(admin: SupabaseClient, userId: string, timezone: string) {
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-  const todayEnd = new Date()
-  todayEnd.setHours(23, 59, 59, 999)
+  const now = new Date()
   const weekEnd = new Date(Date.now() + 7 * 86400000)
 
   const [events, tasks] = await Promise.all([
@@ -127,7 +123,7 @@ async function gatherScheduleContext(admin: SupabaseClient, userId: string, time
       .from('calendar_events')
       .select('title, start_time, end_time, location, attendees')
       .eq('user_id', userId)
-      .gte('start_time', todayStart.toISOString())
+      .gte('start_time', now.toISOString())
       .lte('start_time', weekEnd.toISOString())
       .order('start_time', { ascending: true })
       .limit(10),
