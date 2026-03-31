@@ -1,13 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 /**
  * Internal Health Dashboard API
- * Returns system-wide metrics for monitoring
- * No auth required (internal use only, protect via deployment)
+ * Requires CRON_SECRET for authentication in production.
  */
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Require authentication in production
+  const authHeader = request.headers.get('authorization')
+  if (process.env.NODE_ENV === 'production' && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ status: 'ok' }) // Return minimal info without auth
+  }
   const admin = createAdminClient()
   const now = new Date()
   const weekAgo = new Date(now.getTime() - 7 * 86400000)

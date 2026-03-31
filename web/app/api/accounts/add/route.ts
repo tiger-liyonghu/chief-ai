@@ -11,9 +11,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', getPublicOrigin(request.url, request.headers)))
   }
 
-  // Encode user_id in state so the callback knows who is adding the account
-  const state = JSON.stringify({ action: 'add_account', userId: user.id })
-  const stateEncoded = Buffer.from(state).toString('base64url')
+  // HMAC-sign the state to prevent tampering (IDOR protection)
+  const crypto = await import('crypto')
+  const payload = JSON.stringify({ action: 'add_account', userId: user.id, ts: Date.now() })
+  const hmac = crypto.createHmac('sha256', process.env.TOKEN_ENCRYPTION_KEY || 'fallback-key')
+    .update(payload).digest('hex')
+  const stateEncoded = Buffer.from(JSON.stringify({ p: payload, s: hmac })).toString('base64url')
 
   const url = getAuthUrl({
     state: stateEncoded,

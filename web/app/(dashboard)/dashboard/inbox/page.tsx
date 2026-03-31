@@ -122,19 +122,28 @@ function linkifyText(text: string): string {
   return escaped.replace(urlRe, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-primary/80 break-all">$1</a>')
 }
 
-/** Render email body: if it contains HTML tags, render as HTML; otherwise linkify plain text */
+/** Render email body: if it contains HTML tags, sanitize with DOMPurify; otherwise linkify plain text */
 function renderEmailBody(body: string): { __html: string } {
-  const hasHtmlTags = /<\/?(?:div|p|br|table|tr|td|span|a|b|i|strong|em|ul|ol|li|h[1-6]|img|hr)\b/i.test(body)
-  if (hasHtmlTags) {
-    // Basic sanitization: strip script/style tags and event handlers
-    const sanitized = body
-      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
-      .replace(/\s+on\w+\s*=\s*\S+/gi, '')
-    return { __html: sanitized }
+  // Lazy-load DOMPurify (client-side only)
+  if (typeof window !== 'undefined') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const DOMPurify = require('dompurify')
+      const hasHtmlTags = /<\/?(?:div|p|br|table|tr|td|span|a|b|i|strong|em|ul|ol|li|h[1-6]|img|hr)\b/i.test(body)
+      if (hasHtmlTags) {
+        const sanitized = DOMPurify.sanitize(body, {
+          ALLOWED_TAGS: ['p','div','br','table','tr','td','th','span','a','b','i','strong','em','ul','ol','li','h1','h2','h3','h4','h5','h6','hr','pre','blockquote','img'],
+          ALLOWED_ATTR: ['href','src','alt','class','style','target','rel'],
+          FORBID_ATTR: ['onerror','onload','onclick','onmouseover','onfocus','onblur'],
+          ALLOW_DATA_ATTR: false,
+        })
+        return { __html: sanitized }
+      }
+    } catch {
+      // DOMPurify not available, fall through to plain text
+    }
   }
-  // Plain text: linkify URLs and preserve whitespace with <pre>
+  // Plain text: linkify URLs and preserve whitespace
   return { __html: `<pre class="whitespace-pre-wrap font-sans break-words">${linkifyText(body)}</pre>` }
 }
 

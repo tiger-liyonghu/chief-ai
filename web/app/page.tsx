@@ -210,8 +210,12 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8 text-center text-sm text-text-tertiary">
+      <footer className="border-t border-border py-8 text-center text-sm text-text-tertiary space-y-2">
         <p>{t('footerText', { year: new Date().getFullYear() })}</p>
+        <div className="flex justify-center gap-4">
+          <Link href="/privacy" className="hover:text-text-secondary">Privacy Policy</Link>
+          <Link href="/terms" className="hover:text-text-secondary">Terms of Service</Link>
+        </div>
       </footer>
     </div>
   )

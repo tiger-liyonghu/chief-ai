@@ -26,6 +26,7 @@
     "framer-motion": "^12.38.0",
     "googleapis": "^171.4.0",
     "imapflow": "^1.2.18",
+    "isomorphic-dompurify": "^3.7.1",
     "jimp": "^1.6.0",
     "link-preview-js": "^3.2.0",
     "lucide-react": "^1.7.0",

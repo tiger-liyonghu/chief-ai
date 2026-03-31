@@ -17,12 +17,28 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Decode state to get user info
-    const state = JSON.parse(Buffer.from(stateParam, 'base64url').toString())
+    // Decode and VERIFY HMAC-signed state (prevent IDOR)
+    const crypto = await import('crypto')
+    const stateWrapper = JSON.parse(Buffer.from(stateParam, 'base64url').toString())
+
+    // Verify HMAC signature
+    if (!stateWrapper.p || !stateWrapper.s) {
+      return NextResponse.redirect(new URL('/dashboard/settings?error=invalid_state', origin))
+    }
+    const expectedHmac = crypto.createHmac('sha256', process.env.TOKEN_ENCRYPTION_KEY || 'fallback-key')
+      .update(stateWrapper.p).digest('hex')
+    if (!crypto.timingSafeEqual(Buffer.from(stateWrapper.s, 'hex'), Buffer.from(expectedHmac, 'hex'))) {
+      return NextResponse.redirect(new URL('/dashboard/settings?error=invalid_state', origin))
+    }
+
+    const state = JSON.parse(stateWrapper.p)
     if (state.action !== 'add_account' || !state.userId) {
-      return NextResponse.redirect(
-        new URL('/dashboard/settings?error=invalid_state', origin)
-      )
+      return NextResponse.redirect(new URL('/dashboard/settings?error=invalid_state', origin))
+    }
+
+    // Reject states older than 10 minutes
+    if (state.ts && Date.now() - state.ts > 10 * 60 * 1000) {
+      return NextResponse.redirect(new URL('/dashboard/settings?error=expired_state', origin))
     }
 
     const userId = state.userId
