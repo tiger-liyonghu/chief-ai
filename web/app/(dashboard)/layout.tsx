@@ -99,6 +99,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             active={pathname === '/dashboard'}
           />
           <BottomTabItem
+            href="/dashboard/calendar"
+            icon={CalendarDays}
+            label={t('calendar')}
+            active={pathname === '/dashboard/calendar'}
+          />
+          <BottomTabItem
             href="/dashboard/inbox"
             icon={Mail}
             label={t('inbox')}
@@ -109,12 +115,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             icon={CheckSquare}
             label={t('tasks')}
             active={pathname === '/dashboard/tasks'}
-          />
-          <BottomTabItem
-            href="/dashboard/calendar"
-            icon={CalendarDays}
-            label={t('calendar')}
-            active={pathname === '/dashboard/calendar'}
           />
         </div>
       </div>

@@ -23,8 +23,8 @@ import {
 
 const navKeys = [
   { href: '/dashboard', key: 'commitmentsNav' as const, icon: Target },
-  { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
   { href: '/dashboard/calendar', key: 'calendar' as const, icon: CalendarDays },
+  { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
   { href: '/dashboard/contacts', key: 'people' as const, icon: Users },
   { href: '/dashboard/trips', key: 'trips' as const, icon: Plane },
   { href: '/dashboard/family', key: 'familyNav' as const, icon: Heart },
