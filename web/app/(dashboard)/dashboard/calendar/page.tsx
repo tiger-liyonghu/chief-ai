@@ -1643,6 +1643,36 @@ export default function CalendarPage() {
           </div>
         </div>
 
+        {/* Natural language event creation */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Quick add: lunch with John tomorrow 12pm at Raffles..."
+            className="w-full px-4 py-2.5 text-sm border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary bg-white placeholder:text-text-tertiary"
+            onKeyDown={async (e) => {
+              if (e.key !== 'Enter') return
+              const input = (e.target as HTMLInputElement).value.trim()
+              if (!input) return
+
+              try {
+                const res = await fetch('/api/chat', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    message: `Create a calendar event: ${input}. Use the create_event tool.`,
+                  }),
+                })
+                if (res.ok) {
+                  (e.target as HTMLInputElement).value = ''
+                  setTimeout(() => fetchEvents(), 2000)
+                }
+              } catch {
+                // silently degrade
+              }
+            }}
+          />
+        </div>
+
         {/* Summary bar + Layer filters */}
         {summary && (
           <div className="flex items-center gap-2 mb-4 flex-wrap">

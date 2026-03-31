@@ -1047,6 +1047,24 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
             <button onClick={() => handleAction('postpone')} className="px-3 py-1.5 text-xs font-medium bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100">
               Postpone 7d
             </button>
+            {c.deadline && (
+              <button
+                onClick={async () => {
+                  const res = await fetch('/api/commitments/calendar-sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ commitment_id: c.id }),
+                  })
+                  if (res.ok) {
+                    const data = await res.json()
+                    alert(data.message || 'Time blocked on calendar')
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100"
+              >
+                Block Time
+              </button>
+            )}
           </div>
         </div>
       )}

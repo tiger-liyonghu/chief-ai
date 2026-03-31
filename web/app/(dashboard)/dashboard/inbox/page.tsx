@@ -162,6 +162,9 @@ export default function InboxPage() {
   const [draftVisible, setDraftVisible] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Snooze state
+  const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set())
+
   // Feature 1: Thread view state
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([])
   const [threadLoading, setThreadLoading] = useState(false)
@@ -253,8 +256,11 @@ export default function InboxPage() {
       )
     }
 
+    // Filter out snoozed items
+    result = result.filter((m) => !snoozedIds.has(m.id))
+
     return result
-  }, [unified, filter, activeSearch])
+  }, [unified, filter, activeSearch, snoozedIds])
 
   const handleExpand = async (item: UnifiedMessage) => {
     if (expandedId === item.id) {
@@ -710,6 +716,21 @@ export default function InboxPage() {
                                             >
                                               <Sparkles className="w-3.5 h-3.5" />
                                               Regenerate
+                                            </button>
+                                            <button
+                                              onClick={() => {
+                                                setSnoozedIds(prev => new Set([...prev, item.id]))
+                                                setTimeout(() => {
+                                                  setSnoozedIds(prev => {
+                                                    const next = new Set(prev)
+                                                    next.delete(item.id)
+                                                    return next
+                                                  })
+                                                }, 3 * 60 * 60 * 1000)
+                                              }}
+                                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100 border border-amber-200"
+                                            >
+                                              Snooze 3h
                                             </button>
                                           </div>
                                         </div>
