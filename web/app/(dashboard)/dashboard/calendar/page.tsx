@@ -755,12 +755,27 @@ function DayView({
     return gaps
   }, [dayEvents])
 
+  // Dual timezone: detect if there's a trip today
+  const activeTripToday = allDayEvents.find(e => e.layer === 'trip')
+  const tripDestination = activeTripToday?.trip_destination
+
   if (dayEvents.length === 0 && allDayEvents.length === 0) {
     return <EmptyState message="No events this day" hint='Click "+ New Event" to create one, or "Sync now" to pull from Google Calendar' />
   }
 
   return (
     <div>
+      {/* Dual timezone indicator */}
+      {tripDestination && (
+        <div className="flex items-center gap-2 px-4 py-2 mb-3 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+          <Plane className="w-4 h-4 text-emerald-600" />
+          <span className="text-emerald-700 font-medium">In {tripDestination}</span>
+          <span className="text-emerald-500">•</span>
+          <Clock className="w-3.5 h-3.5 text-emerald-500" />
+          <span className="text-emerald-600">Times shown in your home timezone (SGT)</span>
+        </div>
+      )}
+
       {/* All-day events section */}
       {allDayEvents.length > 0 && (
         <div className="mb-4 border border-border rounded-xl overflow-hidden">
