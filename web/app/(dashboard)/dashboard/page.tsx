@@ -1,6 +1,6 @@
 'use client'
 
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
 import {
   Target,
@@ -24,12 +24,19 @@ import {
   Loader2,
   XCircle,
   Link2,
+  Calendar,
+  MapPin,
+  Users,
+  Video,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  RefreshCw,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useI18n } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
-import { BriefingCard } from '@/components/dashboard/BriefingCard'
 import { CommitmentDiscovery } from '@/components/dashboard/CommitmentDiscovery'
 
 /* ─── Types ─── */
@@ -79,6 +86,35 @@ interface Stats {
   }
 }
 
+interface UnifiedEvent {
+  id: string
+  layer: 'work' | 'family' | 'commitment' | 'trip'
+  title: string
+  start_time: string
+  end_time: string
+  all_day: boolean
+  location?: string
+  attendees?: Array<{ email?: string; name?: string }>
+  meeting_link?: string
+  urgency?: number
+  commitment_type?: string
+  contact_name?: string
+  family_member?: string
+  event_type?: string
+  trip_destination?: string
+  is_conflict?: boolean
+  conflict_with?: string
+}
+
+interface DraftData {
+  to: string
+  subject: string
+  body: string
+  fromEmail?: string | null
+  tone?: string
+  commitmentId: string
+}
+
 /* ─── Helpers ─── */
 
 function daysUntil(dateStr: string | null): number | null {
@@ -114,16 +150,35 @@ function urgencyColor(score: number, days: number | null): string {
   return 'text-slate-700 bg-white border-slate-200'
 }
 
-/* ─── Draft Email Modal ─── */
-
-interface DraftData {
-  to: string
-  subject: string
-  body: string
-  fromEmail?: string | null
-  tone?: string
-  commitmentId: string
+function getGreeting(): string {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
 }
+
+function formatEventTime(isoStr: string): string {
+  const d = new Date(isoStr)
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function isToday(isoStr: string): boolean {
+  const d = new Date(isoStr)
+  const now = new Date()
+  return d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+}
+
+function extractMeetingPlatform(link?: string): string | null {
+  if (!link) return null
+  if (link.includes('zoom.us') || link.includes('zoom.com')) return 'Zoom'
+  if (link.includes('teams.microsoft')) return 'Teams'
+  if (link.includes('meet.google')) return 'Meet'
+  return 'Join'
+}
+
+/* ─── Draft Email Modal ─── */
 
 function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose: () => void; onSent: () => void }) {
   const [to, setTo] = useState(draft.to)
@@ -150,7 +205,6 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
       })
       if (res.ok) {
         setSent(true)
-        // Mark commitment as done after sending
         await fetch('/api/commitments', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -179,7 +233,6 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
         className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div className="flex items-center gap-2">
             <Mail className="w-4 h-4 text-primary" />
@@ -209,7 +262,6 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
         ) : (
           <>
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-              {/* To */}
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">To</label>
                 <input
@@ -219,8 +271,6 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-
-              {/* Subject */}
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Subject</label>
                 <input
@@ -230,8 +280,6 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                 />
               </div>
-
-              {/* Body */}
               <div>
                 <label className="text-xs font-medium text-slate-500 mb-1 block">Message</label>
                 <textarea
@@ -241,8 +289,6 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                 />
               </div>
-
-              {/* Error */}
               {error && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
@@ -250,8 +296,6 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
                 </div>
               )}
             </div>
-
-            {/* Footer */}
             <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-200 bg-slate-50">
               <button
                 onClick={onClose}
@@ -279,7 +323,383 @@ function DraftEmailModal({ draft, onClose, onSent }: { draft: DraftData; onClose
   )
 }
 
-/* ─── Commitment Card ─── */
+/* ─── Today's Most Important Card ─── */
+
+function MostImportantCard({ c, onUpdate, onDraft }: { c: Commitment; onUpdate: () => void; onDraft: (draft: DraftData) => void }) {
+  const days = daysUntil(c.deadline)
+  const isOverdue = days !== null && days < 0
+  const isDueToday = days === 0
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  const bgClass = isOverdue
+    ? 'bg-red-50 border-red-200'
+    : isDueToday
+    ? 'bg-amber-50 border-amber-200'
+    : 'bg-orange-50 border-orange-200'
+
+  const contactDisplay = c.type === 'family'
+    ? c.family_member
+    : (c.contacts?.name || c.contact_name || c.contact_email)
+
+  const handleAction = async (action: string) => {
+    if (action === 'done') {
+      await fetch('/api/commitments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: c.id, status: 'done' }),
+      })
+      await fetch('/api/commitments/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedback_type: 'confirmed',
+          commitment_id: c.id,
+          original_title: c.title,
+          original_type: c.type,
+          source_type: c.source_type,
+        }),
+      })
+      onUpdate()
+    } else if (action === 'draft_reply') {
+      if (!c.contact_email) return
+      setActionLoading('draft_reply')
+      try {
+        const res = await fetch('/api/commitments/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: c.id, action: 'draft_reply' }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.draft) {
+            onDraft({
+              to: data.draft.to,
+              subject: data.draft.subject,
+              body: data.draft.body,
+              fromEmail: data.fromEmail,
+              commitmentId: c.id,
+            })
+          }
+        }
+      } catch { /* ignore */ }
+      setActionLoading(null)
+    } else if (action === 'send_nudge') {
+      if (!c.contact_email) return
+      setActionLoading('send_nudge')
+      try {
+        const res = await fetch('/api/commitments/actions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: c.id, action: 'send_nudge' }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.draft) {
+            onDraft({
+              to: data.draft.to,
+              subject: data.draft.subject,
+              body: data.draft.body,
+              fromEmail: data.fromEmail,
+              tone: data.tone,
+              commitmentId: c.id,
+            })
+          }
+        }
+      } catch { /* ignore */ }
+      setActionLoading(null)
+    }
+  }
+
+  return (
+    <div className={cn('border rounded-xl p-4 transition-all', bgClass)}>
+      {/* Title row */}
+      <div className="flex items-start gap-3">
+        <div className={cn('mt-0.5 w-2 h-2 rounded-full shrink-0', isOverdue ? 'bg-red-500' : 'bg-amber-500')} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-text-primary leading-snug">{c.title}</p>
+          {isOverdue && days != null && (
+            <span className="text-xs font-medium text-red-600 mt-0.5 inline-block">
+              {Math.abs(days)} day{Math.abs(days) > 1 ? 's' : ''} overdue
+            </span>
+          )}
+          {isDueToday && (
+            <span className="text-xs font-medium text-amber-600 mt-0.5 inline-block">
+              Due today
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Contact info */}
+      <div className="mt-2 ml-5 flex items-center gap-2 text-xs text-text-tertiary">
+        {c.contacts?.id ? (
+          <Link
+            href={`/dashboard/contacts/${c.contacts.id}`}
+            className="font-medium text-text-secondary hover:text-primary transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {contactDisplay}
+          </Link>
+        ) : (
+          <span className="font-medium text-text-secondary">{contactDisplay}</span>
+        )}
+        {c.contacts?.company && (
+          <>
+            <span className="text-text-tertiary">&middot;</span>
+            <span>{c.contacts.company}</span>
+          </>
+        )}
+        {c.contacts?.importance === 'vip' && (
+          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-semibold uppercase">VIP</span>
+        )}
+      </div>
+
+      {/* Action buttons */}
+      <div className="mt-3 ml-5 flex items-center gap-2">
+        {c.type === 'i_promised' && c.contact_email && (
+          <button
+            onClick={() => handleAction('draft_reply')}
+            disabled={actionLoading === 'draft_reply'}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/80 border border-slate-200 text-text-secondary rounded-lg hover:bg-white transition-colors disabled:opacity-50"
+          >
+            {actionLoading === 'draft_reply' ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <PenLine className="w-3 h-3" />
+            )}
+            Draft Reply
+          </button>
+        )}
+        {c.type === 'they_promised' && c.contact_email && (
+          <button
+            onClick={() => handleAction('send_nudge')}
+            disabled={actionLoading === 'send_nudge'}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/80 border border-slate-200 text-text-secondary rounded-lg hover:bg-white transition-colors disabled:opacity-50"
+          >
+            {actionLoading === 'send_nudge' ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : (
+              <Send className="w-3 h-3" />
+            )}
+            Send Nudge
+          </button>
+        )}
+        <button
+          onClick={() => handleAction('done')}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white/80 border border-slate-200 text-green-700 rounded-lg hover:bg-green-50 transition-colors"
+        >
+          <CheckCircle2 className="w-3 h-3" />
+          Done
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Schedule Timeline Event ─── */
+
+function ScheduleEvent({ event }: { event: UnifiedEvent }) {
+  const isFamily = event.layer === 'family'
+  const platform = extractMeetingPlatform(event.meeting_link)
+  const attendeeCount = event.attendees?.length || 0
+
+  return (
+    <div className={cn(
+      'flex items-start gap-3 py-2.5',
+      event.is_conflict && 'border-l-4 border-l-red-400 pl-3 -ml-3',
+    )}>
+      {/* Time column */}
+      <div className="w-12 shrink-0 text-right">
+        {!event.all_day ? (
+          <span className={cn('text-sm font-medium', isFamily ? 'text-pink-600' : 'text-text-primary')}>
+            {formatEventTime(event.start_time)}
+          </span>
+        ) : (
+          <span className="text-xs text-text-tertiary">all day</span>
+        )}
+      </div>
+
+      {/* Event content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          {isFamily && <Heart className="w-3 h-3 text-pink-500 shrink-0" />}
+          <span className={cn(
+            'text-sm truncate',
+            isFamily ? 'text-pink-700 font-medium' : 'text-text-primary',
+          )}>
+            {/* Strip emoji prefix from unified API titles */}
+            {event.title.replace(/^[\u{1F4E4}\u{1F4E5}\u{1F497}\u{2708}\u{FE0F}\u{1F4D7}]\s*/u, '')}
+          </span>
+          {event.location && (
+            <>
+              <span className="text-text-tertiary">&middot;</span>
+              <span className="text-xs text-text-tertiary truncate flex items-center gap-1">
+                <MapPin className="w-3 h-3" />
+                {event.location}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Meta row */}
+        <div className="flex items-center gap-2 mt-0.5">
+          {attendeeCount > 0 && (
+            <span className="text-xs text-text-tertiary flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              {attendeeCount}
+            </span>
+          )}
+          {platform && event.meeting_link && (
+            <a
+              href={event.meeting_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              <Video className="w-3 h-3" />
+              {platform}
+            </a>
+          )}
+        </div>
+
+        {/* Conflict inline */}
+        {event.is_conflict && event.conflict_with && (
+          <div className="mt-1 flex items-center gap-1.5 text-xs text-red-600">
+            <AlertTriangle className="w-3 h-3 shrink-0" />
+            <span>Conflicts with {event.conflict_with}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Waiting On Them Card ─── */
+
+function WaitingCard({ c, onDraft }: { c: Commitment; onDraft: (draft: DraftData) => void }) {
+  const days = daysUntil(c.deadline)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const contactDisplay = c.contacts?.name || c.contact_name || c.contact_email || 'Unknown'
+
+  const handleNudge = async () => {
+    if (!c.contact_email) return
+    setActionLoading(true)
+    try {
+      const res = await fetch('/api/commitments/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: c.id, action: 'send_nudge' }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.draft) {
+          onDraft({
+            to: data.draft.to,
+            subject: data.draft.subject,
+            body: data.draft.body,
+            fromEmail: data.fromEmail,
+            tone: data.tone,
+            commitmentId: c.id,
+          })
+        }
+      }
+    } catch { /* ignore */ }
+    setActionLoading(false)
+  }
+
+  return (
+    <div className="flex items-center gap-3 py-2">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 text-sm">
+          {c.contacts?.id ? (
+            <Link
+              href={`/dashboard/contacts/${c.contacts.id}`}
+              className="font-medium text-text-primary hover:text-primary transition-colors"
+            >
+              {contactDisplay}
+            </Link>
+          ) : (
+            <span className="font-medium text-text-primary">{contactDisplay}</span>
+          )}
+          {c.contacts?.company && (
+            <>
+              <span className="text-text-tertiary">&middot;</span>
+              <span className="text-xs text-text-tertiary">{c.contacts.company}</span>
+            </>
+          )}
+        </div>
+        <p className="text-sm text-text-secondary truncate">{c.title}</p>
+        {days != null && (
+          <span className="text-xs text-text-tertiary">
+            {days < 0 ? `${Math.abs(days)} day${Math.abs(days) > 1 ? 's' : ''} overdue` : `${days} day${days !== 1 ? 's' : ''}`}
+          </span>
+        )}
+      </div>
+      {c.contact_email && (
+        <button
+          onClick={handleNudge}
+          disabled={actionLoading}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-slate-200 text-text-secondary rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 shrink-0"
+        >
+          {actionLoading ? (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          ) : (
+            <Send className="w-3 h-3" />
+          )}
+          Send Nudge
+        </button>
+      )}
+    </div>
+  )
+}
+
+/* ─── Sophia Says ─── */
+
+function SophiaSays({ stats, commitments }: { stats: Stats; commitments: Commitment[] }) {
+  const activeCount = stats.needs_action + stats.waiting_on_them + stats.family_active
+  const overdue = commitments.filter(c => c.deadline && daysUntil(c.deadline)! < 0)
+  const vipCooling = commitments.filter(c => c.contacts?.importance === 'vip' && c.type === 'they_promised')
+
+  const messages: string[] = []
+
+  // Overcommitted warning
+  if (activeCount > 10) {
+    messages.push(`You have ${activeCount} active commitments. Consider focusing on the top 2-3 today and deferring the rest.`)
+  }
+
+  // Compliance rate dropping
+  if (stats.compliance_rate != null && stats.compliance_rate < 70) {
+    messages.push(`Your completion rate is at ${stats.compliance_rate}%. Closing a few quick wins today would help.`)
+  }
+
+  // VIP cooling
+  if (vipCooling.length > 0) {
+    const vipName = vipCooling[0].contacts?.name || vipCooling[0].contact_name
+    if (vipName) {
+      messages.push(`${vipName} (VIP) still owes you a response. Consider a gentle nudge.`)
+    }
+  }
+
+  // Nothing important = silence
+  if (messages.length === 0) return null
+
+  return (
+    <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
+      <div className="flex items-start gap-3">
+        <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-500 mb-1">Sophia says</p>
+          {messages.map((msg, i) => (
+            <p key={i} className="text-sm text-violet-800">{msg}</p>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Commitment Card (full list) ─── */
 
 function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnType<typeof useI18n>['t']; onUpdate: () => void; onDraft: (draft: DraftData) => void }) {
   const days = daysUntil(c.deadline)
@@ -299,7 +719,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: c.id, status: 'done' }),
       })
-      // Record confirmed feedback
       await fetch('/api/commitments/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -323,7 +742,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
       })
       onUpdate()
     } else if (action === 'not_a_commitment') {
-      // Mark as cancelled + record rejected feedback
       await fetch('/api/commitments', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -394,7 +812,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
   return (
     <div className={cn('border rounded-xl p-4 transition-all hover:shadow-sm relative cursor-pointer', colorClass)} onClick={() => setExpanded(!expanded)}>
       <div className="flex items-start gap-3">
-        {/* Type indicator */}
         <div className={cn('mt-0.5 p-1.5 rounded-lg', {
           'bg-blue-100': c.type === 'i_promised',
           'bg-amber-100': c.type === 'they_promised',
@@ -405,7 +822,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
           {c.type === 'family' && <Heart className="w-4 h-4 text-pink-600" />}
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium text-sm truncate">
@@ -417,7 +833,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
           </div>
           <p className="text-sm text-slate-800 mb-2 line-clamp-2 break-words">{c.title}</p>
 
-          {/* Meta row */}
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <span className="flex items-center gap-1">
               <SourceIcon className="w-3 h-3" />
@@ -444,7 +859,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
             )}
           </div>
 
-          {/* Escalation badge */}
           {hasEscalationSuggestion(c.description) && (
             <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 bg-orange-100 border border-orange-300 text-orange-700 text-xs font-medium rounded-full">
               <AlertTriangle className="w-3 h-3" />
@@ -452,7 +866,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
             </span>
           )}
 
-          {/* Blocking chain warning */}
           {c.blocked_by && c.blocked_by.length > 0 && (
             <div className="mt-2 flex items-start gap-1.5 px-2 py-1.5 bg-red-50 border border-red-200 rounded-lg">
               <Link2 className="w-3 h-3 text-red-500 mt-0.5 shrink-0" />
@@ -469,11 +882,10 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
           )}
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           {c.type === 'i_promised' && c.contact_email && (
             <button
-              onClick={() => handleAction('draft_reply')}
+              onClick={(e) => { e.stopPropagation(); handleAction('draft_reply') }}
               disabled={actionLoading === 'draft_reply'}
               className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-50"
               title="Draft Reply"
@@ -487,7 +899,7 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
           )}
           {c.type === 'i_promised' && (
             <button
-              onClick={() => handleAction('done')}
+              onClick={(e) => { e.stopPropagation(); handleAction('done') }}
               className="p-1.5 rounded-lg hover:bg-green-100 text-green-600 transition-colors"
               title={t('markDone')}
             >
@@ -496,7 +908,7 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
           )}
           {c.type === 'they_promised' && c.contact_email && (
             <button
-              onClick={() => handleAction('send_nudge')}
+              onClick={(e) => { e.stopPropagation(); handleAction('send_nudge') }}
               disabled={actionLoading === 'send_nudge'}
               className="p-1.5 rounded-lg hover:bg-blue-100 text-blue-600 transition-colors disabled:opacity-50"
               title={t('sendNudge')}
@@ -509,20 +921,19 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
             </button>
           )}
           <button
-            onClick={() => handleAction('not_a_commitment')}
+            onClick={(e) => { e.stopPropagation(); handleAction('not_a_commitment') }}
             className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
             title="Not a commitment"
           >
             <XCircle className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setShowActions(!showActions)}
+            onClick={(e) => { e.stopPropagation(); setShowActions(!showActions) }}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
           >
             <MoreHorizontal className="w-4 h-4" />
           </button>
 
-          {/* Dropdown */}
           {showActions && (
             <div className="absolute right-4 top-12 bg-white border border-slate-200 rounded-lg shadow-lg py-1 z-10 min-w-[160px]">
               {c.contact_email && (
@@ -543,7 +954,6 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
         </div>
       </div>
 
-      {/* Expanded detail section */}
       {expanded && (
         <div className="mt-3 pt-3 border-t border-slate-200 space-y-2" onClick={e => e.stopPropagation()}>
           {c.description && (
@@ -551,72 +961,40 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
           )}
           <div className="flex flex-wrap gap-2 text-xs">
             {c.contact_email && (
-              <span className="px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">📧 {c.contact_email}</span>
+              <span className="px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">@ {c.contact_email}</span>
             )}
             {c.deadline && (
-              <span className="px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">📅 Deadline: {c.deadline}</span>
+              <span className="px-2 py-0.5 bg-slate-100 rounded-md text-slate-600">Deadline: {c.deadline}</span>
             )}
             {c.urgency_score != null && (
               <span className={cn('px-2 py-0.5 rounded-md', c.urgency_score > 7 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600')}>
-                ⚡ Urgency: {c.urgency_score}/10
+                Urgency: {c.urgency_score}/10
               </span>
             )}
             {c.contacts?.importance === 'vip' && (
-              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md">⭐ VIP</span>
+              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md">VIP</span>
             )}
           </div>
           <div className="flex gap-2 mt-2">
             {c.type === 'i_promised' && c.contact_email && (
               <button onClick={() => handleAction('draft_reply')} className="px-3 py-1.5 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100">
-                📝 Draft Reply
+                Draft Reply
               </button>
             )}
             {c.type === 'they_promised' && c.contact_email && (
               <button onClick={() => handleAction('send_nudge')} className="px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100">
-                📤 Send Nudge
+                Send Nudge
               </button>
             )}
             <button onClick={() => handleAction('done')} className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 rounded-lg hover:bg-green-100">
-              ✓ Mark Done
+              Mark Done
             </button>
             <button onClick={() => handleAction('postpone')} className="px-3 py-1.5 text-xs font-medium bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100">
-              ⏭ Postpone 7d
+              Postpone 7d
             </button>
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-/* ─── Stats Banner ─── */
-
-function StatsBanner({ stats, t }: { stats: Stats | null; t: ReturnType<typeof useI18n>['t'] }) {
-  if (!stats) return null
-
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-        <div className="text-2xl font-bold text-blue-700">{stats.needs_action}</div>
-        <div className="text-xs text-blue-600 mt-1">{t('needsYourAction')}</div>
-      </div>
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <div className="text-2xl font-bold text-amber-700">{stats.waiting_on_them}</div>
-        <div className="text-xs text-amber-600 mt-1">{t('waitingOnThem')}</div>
-      </div>
-      <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
-        <div className="text-2xl font-bold text-pink-700">{stats.family_active}</div>
-        <div className="text-xs text-pink-600 mt-1">{t('familyCommitments')}</div>
-      </div>
-      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-        <div className="flex items-center gap-1">
-          <div className="text-2xl font-bold text-emerald-700">
-            {stats.compliance_rate != null ? `${stats.compliance_rate}%` : '—'}
-          </div>
-          {stats.compliance_rate != null && <TrendingUp className="w-4 h-4 text-emerald-500" />}
-        </div>
-        <div className="text-xs text-emerald-600 mt-1">{t('complianceRate')}</div>
-      </div>
     </div>
   )
 }
@@ -663,7 +1041,6 @@ function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved:
       >
         <h3 className="text-lg font-bold mb-4">{t('addCommitment')}</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Type selector */}
           <div className="flex gap-2">
             {(['i_promised', 'they_promised', 'family'] as const).map((tp) => (
               <button
@@ -682,7 +1059,6 @@ function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved:
             ))}
           </div>
 
-          {/* Who */}
           {type !== 'family' ? (
             <input
               type="text"
@@ -701,7 +1077,6 @@ function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved:
             />
           )}
 
-          {/* What */}
           <input
             type="text"
             placeholder={t('addCommitment')}
@@ -711,7 +1086,6 @@ function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved:
             autoFocus
           />
 
-          {/* When */}
           <input
             type="date"
             value={deadline}
@@ -733,80 +1107,83 @@ function AddCommitmentForm({ onClose, onSaved }: { onClose: () => void; onSaved:
   )
 }
 
-/* ─── Sophia Insight ─── */
+/* ─── Quick Stats (subtle, at the bottom) ─── */
 
-function ChiefInsight({ stats, commitments, t }: { stats: Stats | null; commitments: Commitment[]; t: ReturnType<typeof useI18n>['t'] }) {
-  if (!stats) return null
-
-  const message = (() => {
-    const overdue = commitments.filter(c => c.deadline && daysUntil(c.deadline)! < 0)
-
-    if (overdue.length > 0) {
-      // Find the most overdue commitment
-      const worst = overdue.reduce((a, b) => {
-        const dA = Math.abs(daysUntil(a.deadline)!)
-        const dB = Math.abs(daysUntil(b.deadline)!)
-        return dA > dB ? a : b
-      })
-      const who = worst.type === 'family'
-        ? worst.family_member
-        : (worst.contacts?.name || worst.contact_name || worst.contact_email || 'someone')
-      const daysLate = Math.abs(daysUntil(worst.deadline)!)
-      const desc = worst.title.length > 40 ? worst.title.slice(0, 40) + '...' : worst.title
-      return `You have ${overdue.length} overdue commitment${overdue.length > 1 ? 's' : ''}. The one for ${who} (${desc}) is most urgent \u2014 it\u2019s been ${daysLate} day${daysLate > 1 ? 's' : ''}.`
-    }
-
-    if (stats.due_today > 0) {
-      return `${stats.due_today} commitment${stats.due_today > 1 ? 's' : ''} due today. Stay on top of them and keep your streak going.`
-    }
-
-    if (stats.compliance_rate != null && stats.compliance_rate >= 90) {
-      return `All clear today! Your compliance rate is at ${stats.compliance_rate}% \u2014 excellent work.`
-    }
-
-    if (stats.needs_action + stats.waiting_on_them + stats.family_active === 0) {
-      return 'No active commitments right now. Scan your emails or add one manually to get started.'
-    }
-
-    const rateText = stats.compliance_rate != null ? ` Compliance rate: ${stats.compliance_rate}%.` : ''
-    return `${stats.needs_action} thing${stats.needs_action !== 1 ? 's' : ''} need your action, ${stats.waiting_on_them} waiting on others.${rateText}`
-  })()
-
+function QuickStats({ stats }: { stats: Stats }) {
   return (
-    <div className="flex items-start gap-3 px-4 py-3 bg-violet-50 border border-violet-200 rounded-xl">
-      <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 shrink-0" />
-      <p className="text-sm text-violet-800">{message}</p>
+    <div className="flex items-center justify-center gap-6 py-4 text-xs text-text-tertiary">
+      <div className="flex items-center gap-1.5">
+        <div className="relative w-8 h-8">
+          <svg className="w-8 h-8 -rotate-90" viewBox="0 0 32 32">
+            <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-200" />
+            <circle
+              cx="16" cy="16" r="14" fill="none" stroke="currentColor" strokeWidth="2"
+              className="text-emerald-500"
+              strokeDasharray={`${((stats.compliance_rate ?? 0) / 100) * 88} 88`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-text-secondary">
+            {stats.compliance_rate ?? 0}
+          </span>
+        </div>
+        <span>Completion</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-sm font-semibold text-text-secondary">{stats.needs_action + stats.waiting_on_them + stats.family_active}</span>
+        <span>Active</span>
+      </div>
+      {stats.needs_action > 0 && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-semibold text-text-secondary">{stats.needs_action}</span>
+          <span>Need action</span>
+        </div>
+      )}
     </div>
+  )
+}
+
+/* ─── Section Label ─── */
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="text-[11px] font-semibold uppercase tracking-widest text-text-tertiary mb-3">
+      {children}
+    </h2>
   )
 }
 
 /* ─── Main Page ─── */
 
-export default function CommitmentDashboard() {
+export default function TodayBriefing() {
   const { t } = useI18n()
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
+  const [calendarEvents, setCalendarEvents] = useState<UnifiedEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'i_promised' | 'they_promised' | 'family'>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showScanModal, setShowScanModal] = useState(false)
-  const [familyConflicts, setFamilyConflicts] = useState<Array<{ family_event: string; work_event: string; time: string }>>([])
+  const [showAllCommitments, setShowAllCommitments] = useState(false)
 
   const [scanning, setScanning] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
   const [draftModal, setDraftModal] = useState<DraftData | null>(null)
 
   const fetchData = useCallback(async () => {
-    const [cRes, sRes, fRes] = await Promise.all([
+    const todayISO = new Date().toISOString().slice(0, 10)
+    const tomorrowISO = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+
+    const [cRes, sRes, calRes] = await Promise.all([
       fetch('/api/commitments'),
       fetch('/api/commitments/stats'),
-      fetch('/api/family-calendar/conflicts').catch(() => null),
+      fetch(`/api/calendar/unified?from=${todayISO}&to=${tomorrowISO}`).catch(() => null),
     ])
     if (cRes.ok) setCommitments(await cRes.json())
     if (sRes.ok) setStats(await sRes.json())
-    if (fRes?.ok) {
-      const fData = await fRes.json()
-      setFamilyConflicts(fData.conflicts || [])
+    if (calRes?.ok) {
+      const calData = await calRes.json()
+      setCalendarEvents(calData.events || [])
     }
     setLoading(false)
   }, [])
@@ -831,38 +1208,55 @@ export default function CommitmentDashboard() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  const filtered = filter === 'all' ? commitments : commitments.filter(c => c.type === filter)
+  // Today's schedule — only non-commitment, non-trip events for the timeline
+  const todaySchedule = useMemo(() => {
+    return calendarEvents.filter(e =>
+      (e.layer === 'work' || e.layer === 'family') && isToday(e.start_time)
+    )
+  }, [calendarEvents])
 
-  // Group: overdue first, then due today, then rest
+  // Most important: top 3 overdue + due-today, sorted by urgency desc
+  const mostImportant = useMemo(() => {
+    return commitments
+      .filter(c => {
+        const d = daysUntil(c.deadline)
+        return d !== null && d <= 0
+      })
+      .sort((a, b) => b.urgency_score - a.urgency_score)
+      .slice(0, 3)
+  }, [commitments])
+
+  // Waiting on them: they_promised + waiting/active status
+  const waitingOnThem = useMemo(() => {
+    return commitments
+      .filter(c => c.type === 'they_promised' && (c.status === 'active' || c.status === 'waiting'))
+      .sort((a, b) => b.urgency_score - a.urgency_score)
+      .slice(0, 3)
+  }, [commitments])
+
+  // Filtered commitment list
+  const filtered = filter === 'all' ? commitments : commitments.filter(c => c.type === filter)
   const overdue = filtered.filter(c => c.deadline && daysUntil(c.deadline)! < 0)
   const dueToday = filtered.filter(c => c.deadline && daysUntil(c.deadline) === 0)
   const upcoming = filtered.filter(c => !c.deadline || daysUntil(c.deadline)! > 0)
 
   return (
-    <div className="min-h-screen bg-surface-primary">
-      <TopBar title={t('commitmentDashboard')} />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="min-h-screen bg-[#faf9f7]">
+      <TopBar title="Today" />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
 
-        {/* Header */}
+        {/* ─── Greeting ─── */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-xl">
-              <Target className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">{t('commitmentDashboard')}</h1>
-              <p className="text-sm text-slate-500">
-                {stats ? `${stats.needs_action + stats.waiting_on_them + stats.family_active} active` : ''}
-              </p>
-            </div>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-text-primary">
+            {getGreeting()}, Tiger.
+          </h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowScanModal(true)}
               className="flex items-center gap-2 px-3 py-2 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors"
             >
               <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">Discover Promises</span>
+              <span className="hidden sm:inline">Discover</span>
             </button>
             <button
               onClick={() => setShowAddForm(true)}
@@ -874,187 +1268,217 @@ export default function CommitmentDashboard() {
           </div>
         </div>
 
-        {/* Morning Briefing */}
-        <BriefingCard />
-
-        {/* Family conflict alert */}
-        {familyConflicts.length > 0 && (
-          <div className="bg-pink-50 border border-pink-200 rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Heart className="w-4 h-4 text-pink-600" />
-              <span className="text-sm font-semibold text-pink-800">Family Guard Alert</span>
-            </div>
-            <div className="space-y-1.5">
-              {familyConflicts.map((c, i) => (
-                <div key={i} className="text-sm text-pink-700">
-                  <span className="font-medium">{c.time}</span> — {c.work_event} conflicts with <span className="font-medium">{c.family_event}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Stats */}
-        {!loading && <StatsBanner stats={stats} t={t} />}
-
-        {/* Response metrics — only show if user has completed commitments */}
-        {!loading && stats && stats.avg_response_hours > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-4">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Performance</h3>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-lg font-bold text-primary">{formatHours(stats.avg_response_hours)}</p>
-                <p className="text-xs text-slate-400">Avg Response</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-green-600">{stats.completion_sources?.web || 0}</p>
-                <p className="text-xs text-slate-400">Web</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-green-600">{stats.completion_sources?.whatsapp || 0}</p>
-                <p className="text-xs text-slate-400">WhatsApp</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Scanning indicator */}
-        {scanning && (
-          <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
-            <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
-            <p className="text-sm text-blue-700">{scanMessage}</p>
-          </div>
-        )}
-
-        {/* Sophia insight */}
-        {!loading && !scanning && commitments.length > 0 && (
-          <ChiefInsight stats={stats} commitments={commitments} t={t} />
-        )}
-
-        {/* Filter tabs */}
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-hide">
-          {([
-            { key: 'all', label: t('allCommitments') },
-            { key: 'i_promised', label: t('iPromised') },
-            { key: 'they_promised', label: t('theyPromised') },
-            { key: 'family', label: t('family') },
-          ] as const).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key)}
-              className={cn('flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-w-0', {
-                'bg-white text-slate-900 shadow-sm': filter === key,
-                'text-slate-500 hover:text-slate-700': filter !== key,
-              })}
-            >
-              {label}
-              {key === 'family' && stats && stats.family_active > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 bg-pink-100 text-pink-600 rounded-full text-xs">{stats.family_active}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {/* Loading */}
+        {/* Loading skeleton */}
         {loading && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+              <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />
             ))}
           </div>
         )}
 
-        {/* Commitment lists */}
-        {!loading && filtered.length === 0 && (
-          <div className="flex flex-col items-center py-12 px-4">
-            <div className="p-3 bg-slate-100 rounded-2xl mb-4">
-              <Target className="w-10 h-10 text-slate-400" />
-            </div>
-            <p className="text-base font-medium text-slate-700 mb-2">
-              {commitments.length === 0 ? 'Get started with Chief' : t('noActiveCommitments')}
-            </p>
-            {commitments.length === 0 && (
-              <>
-                <p className="text-sm text-slate-500 text-center max-w-sm mb-6">
-                  Sophia tracks your promises &mdash; what you owe others, what others owe you, and what you promised your family.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm">
-                  <button
-                    onClick={handleScan}
-                    disabled={scanning}
-                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  >
-                    {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                    Connect Gmail &amp; scan
-                  </button>
-                  <button
-                    onClick={() => setShowAddForm(true)}
-                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 bg-white text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add manually
-                  </button>
+        {!loading && (
+          <>
+            {/* ─── MOST IMPORTANT ─── */}
+            {mostImportant.length > 0 && (
+              <section>
+                <SectionLabel>Most Important</SectionLabel>
+                <div className="space-y-3">
+                  {mostImportant.map((c) => (
+                    <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                      <MostImportantCard c={c} onUpdate={fetchData} onDraft={setDraftModal} />
+                    </motion.div>
+                  ))}
                 </div>
-              </>
+              </section>
             )}
-          </div>
-        )}
 
-        {!loading && overdue.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 px-1">
-              <AlertTriangle className="w-4 h-4 text-red-500" />
-              <h2 className="text-sm font-semibold text-red-600">{t('overdueItems')} ({overdue.length})</h2>
-            </div>
-            {overdue.map((c) => (
-              <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {!loading && dueToday.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 px-1">
-              <Clock className="w-4 h-4 text-orange-500" />
-              <h2 className="text-sm font-semibold text-orange-600">{t('dueToday')} ({dueToday.length})</h2>
-            </div>
-            {dueToday.map((c) => (
-              <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
-              </motion.div>
-            ))}
-          </div>
-        )}
-
-        {!loading && upcoming.length > 0 && (
-          <div className="space-y-2">
-            {(overdue.length > 0 || dueToday.length > 0) && (
-              <h2 className="text-sm font-semibold text-slate-500 px-1">{t('allCommitments')} ({upcoming.length})</h2>
+            {/* ─── TODAY'S SCHEDULE ─── */}
+            {todaySchedule.length > 0 && (
+              <section>
+                <SectionLabel>Today&apos;s Schedule</SectionLabel>
+                <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 px-4">
+                  {todaySchedule.map((event) => (
+                    <ScheduleEvent key={event.id} event={event} />
+                  ))}
+                </div>
+              </section>
             )}
-            {upcoming.map((c) => (
-              <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
-              </motion.div>
-            ))}
-          </div>
-        )}
 
-        {/* Completed link */}
-        {!loading && stats && stats.period_completed > 0 && (
-          <div className="text-center pt-4">
-            <Link href="/dashboard?view=done" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
-              {stats.period_completed} {t('markDone').toLowerCase()} this week
-            </Link>
-          </div>
+            {/* ─── WAITING ON THEM ─── */}
+            {waitingOnThem.length > 0 && (
+              <section>
+                <SectionLabel>Waiting On Them</SectionLabel>
+                <div className="bg-white border border-slate-200 rounded-xl px-4 divide-y divide-slate-100">
+                  {waitingOnThem.map((c) => (
+                    <WaitingCard key={c.id} c={c} onDraft={setDraftModal} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* ─── SOPHIA SAYS ─── */}
+            {stats && <SophiaSays stats={stats} commitments={commitments} />}
+
+            {/* ─── SCANNING INDICATOR ─── */}
+            {scanning && (
+              <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+                <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+                <p className="text-sm text-blue-700">{scanMessage}</p>
+              </div>
+            )}
+
+            {/* ─── QUICK STATS ─── */}
+            {stats && <QuickStats stats={stats} />}
+
+            {/* ─── FULL COMMITMENT LIST (collapsed by default) ─── */}
+            <section>
+              <button
+                onClick={() => setShowAllCommitments(!showAllCommitments)}
+                className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+              >
+                {showAllCommitments ? (
+                  <>
+                    <ChevronUp className="w-4 h-4" />
+                    Hide commitments
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4" />
+                    View all {commitments.length} commitments
+                  </>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showAllCommitments && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="space-y-6 pt-2">
+                      {/* Filter tabs */}
+                      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl overflow-x-auto scrollbar-hide">
+                        {([
+                          { key: 'all', label: t('allCommitments') },
+                          { key: 'i_promised', label: t('iPromised') },
+                          { key: 'they_promised', label: t('theyPromised') },
+                          { key: 'family', label: t('family') },
+                        ] as const).map(({ key, label }) => (
+                          <button
+                            key={key}
+                            onClick={() => setFilter(key)}
+                            className={cn('flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors whitespace-nowrap min-w-0', {
+                              'bg-white text-slate-900 shadow-sm': filter === key,
+                              'text-slate-500 hover:text-slate-700': filter !== key,
+                            })}
+                          >
+                            {label}
+                            {key === 'family' && stats && stats.family_active > 0 && (
+                              <span className="ml-1.5 px-1.5 py-0.5 bg-pink-100 text-pink-600 rounded-full text-xs">{stats.family_active}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Commitment lists */}
+                      {filtered.length === 0 && (
+                        <div className="flex flex-col items-center py-12 px-4">
+                          <div className="p-3 bg-slate-100 rounded-2xl mb-4">
+                            <Target className="w-10 h-10 text-slate-400" />
+                          </div>
+                          <p className="text-base font-medium text-slate-700 mb-2">
+                            {commitments.length === 0 ? 'Get started with Sophia' : t('noActiveCommitments')}
+                          </p>
+                          {commitments.length === 0 && (
+                            <>
+                              <p className="text-sm text-slate-500 text-center max-w-sm mb-6">
+                                Sophia tracks your promises &mdash; what you owe others, what others owe you, and what you promised your family.
+                              </p>
+                              <div className="flex flex-col sm:flex-row items-center gap-3 w-full max-w-sm">
+                                <button
+                                  onClick={handleScan}
+                                  disabled={scanning}
+                                  className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                >
+                                  {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                                  Connect Gmail &amp; scan
+                                </button>
+                                <button
+                                  onClick={() => setShowAddForm(true)}
+                                  className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-200 bg-white text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors"
+                                >
+                                  <Plus className="w-4 h-4" />
+                                  Add manually
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {overdue.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 px-1">
+                            <AlertTriangle className="w-4 h-4 text-red-500" />
+                            <h2 className="text-sm font-semibold text-red-600">{t('overdueItems')} ({overdue.length})</h2>
+                          </div>
+                          {overdue.map((c) => (
+                            <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                              <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+
+                      {dueToday.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 px-1">
+                            <Clock className="w-4 h-4 text-orange-500" />
+                            <h2 className="text-sm font-semibold text-orange-600">{t('dueToday')} ({dueToday.length})</h2>
+                          </div>
+                          {dueToday.map((c) => (
+                            <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                              <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+
+                      {upcoming.length > 0 && (
+                        <div className="space-y-2">
+                          {(overdue.length > 0 || dueToday.length > 0) && (
+                            <h2 className="text-sm font-semibold text-slate-500 px-1">{t('allCommitments')} ({upcoming.length})</h2>
+                          )}
+                          {upcoming.map((c) => (
+                            <motion.div key={c.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                              <CommitmentCard c={c} t={t} onUpdate={fetchData} onDraft={setDraftModal} />
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+
+                      {stats && stats.period_completed > 0 && (
+                        <div className="text-center pt-4">
+                          <Link href="/dashboard?view=done" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
+                            {stats.period_completed} {t('markDone').toLowerCase()} this week
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
+          </>
         )}
       </div>
 
-      {/* Add form modal */}
+      {/* Modals */}
       {showAddForm && <AddCommitmentForm onClose={() => setShowAddForm(false)} onSaved={fetchData} />}
 
-      {/* Draft email modal */}
       {draftModal && (
         <DraftEmailModal
           draft={draftModal}
@@ -1063,7 +1487,6 @@ export default function CommitmentDashboard() {
         />
       )}
 
-      {/* Scan stream modal */}
       {showScanModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 relative">
@@ -1077,7 +1500,7 @@ export default function CommitmentDashboard() {
               <h2 className="text-lg font-bold text-slate-900">Discover Promises</h2>
               <p className="text-sm text-slate-500">Sophia is scanning your emails for commitments...</p>
             </div>
-            <CommitmentDiscovery onComplete={(count) => {
+            <CommitmentDiscovery onComplete={() => {
               setTimeout(() => { setShowScanModal(false); fetchData() }, 2000)
             }} />
           </div>
