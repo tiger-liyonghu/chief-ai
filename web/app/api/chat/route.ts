@@ -81,6 +81,16 @@ export async function POST(request: NextRequest) {
   const memories = await recallMemories(admin, user.id, { keywords, limit: 3 }).catch(() => [])
   const memoriesContext = formatMemoriesForPrompt(memories)
 
+  // 🧠 Working memory (previous conversation context)
+  const { getSession, formatSessionContext } = await import('@/lib/ai/memory/working-memory')
+  const session = await getSession(admin, user.id, 'dashboard').catch(() => null)
+  const sessionContext = formatSessionContext(session)
+
+  // 🧠 Behavior profile
+  const { getBehaviorProfile, formatBehaviorForPrompt } = await import('@/lib/ai/memory/behavior-model')
+  const behaviorProfile = await getBehaviorProfile(admin, user.id).catch(() => null)
+  const behaviorContext = formatBehaviorForPrompt(behaviorProfile)
+
   // Pick the right system prompt based on tool support
   const systemPrompt = useTools ? getChatSystemPrompt(assistantName) : getChatSystemPromptFallback(assistantName)
 
@@ -88,7 +98,7 @@ export async function POST(request: NextRequest) {
   const messages: Array<OpenAI.Chat.Completions.ChatCompletionMessageParam> = [
     {
       role: 'system',
-      content: `${systemPrompt}${emotionContext}${memoriesContext}\n\n--- USER CONTEXT ---\n${contextBlock}${alertsBlock}`,
+      content: `${systemPrompt}${emotionContext}${behaviorContext}${sessionContext}${memoriesContext}\n\n--- USER CONTEXT ---\n${contextBlock}${alertsBlock}`,
     },
   ]
 
@@ -111,7 +121,7 @@ export async function POST(request: NextRequest) {
 
   if (useTools) {
     // ─── Function-calling path ───
-    return handleWithTools(client, model, messages, user.id, admin, encoder)
+    return handleWithTools(client, model, messages, user.id, admin, encoder, message)
   } else {
     // ─── Text-parsing fallback path ───
     return handleWithTextParsing(client, model, messages, user.id, admin, encoder)
@@ -129,6 +139,7 @@ async function handleWithTools(
   userId: string,
   admin: any,
   encoder: TextEncoder,
+  userMessage?: string,
 ) {
   const readable = new ReadableStream({
     async start(controller) {
@@ -269,6 +280,14 @@ async function handleWithTools(
           } catch {
             // Follow-up call failed — the action results are already sent
           }
+        }
+
+        // 🧠 Update working memory (async, non-blocking)
+        if (fullContent && fullContent.length > 10 && userMessage) {
+          import('@/lib/ai/memory/working-memory').then(({ updateSession }) => {
+            const summary = `User: "${userMessage.slice(0, 100)}". Sophia: ${fullContent.slice(0, 200)}`
+            updateSession(admin, userId, summary, 'dashboard').catch(() => {})
+          }).catch(() => {})
         }
 
         controller.enqueue(encoder.encode('data: [DONE]\n\n'))

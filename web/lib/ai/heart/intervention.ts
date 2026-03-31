@@ -191,6 +191,65 @@ export async function checkInterventions(
     }
   } catch { /* non-fatal */ }
 
+  // ── Check 5: Decision Anomaly ──
+  // Trigger: user recently changed commitment status in unusual pattern
+  // (e.g., cancelled 3+ commitments in one day, or approved large spend)
+  try {
+    const todayStart = `${todayISO}T00:00:00`
+    const { count: cancelledToday } = await admin
+      .from('commitments')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'cancelled')
+      .gte('updated_at', todayStart)
+
+    if ((cancelledToday || 0) >= 3) {
+      triggered.push({
+        type: 'decision_anomaly',
+        triggered: true,
+        message: `今天取消了 ${cancelledToday} 个承诺，和平时不太一样。确定都不需要跟进了吗？`,
+        severity: 'warning',
+      })
+    }
+  } catch { /* non-fatal */ }
+
+  // ── Check 6: Emotional Protection ──
+  // Trigger: recent WhatsApp messages show stress signals + pending major actions
+  try {
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString()
+    const { data: recentMsgs } = await admin
+      .from('whatsapp_messages')
+      .select('body')
+      .eq('user_id', userId)
+      .eq('direction', 'inbound')
+      .gte('received_at', oneHourAgo)
+      .limit(5)
+
+    if (recentMsgs && recentMsgs.length > 0) {
+      const stressSignals = recentMsgs.filter(m =>
+        m.body && /完了|怎么办|头疼|累死|不行|崩溃|panic|stress/i.test(m.body)
+      )
+      if (stressSignals.length >= 2) {
+        // Check if there are high-urgency commitments due today
+        const { count: urgentToday } = await admin
+          .from('commitments')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .in('status', ['pending', 'overdue'])
+          .lte('deadline', todayISO)
+
+        if ((urgentToday || 0) > 0) {
+          triggered.push({
+            type: 'emotional_protection',
+            triggered: true,
+            message: `你最近一小时情绪似乎不太好。今天还有 ${urgentToday} 件紧急的事，但不急的可以推到明天。要不要我帮你重新排一下？`,
+            severity: 'info',
+          })
+        }
+      }
+    }
+  } catch { /* non-fatal */ }
+
   return triggered
 }
 

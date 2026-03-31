@@ -18,6 +18,45 @@ export function startSchedulers(): void {
   startTravelScheduler()
   startSelfReviewScheduler()
   startHeartbeatScheduler()
+  startBehaviorAnalysisScheduler()
+}
+
+// 🧠 Brain — Analyze user behavior weekly
+function startBehaviorAnalysisScheduler(): void {
+  // Run every 24 hours, but only actually analyze weekly
+  setInterval(checkAndRunBehaviorAnalysis, 24 * 60 * 60 * 1000)
+  // Also run once on startup (after 5 min delay to let system settle)
+  setTimeout(checkAndRunBehaviorAnalysis, 5 * 60 * 1000)
+  console.log('[Sophia] Behavior analysis scheduler started (weekly)')
+}
+
+let lastBehaviorRun = 0
+
+async function checkAndRunBehaviorAnalysis(): Promise<void> {
+  const now = Date.now()
+  const oneWeek = 7 * 24 * 60 * 60 * 1000
+  if (now - lastBehaviorRun < oneWeek) return
+  lastBehaviorRun = now
+
+  const admin = createAdminClient()
+  const { data: profiles } = await admin
+    .from('profiles')
+    .select('id')
+    .not('onboarding_completed_at', 'is', null)
+    .limit(50)
+
+  if (!profiles) return
+
+  const { analyzeBehavior } = await import('@/lib/ai/memory/behavior-model')
+
+  for (const profile of profiles) {
+    try {
+      const result = await analyzeBehavior(admin, profile.id)
+      console.log(`[Sophia] Behavior analyzed for ${profile.id}: ${result.data_points} data points`)
+    } catch (err) {
+      console.error(`[Sophia] Behavior analysis error for ${profile.id}:`, err)
+    }
+  }
 }
 
 // 🫀 Heart — Check intervention conditions every 30 minutes

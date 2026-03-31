@@ -23,6 +23,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'end_time must be after start_time' }, { status: 400 })
   }
 
+  // 🫀 Family hard constraint check
+  const admin = createAdminClient()
+  const eventDate = new Date(start_time)
+  const eventTimeStr = eventDate.toTimeString().slice(0, 5) // HH:MM
+  const eventEndTimeStr = new Date(end_time).toTimeString().slice(0, 5)
+  const eventDOW = eventDate.getDay()
+  const eventDateISO = eventDate.toISOString().slice(0, 10)
+
+  const { data: familyConstraints } = await admin
+    .from('family_calendar')
+    .select('title, start_time, end_time, event_type, recurrence, recurrence_day, family_member, start_date')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .eq('event_type', 'hard_constraint')
+
+  const conflicts: Array<{ title: string; family_member: string | null }> = []
+  for (const fc of familyConstraints || []) {
+    let isRelevantDay = false
+    if (fc.recurrence === 'weekly' && fc.recurrence_day === eventDOW) isRelevantDay = true
+    if (fc.recurrence === 'daily') isRelevantDay = true
+    if (fc.recurrence === 'none' && fc.start_date === eventDateISO) isRelevantDay = true
+
+    if (isRelevantDay && fc.start_time && fc.end_time) {
+      // Time overlap check
+      if (eventTimeStr < fc.end_time && fc.start_time < eventEndTimeStr) {
+        conflicts.push({ title: fc.title, family_member: fc.family_member })
+      }
+    }
+  }
+
   try {
     const accessToken = await getValidAccessToken(user.id)
 
@@ -38,7 +68,6 @@ export async function POST(request: NextRequest) {
     })
 
     // Upsert into local table
-    const admin = createAdminClient()
     const attendees = (googleEvent.attendees || []).map(a => ({
       email: a.email,
       name: a.displayName,
@@ -75,6 +104,11 @@ export async function POST(request: NextRequest) {
         end_time: googleEvent.end?.dateTime,
         meeting_link: googleEvent.hangoutLink || null,
       },
+      // 🫀 Family conflict warning (event was created but user should know)
+      family_conflicts: conflicts.length > 0 ? conflicts : undefined,
+      warning: conflicts.length > 0
+        ? `⚠️ 和家庭时间冲突：${conflicts.map(c => `${c.title}${c.family_member ? ` (${c.family_member})` : ''}`).join('、')}`
+        : undefined,
     })
   } catch (err) {
     console.error('Create event error:', err)

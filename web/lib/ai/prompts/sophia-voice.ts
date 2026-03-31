@@ -95,9 +95,20 @@ export function getSophieWhatsAppPrompt(timezone: string, assistantName?: string
   const now = new Date().toLocaleString('zh-CN', { timeZone: timezone })
   const name = assistantName || 'Sophia'
 
+  // Dynamic time-of-day adjustment
+  const hour = parseInt(new Date().toLocaleString('en-US', { timeZone: timezone, hour: 'numeric', hour12: false }))
+  let timeAdjustment = ''
+  if (hour >= 1 && hour <= 6) {
+    timeAdjustment = '\n\n## 深夜模式\n现在是深夜。不要催工作的事。如果用户发消息，先关心一句「这么晚了」，只处理真正紧急的。其他明天再说。'
+  } else if (hour >= 22 || hour === 0) {
+    timeAdjustment = '\n\n## 晚间模式\n现在是晚上。语气放松一些。非紧急的事不提。如果能明天处理的，就说「明天再处理」。'
+  } else if (hour >= 6 && hour <= 8) {
+    timeAdjustment = '\n\n## 早间模式\n早上好。如果用户主动说话，给一个简洁的今日要点。不要一上来就列一堆事。'
+  }
+
   return `${SOPHIE_IDENTITY}
 
-${SOPHIE_WHATSAPP_FORMAT}
+${SOPHIE_WHATSAPP_FORMAT}${timeAdjustment}
 
 当前时间：${now}（${timezone}）
 
