@@ -94,12 +94,12 @@ async function gatherCoreContext(admin: SupabaseClient, userId: string) {
       .order('urgency_score', { ascending: false })
       .limit(5),
 
-    // Upcoming events from NOW (not from midnight — past events are irrelevant)
+    // Current + upcoming events (end_time >= now — includes meetings in progress)
     admin
       .from('calendar_events')
       .select('title, start_time', { count: 'exact', head: false })
       .eq('user_id', userId)
-      .gte('start_time', now.toISOString())
+      .gte('end_time', now.toISOString())
       .lte('start_time', todayEnd.toISOString())
       .order('start_time', { ascending: true })
       .limit(3),
@@ -123,7 +123,7 @@ async function gatherScheduleContext(admin: SupabaseClient, userId: string, time
       .from('calendar_events')
       .select('title, start_time, end_time, location, attendees')
       .eq('user_id', userId)
-      .gte('start_time', now.toISOString())
+      .gte('end_time', now.toISOString())
       .lte('start_time', weekEnd.toISOString())
       .order('start_time', { ascending: true })
       .limit(10),
