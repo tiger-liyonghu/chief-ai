@@ -30,6 +30,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useI18n } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
 import { BriefingCard } from '@/components/dashboard/BriefingCard'
+import { CommitmentDiscovery } from '@/components/dashboard/CommitmentDiscovery'
 
 /* ─── Types ─── */
 
@@ -741,6 +742,7 @@ export default function CommitmentDashboard() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'i_promised' | 'they_promised' | 'family'>('all')
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showScanModal, setShowScanModal] = useState(false)
   const [scanning, setScanning] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
   const [draftModal, setDraftModal] = useState<DraftData | null>(null)
@@ -802,12 +804,11 @@ export default function CommitmentDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={handleScan}
-              disabled={scanning}
-              className="flex items-center gap-2 px-3 py-2 border border-slate-200 bg-white text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+              onClick={() => setShowScanModal(true)}
+              className="flex items-center gap-2 px-3 py-2 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors"
             >
-              {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              <span className="hidden sm:inline">Scan emails</span>
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">Discover Promises</span>
             </button>
             <button
               onClick={() => setShowAddForm(true)}
@@ -989,6 +990,27 @@ export default function CommitmentDashboard() {
           onClose={() => setDraftModal(null)}
           onSent={fetchData}
         />
+      )}
+
+      {/* Scan stream modal */}
+      {showScanModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 relative">
+            <button
+              onClick={() => { setShowScanModal(false); fetchData() }}
+              className="absolute top-4 right-4 p-1 text-slate-400 hover:text-slate-600"
+            >
+              <XCircle className="w-5 h-5" />
+            </button>
+            <div className="text-center mb-4">
+              <h2 className="text-lg font-bold text-slate-900">Discover Promises</h2>
+              <p className="text-sm text-slate-500">Chief is scanning your emails for commitments...</p>
+            </div>
+            <CommitmentDiscovery onComplete={(count) => {
+              setTimeout(() => { setShowScanModal(false); fetchData() }, 2000)
+            }} />
+          </div>
+        </div>
       )}
     </div>
   )
