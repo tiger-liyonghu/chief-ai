@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TopBar } from '@/components/layout/TopBar'
 import { useI18n } from '@/lib/i18n/context'
@@ -10,12 +10,15 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
-  Inbox,
   CheckCircle,
   Sparkles,
   Copy,
   Check,
   Send,
+  Search,
+  X,
+  Paperclip,
+  ExternalLink,
 } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { cn, fixDoubleUtf8 } from '@/lib/utils'
@@ -34,6 +37,7 @@ interface EmailItem {
   source_account_email?: string
   gmail_message_id?: string
   thread_id?: string
+  labels?: string[]
 }
 
 interface WhatsAppMessage {
@@ -47,6 +51,16 @@ interface WhatsAppMessage {
   message_type: string
 }
 
+interface ThreadMessage {
+  id: string
+  from_name: string | null
+  from_address: string
+  subject: string
+  snippet: string
+  received_at: string
+  body_text?: string
+}
+
 interface UnifiedMessage {
   id: string
   channel: 'email' | 'whatsapp'
@@ -57,7 +71,7 @@ interface UnifiedMessage {
   raw: EmailItem | WhatsAppMessage
 }
 
-type ChannelFilter = 'all' | 'email' | 'whatsapp'
+type ChannelFilter = 'needs_reply' | 'all' | 'whatsapp'
 
 /* ─── Helpers ─── */
 
@@ -69,6 +83,59 @@ function timeAgo(dateStr: string, t: (key: any, params?: Record<string, string |
   if (hours < 24) return t('hAgo', { n: hours })
   const days = Math.floor(hours / 24)
   return t('dAgo', { n: days })
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+/** Check if email likely has attachments */
+function hasAttachmentSignal(item: EmailItem): boolean {
+  if (item.labels?.includes('ATTACHMENT')) return true
+  const text = `${item.snippet || ''} ${item.subject || ''}`.toLowerCase()
+  return /\b(attached|attachment|attachments|attaching|附件|see attached|please find attached)\b/.test(text)
+}
+
+/** Extract meeting links from text */
+const MEETING_LINK_RE =
+  /https?:\/\/(?:teams\.live\.com\/meet\/|teams\.microsoft\.com\/l\/meetup-join\/|[^\s]*zoom\.us\/j\/|meet\.google\.com\/)[^\s)<>"]*/gi
+
+function extractMeetingLinks(text: string): string[] {
+  return Array.from(text.matchAll(MEETING_LINK_RE)).map((m) => m[0])
+}
+
+function getMeetingPlatform(url: string): string {
+  if (url.includes('zoom.us')) return 'Zoom'
+  if (url.includes('teams.live.com') || url.includes('teams.microsoft.com')) return 'Teams'
+  if (url.includes('meet.google.com')) return 'Google Meet'
+  return 'Meeting'
+}
+
+/** Make URLs in plain text clickable, returns HTML string */
+function linkifyText(text: string): string {
+  const urlRe = /(https?:\/\/[^\s)<>"]+)/g
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  return escaped.replace(urlRe, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-primary underline hover:text-primary/80 break-all">$1</a>')
+}
+
+/** Render email body: if it contains HTML tags, render as HTML; otherwise linkify plain text */
+function renderEmailBody(body: string): { __html: string } {
+  const hasHtmlTags = /<\/?(?:div|p|br|table|tr|td|span|a|b|i|strong|em|ul|ol|li|h[1-6]|img|hr)\b/i.test(body)
+  if (hasHtmlTags) {
+    // Basic sanitization: strip script/style tags and event handlers
+    const sanitized = body
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
+      .replace(/\s+on\w+\s*=\s*\S+/gi, '')
+    return { __html: sanitized }
+  }
+  // Plain text: linkify URLs and preserve whitespace with <pre>
+  return { __html: `<pre class="whitespace-pre-wrap font-sans break-words">${linkifyText(body)}</pre>` }
 }
 
 /* ─── Fade animation ─── */
@@ -95,6 +162,15 @@ export default function InboxPage() {
   const [draftVisible, setDraftVisible] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  // Feature 1: Thread view state
+  const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([])
+  const [threadLoading, setThreadLoading] = useState(false)
+  const [threadCollapsed, setThreadCollapsed] = useState(false)
+
+  // Feature 2: Search state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeSearch, setActiveSearch] = useState('')
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
@@ -117,45 +193,74 @@ export default function InboxPage() {
   }, [fetchData])
 
   // Build unified timeline
-  const unified: UnifiedMessage[] = []
+  const unified: UnifiedMessage[] = useMemo(() => {
+    const result: UnifiedMessage[] = []
 
-  for (const email of emails) {
-    unified.push({
-      id: `email-${email.id}`,
-      channel: 'email',
-      sender: email.from_name || email.from_address,
-      subject: email.subject,
-      preview: email.snippet || '',
-      timestamp: email.received_at,
-      raw: email,
-    })
-  }
+    for (const email of emails) {
+      result.push({
+        id: `email-${email.id}`,
+        channel: 'email',
+        sender: email.from_name || email.from_address,
+        subject: email.subject,
+        preview: email.snippet || '',
+        timestamp: email.received_at,
+        raw: email,
+      })
+    }
 
-  for (const msg of waMessages) {
-    const isOutbound = msg.direction === 'outbound'
-    unified.push({
-      id: `wa-${msg.id}`,
-      channel: 'whatsapp',
-      sender: isOutbound
-        ? `To: ${msg.to_number}`
-        : (msg.from_name || msg.from_number),
-      subject: '',
-      preview: msg.body || `[${msg.message_type}]`,
-      timestamp: msg.received_at,
-      raw: msg,
-    })
-  }
+    for (const msg of waMessages) {
+      const isOutbound = msg.direction === 'outbound'
+      result.push({
+        id: `wa-${msg.id}`,
+        channel: 'whatsapp',
+        sender: isOutbound
+          ? `To: ${msg.to_number}`
+          : (msg.from_name || msg.from_number),
+        subject: '',
+        preview: msg.body || `[${msg.message_type}]`,
+        timestamp: msg.received_at,
+        raw: msg,
+      })
+    }
 
-  // Sort by time descending
-  unified.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    // Sort by time descending
+    result.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    return result
+  }, [emails, waMessages])
 
-  // Apply filter
-  const filtered = filter === 'all' ? unified : unified.filter((m) => m.channel === filter)
+  // Apply filter + search
+  const filtered = useMemo(() => {
+    let result = unified
+
+    // Channel / needs_reply filter
+    if (filter === 'needs_reply') {
+      result = result.filter(
+        (m) => m.channel === 'email' && (m.raw as EmailItem).is_reply_needed
+      )
+    } else if (filter === 'whatsapp') {
+      result = result.filter((m) => m.channel === filter)
+    }
+    // 'all' shows everything
+
+    // Client-side search
+    if (activeSearch) {
+      const q = activeSearch.toLowerCase()
+      result = result.filter(
+        (m) =>
+          m.sender.toLowerCase().includes(q) ||
+          m.subject.toLowerCase().includes(q) ||
+          m.preview.toLowerCase().includes(q)
+      )
+    }
+
+    return result
+  }, [unified, filter, activeSearch])
 
   const handleExpand = async (item: UnifiedMessage) => {
     if (expandedId === item.id) {
       setExpandedId(null)
       setExpandedBody(null)
+      setThreadMessages([])
       return
     }
 
@@ -163,23 +268,35 @@ export default function InboxPage() {
     setExpandedBody(null)
     setDraftVisible(false)
     setDraftText('')
+    setThreadMessages([])
+    setThreadCollapsed(false)
 
     if (item.channel === 'email') {
       const email = item.raw as EmailItem
       setBodyLoading(true)
-      try {
-        const res = await fetch(`/api/emails/${email.id}`)
-        if (res.ok) {
-          const data = await res.json()
-          setExpandedBody(data.body || email.snippet || '')
-        } else {
-          setExpandedBody(email.snippet || '')
-        }
-      } catch {
+
+      // Fetch email body and thread in parallel
+      const [bodyResult, threadResult] = await Promise.allSettled([
+        fetch(`/api/emails/${email.id}`).then((r) => (r.ok ? r.json() : null)),
+        fetch(`/api/emails/${email.id}/thread`).then((r) => (r.ok ? r.json() : [])),
+      ])
+
+      if (bodyResult.status === 'fulfilled' && bodyResult.value) {
+        setExpandedBody(bodyResult.value.body || email.snippet || '')
+      } else {
         setExpandedBody(email.snippet || '')
-      } finally {
-        setBodyLoading(false)
       }
+
+      if (threadResult.status === 'fulfilled' && Array.isArray(threadResult.value)) {
+        // Sort thread chronologically (oldest first)
+        const sorted = [...threadResult.value].sort(
+          (a: ThreadMessage, b: ThreadMessage) =>
+            new Date(a.received_at).getTime() - new Date(b.received_at).getTime()
+        )
+        setThreadMessages(sorted)
+      }
+
+      setBodyLoading(false)
     } else {
       const msg = item.raw as WhatsAppMessage
       setExpandedBody(msg.body || '')
@@ -232,10 +349,41 @@ export default function InboxPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const filterTabs: { key: ChannelFilter; labelKey: string }[] = [
-    { key: 'all', labelKey: 'allChannels' },
-    { key: 'email', labelKey: 'emailChannel' },
-    { key: 'whatsapp', labelKey: 'whatsappChannel' },
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setActiveSearch(searchQuery.trim())
+    }
+  }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+    setActiveSearch('')
+  }
+
+  // Feature 5: Smart categorization tabs
+  const needsReplyCount = useMemo(
+    () => unified.filter((m) => m.channel === 'email' && (m.raw as EmailItem).is_reply_needed).length,
+    [unified]
+  )
+
+  const filterTabs: { key: ChannelFilter; label: string; icon?: React.ReactNode; count: number }[] = [
+    {
+      key: 'needs_reply',
+      label: t('needsReply'),
+      count: needsReplyCount,
+    },
+    {
+      key: 'all',
+      label: t('allChannels' as any),
+      icon: <Mail className="w-3.5 h-3.5" />,
+      count: unified.length,
+    },
+    {
+      key: 'whatsapp',
+      label: t('whatsappChannel' as any),
+      icon: <MessageCircle className="w-3.5 h-3.5" />,
+      count: unified.filter((m) => m.channel === 'whatsapp').length,
+    },
   ]
 
   return (
@@ -248,39 +396,65 @@ export default function InboxPage() {
 
       <div className="p-4 sm:p-6 lg:p-8">
         {/* Filter tabs */}
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
-          {filterTabs.map((tab) => {
-            const count =
-              tab.key === 'all'
-                ? unified.length
-                : unified.filter((m) => m.channel === tab.key).length
-            return (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {filterTabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={cn(
+                'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2',
+                filter === tab.key
+                  ? tab.key === 'needs_reply'
+                    ? 'bg-red-600 text-white'
+                    : 'bg-primary text-white'
+                  : 'bg-white border border-border text-text-secondary hover:bg-surface-secondary'
+              )}
+            >
+              {tab.key === 'needs_reply' && (
+                <span className="w-2 h-2 rounded-full bg-current opacity-80" />
+              )}
+              {tab.icon}
+              {tab.label}
+              {tab.count > 0 && (
+                <span
+                  className={cn(
+                    'text-xs px-1.5 py-0.5 rounded-full font-medium',
+                    filter === tab.key ? 'bg-white/20 text-white' : 'bg-surface-secondary text-text-tertiary'
+                  )}
+                >
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Feature 2: Search bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search emails by sender, subject, or content... (Enter to search)"
+              className="w-full pl-10 pr-10 py-2.5 bg-white border border-border rounded-xl text-sm text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+            />
+            {(searchQuery || activeSearch) && (
               <button
-                key={tab.key}
-                onClick={() => setFilter(tab.key)}
-                className={cn(
-                  'px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center gap-2',
-                  filter === tab.key
-                    ? 'bg-primary text-white'
-                    : 'bg-white border border-border text-text-secondary hover:bg-surface-secondary'
-                )}
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-text-secondary transition-colors"
               >
-                {tab.key === 'email' && <Mail className="w-3.5 h-3.5" />}
-                {tab.key === 'whatsapp' && <MessageCircle className="w-3.5 h-3.5" />}
-                {t(tab.labelKey as any)}
-                {count > 0 && (
-                  <span
-                    className={cn(
-                      'text-xs px-1.5 py-0.5 rounded-full font-medium',
-                      filter === tab.key ? 'bg-white/20 text-white' : 'bg-surface-secondary text-text-tertiary'
-                    )}
-                  >
-                    {count}
-                  </span>
-                )}
+                <X className="w-4 h-4" />
               </button>
-            )
-          })}
+            )}
+          </div>
+          {activeSearch && (
+            <p className="mt-2 text-sm text-text-secondary">
+              {filtered.length} result{filtered.length !== 1 ? 's' : ''} for &ldquo;{activeSearch}&rdquo;
+            </p>
+          )}
         </div>
 
         {/* Message list */}
@@ -293,14 +467,24 @@ export default function InboxPage() {
             <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mb-4">
               <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
-            <p className="text-lg font-medium text-text-primary mb-1">All caught up!</p>
-            <p className="text-sm text-text-tertiary max-w-xs">Your assistant will notify you when something needs your attention.</p>
+            <p className="text-lg font-medium text-text-primary mb-1">
+              {activeSearch ? `No results for "${activeSearch}"` : 'All caught up!'}
+            </p>
+            <p className="text-sm text-text-tertiary max-w-xs">
+              {activeSearch
+                ? 'Try a different search term.'
+                : 'Your assistant will notify you when something needs your attention.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
             <AnimatePresence mode="popLayout">
               {filtered.map((item) => {
                 const isExpanded = expandedId === item.id
+                const isEmail = item.channel === 'email'
+                const emailRaw = isEmail ? (item.raw as EmailItem) : null
+                const showAttachment = emailRaw ? hasAttachmentSignal(emailRaw) : false
+
                 return (
                   <motion.div
                     key={item.id}
@@ -337,28 +521,34 @@ export default function InboxPage() {
                           <span className="text-sm font-medium text-text-primary truncate">
                             {item.sender}
                           </span>
-                          {item.channel === 'email' && (item.raw as EmailItem).is_reply_needed && (
+                          {emailRaw?.is_reply_needed && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 shrink-0">
                               {t('needsReply')}
                             </span>
                           )}
                         </div>
                         {/* Sender email + source account */}
-                        {item.channel === 'email' && (
+                        {isEmail && emailRaw && (
                           <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
-                            <span>{(item.raw as EmailItem).from_address}</span>
-                            {(item.raw as EmailItem).source_account_email && (
+                            <span>{emailRaw.from_address}</span>
+                            {emailRaw.source_account_email && (
                               <>
-                                <span>→</span>
+                                <span>&rarr;</span>
                                 <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">
-                                  {(item.raw as EmailItem).source_account_email}
+                                  {emailRaw.source_account_email}
                                 </span>
                               </>
                             )}
                           </div>
                         )}
                         {item.subject && (
-                          <p className="text-sm text-text-secondary truncate">{fixDoubleUtf8(item.subject)}</p>
+                          <p className="text-sm text-text-secondary truncate flex items-center gap-1.5">
+                            {fixDoubleUtf8(item.subject)}
+                            {/* Feature 3: Attachment indicator */}
+                            {showAttachment && (
+                              <Paperclip className="w-3.5 h-3.5 text-text-tertiary shrink-0 inline-block" />
+                            )}
+                          </p>
                         )}
                         <p className="text-xs text-text-tertiary truncate mt-0.5">{item.preview}</p>
                       </div>
@@ -394,13 +584,99 @@ export default function InboxPage() {
                               </div>
                             ) : (
                               <>
+                                {/* Feature 1: Thread view */}
+                                {isEmail && threadMessages.length > 1 && (
+                                  <div className="mb-4">
+                                    <button
+                                      onClick={() => setThreadCollapsed(!threadCollapsed)}
+                                      className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 mb-2 transition-colors"
+                                    >
+                                      {threadCollapsed ? (
+                                        <ChevronRight className="w-3.5 h-3.5" />
+                                      ) : (
+                                        <ChevronDown className="w-3.5 h-3.5" />
+                                      )}
+                                      {threadMessages.length} messages in thread
+                                    </button>
+
+                                    {!threadCollapsed && (
+                                      <div className="space-y-2 border-l-2 border-primary/20 pl-3">
+                                        {threadMessages.map((tm) => {
+                                          const isCurrent = emailRaw && tm.id === emailRaw.id
+                                          return (
+                                            <div
+                                              key={tm.id}
+                                              className={cn(
+                                                'rounded-lg p-3 text-sm',
+                                                isCurrent
+                                                  ? 'bg-primary/5 border border-primary/20'
+                                                  : 'bg-white border border-border'
+                                              )}
+                                            >
+                                              <div className="flex items-center justify-between mb-1">
+                                                <span className="font-medium text-text-primary text-xs">
+                                                  {tm.from_name || tm.from_address}
+                                                  {isCurrent && (
+                                                    <span className="ml-2 text-[10px] font-semibold text-primary">(current)</span>
+                                                  )}
+                                                </span>
+                                                <span className="text-[11px] text-text-tertiary">
+                                                  {formatDate(tm.received_at)}
+                                                </span>
+                                              </div>
+                                              <p className="text-xs text-text-secondary line-clamp-2">
+                                                {tm.snippet || tm.body_text?.slice(0, 150) || ''}
+                                              </p>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {threadLoading && (
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                                    <span className="text-xs text-text-tertiary">Loading thread...</span>
+                                  </div>
+                                )}
+
+                                {/* Email body - Feature 6: HTML rendering with linkified URLs */}
                                 <div className="text-sm text-text-secondary leading-relaxed max-h-[400px] overflow-y-auto">
-                                  <pre className="whitespace-pre-wrap font-sans break-words">
-                                    {expandedBody}
-                                  </pre>
+                                  {expandedBody ? (
+                                    <div
+                                      className="email-body-content [&_a]:text-primary [&_a]:underline [&_a]:hover:text-primary/80"
+                                      dangerouslySetInnerHTML={renderEmailBody(expandedBody)}
+                                    />
+                                  ) : (
+                                    <p className="text-text-tertiary italic">No content</p>
+                                  )}
                                 </div>
 
-                                {/* AI Draft button — email only */}
+                                {/* Feature 4: Meeting link extraction */}
+                                {expandedBody && (() => {
+                                  const links = extractMeetingLinks(expandedBody)
+                                  if (links.length === 0) return null
+                                  return (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {links.map((link, i) => (
+                                        <a
+                                          key={i}
+                                          href={link}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-sm font-medium hover:bg-blue-100 transition-colors"
+                                        >
+                                          <ExternalLink className="w-4 h-4" />
+                                          Join {getMeetingPlatform(link)}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )
+                                })()}
+
+                                {/* AI Draft button -- email only */}
                                 {item.channel === 'email' && (
                                   <div className="mt-4 pt-3 border-t border-border">
                                     {!draftVisible ? (
