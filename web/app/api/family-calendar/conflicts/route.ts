@@ -2,7 +2,66 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-// Check if a proposed date/time conflicts with family calendar
+// GET: Check today's family conflicts with work calendar
+export async function GET() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const admin = createAdminClient()
+  const now = new Date()
+  const todayISO = now.toISOString().slice(0, 10)
+  const dayOfWeek = now.getDay()
+
+  // Get today's family hard constraints
+  const { data: familyEvents } = await admin
+    .from('family_calendar')
+    .select('title, start_time, end_time, event_type, recurrence, recurrence_day, family_member')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .eq('event_type', 'hard_constraint')
+
+  // Get today's work events
+  const { data: workEvents } = await admin
+    .from('calendar_events')
+    .select('title, start_time, end_time')
+    .eq('user_id', user.id)
+    .gte('start_time', `${todayISO}T00:00:00`)
+    .lte('start_time', `${todayISO}T23:59:59`)
+
+  const conflicts: Array<{ family_event: string; work_event: string; family_member?: string }> = []
+
+  for (const fe of familyEvents || []) {
+    // Check if this family event applies today
+    let appliesToday = false
+    if (fe.recurrence === 'weekly' && fe.recurrence_day === dayOfWeek) appliesToday = true
+    if (fe.recurrence === 'daily') appliesToday = true
+    if (fe.recurrence === 'none') appliesToday = true // one-off events already filtered by query
+
+    if (!appliesToday || !fe.start_time) continue
+
+    // Check time overlap with work events
+    for (const we of workEvents || []) {
+      const weStart = new Date(we.start_time).toTimeString().slice(0, 5)
+      const weEnd = new Date(we.end_time).toTimeString().slice(0, 5)
+      if (fe.start_time < weEnd && weStart < (fe.end_time || fe.start_time)) {
+        conflicts.push({
+          family_event: fe.title,
+          work_event: we.title,
+          family_member: fe.family_member || undefined,
+        })
+      }
+    }
+  }
+
+  return NextResponse.json({
+    date: todayISO,
+    has_conflicts: conflicts.length > 0,
+    conflicts,
+  })
+}
+
+// POST: Check if a proposed date/time conflicts with family calendar
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

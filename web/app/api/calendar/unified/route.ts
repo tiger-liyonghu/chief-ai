@@ -208,13 +208,23 @@ export async function GET(request: NextRequest) {
     })
   }
 
-  // 5. Detect conflicts (work vs family hard constraints)
-  const familyHard = unified.filter(e => e.layer === 'family' && e.event_type === 'hard_constraint')
-  const workAndCommit = unified.filter(e => e.layer === 'work' || e.layer === 'commitment')
+  // 5. Detect conflicts (timed work events vs timed family hard constraints)
+  // Only compare events with specific times — skip all-day events to avoid false positives
+  const familyHardTimed = unified.filter(e =>
+    e.layer === 'family' && e.event_type === 'hard_constraint' && !e.all_day
+  )
+  const workTimed = unified.filter(e =>
+    e.layer === 'work' && !e.all_day
+  )
 
-  for (const fe of familyHard) {
-    for (const we of workAndCommit) {
-      // Simple time overlap check
+  for (const fe of familyHardTimed) {
+    for (const we of workTimed) {
+      // Only compare events on the same day
+      const feDate = fe.start_time.slice(0, 10)
+      const weDate = we.start_time.slice(0, 10)
+      if (feDate !== weDate) continue
+
+      // Time overlap check
       if (fe.start_time < we.end_time && we.start_time < fe.end_time) {
         we.is_conflict = true
         we.conflict_with = fe.title
