@@ -21,11 +21,16 @@ import {
   Globe,
 } from 'lucide-react'
 
+// Primary nav: 4 core modules (what CEO uses daily)
 const navKeys = [
-  { href: '/dashboard', key: 'commitmentsNav' as const, icon: Target },
+  { href: '/dashboard', key: 'todayNav' as const, icon: Target },
   { href: '/dashboard/calendar', key: 'calendar' as const, icon: CalendarDays },
   { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
   { href: '/dashboard/contacts', key: 'people' as const, icon: Users },
+]
+
+// Secondary nav: accessed less frequently
+const secondaryNavKeys = [
   { href: '/dashboard/trips', key: 'trips' as const, icon: Plane },
   { href: '/dashboard/family', key: 'familyNav' as const, icon: Heart },
   { href: '/dashboard/expenses', key: 'expenses' as const, icon: Receipt },
@@ -55,28 +60,57 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navKeys.map((item) => {
-          const isActive = item.href === '/dashboard'
-            ? pathname === '/dashboard'
-            : pathname === item.href || pathname.startsWith(item.href + '/')
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
-                isActive
-                  ? 'bg-primary-light text-primary'
-                  : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
-              )}
-            >
-              <item.icon className="w-5 h-5" />
-              {t(item.key)}
-            </Link>
-          )
-        })}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {/* Primary nav */}
+        <div className="space-y-1">
+          {navKeys.map((item) => {
+            const isActive = item.href === '/dashboard'
+              ? pathname === '/dashboard'
+              : pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200',
+                  isActive
+                    ? 'bg-primary-light text-primary'
+                    : 'text-text-secondary hover:bg-surface-secondary hover:text-text-primary'
+                )}
+              >
+                <item.icon className="w-5 h-5" />
+                {t(item.key)}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Separator */}
+        <div className="my-3 border-t border-border/60" />
+
+        {/* Secondary nav */}
+        <div className="space-y-1">
+          {secondaryNavKeys.map((item) => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                className={cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all duration-200',
+                  isActive
+                    ? 'bg-primary-light text-primary'
+                    : 'text-text-tertiary hover:bg-surface-secondary hover:text-text-secondary'
+                )}
+              >
+                <item.icon className="w-4 h-4" />
+                {t(item.key)}
+              </Link>
+            )
+          })}
+        </div>
       </nav>
 
       {/* Bottom */}
