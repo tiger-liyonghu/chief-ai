@@ -292,30 +292,37 @@ export async function processMessageWithAI(
 
     const tz = await getUserTimezone(userId)
 
-    // ── Voice message: transcribe with Whisper ──
+    // ── Voice message: transcribe with SiliconFlow SenseVoice ──
     if (message.audioBase64 && message.messageType === 'audio') {
       try {
-        const client = getLLMClient()
-        // Write audio to temp file for Whisper API
-        const fs = await import('fs')
-        const path = await import('path')
-        const tmpFile = path.join('/tmp', `apple-audio-${Date.now()}.ogg`)
-        fs.writeFileSync(tmpFile, Buffer.from(message.audioBase64, 'base64'))
+        const sfKey = process.env.SILICONFLOW_API_KEY
+        if (!sfKey) throw new Error('SILICONFLOW_API_KEY not set')
 
-        const transcription = await client.audio.transcriptions.create({
-          file: fs.createReadStream(tmpFile) as any,
-          model: 'whisper-1',
+        const audioBuffer = Buffer.from(message.audioBase64, 'base64')
+        const blob = new Blob([audioBuffer], { type: 'audio/ogg' })
+        const form = new FormData()
+        form.append('file', blob, 'audio.ogg')
+        form.append('model', 'FunAudioLLM/SenseVoiceSmall')
+
+        const resp = await fetch('https://api.siliconflow.cn/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${sfKey}` },
+          body: form,
         })
-        fs.unlinkSync(tmpFile)
 
-        if (transcription.text) {
-          console.log(`[Apple] Voice transcribed: "${transcription.text.slice(0, 50)}"`)
-          message.body = transcription.text
+        if (!resp.ok) {
+          const errText = await resp.text()
+          throw new Error(`SiliconFlow STT ${resp.status}: ${errText}`)
+        }
+        const result = await resp.json()
+
+        if (result.text) {
+          console.log(`[Apple] Voice transcribed: "${result.text.slice(0, 50)}"`)
+          message.body = result.text
           message.messageType = 'text'
         }
       } catch (err) {
         console.error('[Apple] Voice transcription failed:', err)
-        // Fallback: try DeepSeek or skip
         message.body = '[语音消息，暂时无法识别]'
         message.messageType = 'text'
       }
