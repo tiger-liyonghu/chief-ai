@@ -16,6 +16,7 @@ import {
 import { useEffect, useState, useCallback } from 'react'
 import { useI18n } from '@/lib/i18n/context'
 import { cn } from '@/lib/utils'
+import Link from 'next/link'
 
 /* ─── Types ─── */
 
@@ -185,14 +186,17 @@ export default function InsightsPage() {
                   subtext={`${latest.commitment_stats.completed} completed`}
                   color="bg-blue-50 border-blue-200 text-blue-700"
                 />
-                <StatCard
-                  icon={AlertTriangle}
-                  label={t('overdueItems')}
-                  value={latest.commitment_stats.overdue}
-                  color={latest.commitment_stats.overdue > 0
-                    ? "bg-red-50 border-red-200 text-red-700"
-                    : "bg-slate-50 border-slate-200 text-slate-700"}
-                />
+                <Link href="/dashboard" className="block">
+                  <StatCard
+                    icon={AlertTriangle}
+                    label={t('overdueItems')}
+                    value={latest.commitment_stats.overdue}
+                    subtext={latest.commitment_stats.overdue > 0 ? 'View on Today page' : undefined}
+                    color={latest.commitment_stats.overdue > 0
+                      ? "bg-red-50 border-red-200 text-red-700 hover:shadow-md transition-shadow cursor-pointer"
+                      : "bg-slate-50 border-slate-200 text-slate-700"}
+                  />
+                </Link>
                 <StatCard
                   icon={Heart}
                   label={t('familyCommitments')}

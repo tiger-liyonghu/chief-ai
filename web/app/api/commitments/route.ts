@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
 
   let query = admin
     .from('commitments')
-    .select('*, contacts(id, name, company, email, importance)')
+    .select('*, source_email_id, contacts(id, name, company, email, importance)')
     .eq('user_id', user.id)
 
   if (type) query = query.eq('type', type)

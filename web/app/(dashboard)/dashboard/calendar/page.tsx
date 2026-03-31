@@ -526,15 +526,14 @@ function EventCard({
                 {'\u{1F4CB}'} Related: {event.contact_name}
               </div>
             )}
-            {/* Meeting prep button */}
-            {layer === 'work' && attendees.length > 0 && (
-              <a
-                href="/dashboard/meetings"
+            {/* Meeting prep button — toggles inline context */}
+            {layer === 'work' && attendees.length > 0 && onToggleContext && (
+              <button
                 className="flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-full hover:bg-indigo-100 transition-colors"
-                onClick={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); onToggleContext() }}
               >
                 {'\u{1F4DD}'} Prep
-              </a>
+              </button>
             )}
           </div>
         </div>
@@ -628,15 +627,14 @@ function EventCard({
                     Join Meeting
                   </a>
                 )}
-                {layer === 'work' && attendees.length > 0 && (
-                  <a
-                    href="/dashboard/meetings"
-                    onClick={e => e.stopPropagation()}
+                {layer === 'work' && attendees.length > 0 && onToggleContext && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onToggleContext() }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
                   >
                     <Brain className="w-3.5 h-3.5" />
-                    View Prep
-                  </a>
+                    {contextOpen ? 'Hide Prep' : 'View Prep'}
+                  </button>
                 )}
                 {onEdit && (
                   <button

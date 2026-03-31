@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { ChatPanel } from '@/components/dashboard/ChatPanel'
@@ -46,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [toast, setToast] = useState<{message: string; actions?: {label: string; onClick: () => void}[]} | null>(null)
   const pathname = usePathname()
+  const router = useRouter()
   const { t } = useI18n()
 
   // Check for proactive notifications on mount
@@ -60,7 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (highSignal) {
           setToast({
             message: `🍎 ${highSignal.detail || highSignal.title}`,
-            actions: [{ label: 'View', onClick: () => { /* navigate */ } }]
+            actions: [{ label: 'View', onClick: () => { router.push('/dashboard'); setToast(null) } }]
           })
           // Auto-dismiss after 8 seconds
           setTimeout(() => setToast(null), 8000)

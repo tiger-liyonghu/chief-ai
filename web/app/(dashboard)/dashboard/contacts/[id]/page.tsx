@@ -542,6 +542,7 @@ export default function ContactDetailPage() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([])
   const [sharedEvents, setSharedEvents] = useState<CalendarEvent[]>([])
   const [relData, setRelData] = useState<RelationshipData | null>(null)
+  const [nextMeeting, setNextMeeting] = useState<{ title: string; start_time: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
@@ -566,6 +567,17 @@ export default function ContactDetailPage() {
           const waData = await waRes.json()
           setWhatsappMessages(Array.isArray(waData) ? waData : waData.messages || [])
         }
+      }
+
+      // Fetch next meeting with this contact
+      if (data.contact.email) {
+        try {
+          const meetRes = await fetch(`/api/contacts/${contactId}/next-meeting`)
+          if (meetRes.ok) {
+            const meetData = await meetRes.json()
+            setNextMeeting(meetData.meeting || null)
+          }
+        } catch { /* ignore */ }
       }
 
       // Fetch relationship temperature from weaver
@@ -701,6 +713,22 @@ export default function ContactDetailPage() {
           {/* Left column: Profile + Temperature + Follow-ups + Events */}
           <div className="lg:col-span-1 space-y-4">
             <ProfileCard contact={contact} />
+
+            {/* Next meeting */}
+            <div className="bg-white rounded-2xl border border-border p-4">
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="w-4 h-4 text-primary shrink-0" />
+                {nextMeeting ? (
+                  <span className="text-text-secondary">
+                    <span className="font-medium text-text-primary">Next meeting:</span>{' '}
+                    {nextMeeting.title} on{' '}
+                    {new Date(nextMeeting.start_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </span>
+                ) : (
+                  <span className="text-text-tertiary">No upcoming meetings</span>
+                )}
+              </div>
+            </div>
 
             {relData && (
               <motion.div

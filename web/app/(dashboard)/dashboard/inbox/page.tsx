@@ -165,6 +165,9 @@ export default function InboxPage() {
   // Snooze state
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set())
 
+  // Feature 8: Tracked email IDs (commitment extracted from this email)
+  const [trackedEmailIds, setTrackedEmailIds] = useState<Set<string>>(new Set())
+
   // Feature 1: Thread view state
   const [threadMessages, setThreadMessages] = useState<ThreadMessage[]>([])
   const [threadLoading, setThreadLoading] = useState(false)
@@ -184,6 +187,20 @@ export default function InboxPage() {
 
       setEmails(emailsRes.status === 'fulfilled' ? emailsRes.value : [])
       setWaMessages(waRes.status === 'fulfilled' ? waRes.value : [])
+
+      // Fetch commitments to identify tracked emails
+      try {
+        const commitRes = await fetch('/api/commitments?view=all')
+        if (commitRes.ok) {
+          const commitData = await commitRes.json()
+          const tracked = new Set<string>(
+            commitData
+              .filter((c: any) => c.source_email_id)
+              .map((c: any) => c.source_email_id)
+          )
+          setTrackedEmailIds(tracked)
+        }
+      } catch { /* ignore */ }
     } catch {
       // Silently degrade
     } finally {
@@ -530,6 +547,11 @@ export default function InboxPage() {
                           {emailRaw?.is_reply_needed && (
                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 shrink-0">
                               {t('needsReply')}
+                            </span>
+                          )}
+                          {isEmail && emailRaw && trackedEmailIds.has(emailRaw.id) && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full shrink-0">
+                              Tracked
                             </span>
                           )}
                         </div>

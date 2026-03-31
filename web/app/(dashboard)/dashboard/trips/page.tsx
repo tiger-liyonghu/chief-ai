@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Sparkles,
   ArrowRight,
+  Heart,
 } from 'lucide-react'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils'
@@ -96,6 +97,7 @@ interface Trip {
   meetings_count: number
   meetings: any[]
   notes: string | null
+  family_conflicts: any[] | null
 }
 
 export default function TripsPage() {
@@ -631,6 +633,26 @@ function TripCard({
   const statusConfig = getStatusConfig(trip.status)
   const flag = countryFlag(trip.destination_country)
 
+  // Feature 4: Commitments due during trip
+  const [tripCommitments, setTripCommitments] = useState<any[]>([])
+  const [commitmentsLoaded, setCommitmentsLoaded] = useState(false)
+
+  useEffect(() => {
+    if (!isExpanded || commitmentsLoaded) return
+    setCommitmentsLoaded(true)
+    fetch(`/api/commitments?view=all`)
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        const during = data.filter((c: any) => {
+          if (!c.deadline) return false
+          const dl = c.deadline.slice(0, 10)
+          return dl >= trip.start_date && dl <= trip.end_date && ['pending', 'in_progress', 'overdue'].includes(c.status)
+        })
+        setTripCommitments(during)
+      })
+      .catch(() => {})
+  }, [isExpanded, commitmentsLoaded, trip.start_date, trip.end_date])
+
   return (
     <motion.div
       variants={{ initial: { opacity: 0, y: 8 }, animate: { opacity: 1, y: 0 } }}
@@ -725,6 +747,51 @@ function TripCard({
             <div className="px-4 sm:px-5 pb-5 border-t border-border pt-4">
               {/* Day-by-day timeline */}
               <DayTimeline trip={trip} />
+
+              {/* Feature 4: Commitments due during this trip */}
+              {tripCommitments.length > 0 && (
+                <div className="mt-5">
+                  <h4 className="text-sm font-semibold text-text-primary flex items-center gap-2 mb-3">
+                    <AlertCircle className="w-4 h-4 text-amber-500" />
+                    {tripCommitments.length} commitment{tripCommitments.length > 1 ? 's' : ''} due during this trip
+                  </h4>
+                  <div className="space-y-1.5">
+                    {tripCommitments.map((c: any) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center gap-2 p-2.5 bg-amber-50 rounded-lg border border-amber-100"
+                      >
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm text-text-primary truncate block">{c.title}</span>
+                          <span className="text-xs text-text-tertiary">
+                            {c.contact_name && `${c.contact_name} · `}
+                            Due {new Date(c.deadline).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          </span>
+                        </div>
+                        <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0', {
+                          'bg-red-100 text-red-700': c.status === 'overdue',
+                          'bg-amber-100 text-amber-700': c.status !== 'overdue',
+                        })}>
+                          {c.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Feature 5: Family conflicts during trip */}
+              {trip.family_conflicts && (trip.family_conflicts as any[]).length > 0 && (
+                <div className="mt-5 space-y-1">
+                  {(trip.family_conflicts as any[]).map((c: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-xs text-pink-700 bg-pink-50 px-2 py-1 rounded">
+                      <Heart className="w-3 h-3 text-pink-500 shrink-0" />
+                      {c.title} ({c.date}) — {c.family_member || 'family'}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Pre-trip emails needing reply */}
               {preTripEmails.length > 0 && (

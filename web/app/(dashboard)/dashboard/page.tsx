@@ -58,6 +58,7 @@ interface Commitment {
   title: string
   description: string | null
   source_type: string
+  source_email_id: string | null
   deadline: string | null
   deadline_fuzzy: string | null
   urgency_score: number
@@ -1028,6 +1029,15 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
             )}
             {c.contacts?.importance === 'vip' && (
               <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md">VIP</span>
+            )}
+            {c.source_email_id && (
+              <a
+                href={`/dashboard/inbox?highlight=${c.source_email_id}`}
+                className="text-xs text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                View source email
+              </a>
             )}
           </div>
           <div className="flex gap-2 mt-2">
