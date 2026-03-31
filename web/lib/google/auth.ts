@@ -22,7 +22,7 @@ export function getAuthUrl(options?: { state?: string; redirectPath?: string; lo
   const client = getOAuth2Client(options?.redirectPath)
   const params: Record<string, any> = {
     access_type: 'offline',
-    prompt: 'consent',
+    prompt: 'consent select_account',
     scope: SCOPES,
   }
   if (options?.state) params.state = options.state
