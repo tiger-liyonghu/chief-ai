@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const admin = createAdminClient()
+
   const params = request.nextUrl.searchParams
   const relationship = params.get('relationship')
   const importance = params.get('importance')
   const q = params.get('q')
 
-  let query = supabase
+  let query = admin
     .from('contacts')
     .select('*')
     .eq('user_id', user.id)

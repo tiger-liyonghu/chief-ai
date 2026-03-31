@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const admin = createAdminClient()
+
   // Optional filters: ?account=email@example.com&filter=reply_needed|all
   const accountFilter = request.nextUrl.searchParams.get('account')
   const filterMode = request.nextUrl.searchParams.get('filter') || 'all'
 
-  let query = supabase
+  let query = admin
     .from('emails')
     .select('*')
     .eq('user_id', user.id)

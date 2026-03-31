@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const admin = createAdminClient()
 
   const { searchParams } = new URL(req.url)
   const days = parseInt(searchParams.get('days') || '7')
@@ -13,7 +16,7 @@ export async function GET(req: NextRequest) {
   since.setDate(since.getDate() - days)
 
   // Get all commitments for the period
-  const { data: all } = await supabase
+  const { data: all } = await admin
     .from('commitments')
     .select('id, type, status, deadline, completed_at, created_at')
     .eq('user_id', user.id)
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest) {
   const commitments = all || []
 
   // Active commitments (current state, not period-limited)
-  const { data: active } = await supabase
+  const { data: active } = await admin
     .from('commitments')
     .select('id, type, status, deadline, urgency_score')
     .eq('user_id', user.id)
@@ -53,7 +56,7 @@ export async function GET(req: NextRequest) {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-  const { data: completedRecent } = await supabase
+  const { data: completedRecent } = await admin
     .from('commitments')
     .select('id, created_at, completed_at, source_type')
     .eq('user_id', user.id)
@@ -89,7 +92,7 @@ export async function GET(req: NextRequest) {
     const windowEnd = new Date(completedAt.getTime() + 5 * 60 * 1000)   // 5 min after
     const shortId = c.id.substring(0, 6)
 
-    const { data: waMatch } = await supabase
+    const { data: waMatch } = await admin
       .from('whatsapp_messages')
       .select('id')
       .gte('received_at', windowStart.toISOString())

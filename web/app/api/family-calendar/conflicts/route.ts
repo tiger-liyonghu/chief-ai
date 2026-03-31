@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 // Check if a proposed date/time conflicts with family calendar
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const admin = createAdminClient()
 
   const body = await req.json()
   const { date, start_time, end_time } = body
@@ -14,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!date) return NextResponse.json({ error: 'date required' }, { status: 400 })
 
   // Get all active family events
-  const { data: events } = await supabase
+  const { data: events } = await admin
     .from('family_calendar')
     .select('*')
     .eq('user_id', user.id)

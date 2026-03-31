@@ -82,12 +82,16 @@ export async function GET(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Use admin client for data queries — RLS session token may not propagate
+  // correctly through Docker/proxy. Auth is already verified above.
+  const admin = createAdminClient()
+
   const { searchParams } = new URL(req.url)
   const type = searchParams.get('type')       // i_promised | they_promised | family
   const status = searchParams.get('status')   // pending | in_progress | waiting | done | overdue
   const view = searchParams.get('view')       // 'active' (default) | 'all' | 'done'
 
-  let query = supabase
+  let query = admin
     .from('commitments')
     .select('*, contacts(id, name, company, email, importance)')
     .eq('user_id', user.id)

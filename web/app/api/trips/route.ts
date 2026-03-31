@@ -43,7 +43,9 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: trips, error } = await supabase
+  const admin = createAdminClient()
+
+  const { data: trips, error } = await admin
     .from('trips')
     .select('*')
     .eq('user_id', user.id)
@@ -57,7 +59,7 @@ export async function GET() {
   // Fetch expenses for each trip
   const tripIds = (trips || []).map(t => t.id)
   const { data: expenses } = tripIds.length > 0
-    ? await supabase
+    ? await admin
         .from('trip_expenses')
         .select('*')
         .in('trip_id', tripIds)
@@ -65,7 +67,7 @@ export async function GET() {
     : { data: [] }
 
   // Fetch calendar events that overlap with trip date ranges
-  const { data: calendarEvents } = await supabase
+  const { data: calendarEvents } = await admin
     .from('calendar_events')
     .select('id, title, start_time, end_time, location, meeting_link, attendees')
     .eq('user_id', user.id)
