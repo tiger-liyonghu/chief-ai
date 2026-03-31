@@ -1,0 +1,452 @@
+{
+  "timestamp": "2026-03-30T11:06:15.628Z",
+  "model": "deepseek-chat",
+  "temperature": 0.2,
+  "email_count": 10,
+  "total_available": 210,
+  "duration_sec": 20,
+  "metrics": {
+    "precision": 0.3846,
+    "recall": 0.2941,
+    "f1": 0.3333,
+    "true_positives": 5,
+    "false_positives": 8,
+    "false_negatives": 12
+  },
+  "by_category": {
+    "business_positive_en": {
+      "count": 10,
+      "precision": 0.3846,
+      "recall": 0.2941,
+      "f1": 0.3333
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "count": 5,
+      "precision": 0.6667,
+      "recall": 0.8,
+      "f1": 0.7273
+    },
+    "medium": {
+      "count": 5,
+      "precision": 0.1429,
+      "recall": 0.0833,
+      "f1": 0.1053
+    }
+  },
+  "by_language": {
+    "en": {
+      "count": 10,
+      "precision": 0.3846,
+      "recall": 0.2941,
+      "f1": 0.3333
+    }
+  },
+  "per_email": [
+    {
+      "id": 1,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 6569,
+      "details": [],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "i_promised",
+            "title": "Send full proposal document to Rachel by this Friday",
+            "due_date": "2026-04-04",
+            "due_reason": "Explicitly mentioned in the message as 'by this Friday (4 April)'",
+            "confidence": 0.95
+          }
+        ],
+        "rejected": [
+          {
+            "title": "Looking forward to your feedback",
+            "gate_failed": "Q2",
+            "reason": "Vague intention or pleasantry, not an active commitment"
+          }
+        ],
+        "summary": "Tiger Li commits to sending the full proposal document to Rachel by April 4, 2026."
+      }
+    },
+    {
+      "id": 2,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 4845,
+      "details": [],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "i_promised",
+            "title": "Update the deck with corrected figures and send the revised version to James by Monday morning",
+            "due_date": "2026-03-31",
+            "due_reason": "Explicitly mentioned 'by Monday morning' in the message",
+            "confidence": 0.95
+          }
+        ],
+        "rejected": [],
+        "summary": "Tiger commits to updating the Q2 strategy deck with corrected market sizing figures and sending it to James by Monday morning."
+      }
+    },
+    {
+      "id": 3,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 6684,
+      "details": [],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "i_promised",
+            "title": "create a demo account for your team and send you the login credentials by end of day today",
+            "due_date": "2026-03-30",
+            "due_reason": "explicitly stated 'by end of day today' in the message",
+            "confidence": 0.95
+          }
+        ],
+        "rejected": [
+          {
+            "title": "Let me know if you need anything else",
+            "gate_failed": "Q2",
+            "reason": "passive request for future action, not an active commitment by the sender"
+          }
+        ],
+        "summary": "The sender commits to creating a demo account and sending login credentials by the end of the day."
+      }
+    },
+    {
+      "id": 4,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 1,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 8674,
+      "details": [
+        "Expected waiting_on_them \"send.*service agreement|draft.*agreement\" -- NOT FOUND",
+        "Unexpected i_promised \"Send the draft service agreement by Wednesday 1 April for review\" (conf=0.95) -- FALSE POSITIVE"
+      ],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "i_promised",
+            "title": "Send the draft service agreement by Wednesday 1 April for review",
+            "due_date": "2026-04-01",
+            "due_reason": "Explicitly mentioned in the message as the deadline for sending the draft",
+            "confidence": 0.95
+          }
+        ],
+        "rejected": [
+          {
+            "title": "Allow 5 business days for any revisions",
+            "gate_failed": "Q2",
+            "reason": "This is a request or expectation for the recipient, but it's phrased as a general instruction rather than an active, deliberate commitment from the sender"
+          },
+          {
+            "title": "Looking forward to working together",
+            "gate_failed": "Q3",
+            "reason": "This is a pleasantry with no concrete deliverable or action to track"
+          }
+        ],
+        "summary": "Linda commits to sending a draft service agreement by April 1 for Tiger's review, with a request for a 5-day revision period."
+      }
+    },
+    {
+      "id": 5,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 8711,
+      "details": [
+        "Unexpected waiting_on_them \"Set up secure data room\" (conf=0.9) -- FALSE POSITIVE"
+      ],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "i_promised",
+            "title": "Sign NDA and email executed copy back to David",
+            "due_date": "2026-03-31T12:00:00+08:00",
+            "due_reason": "Explicitly stated 'by tomorrow noon' from the email date of 2026-03-30",
+            "confidence": 0.95
+          },
+          {
+            "type": "waiting_on_them",
+            "title": "Set up secure data room",
+            "due_date": null,
+            "due_reason": "No specific due date mentioned, only a request to proceed",
+            "confidence": 0.9
+          }
+        ],
+        "rejected": [
+          {
+            "title": "Review NDA template",
+            "gate_failed": "Q1",
+            "reason": "Already completed action with no future consequences if forgotten"
+          }
+        ],
+        "summary": "Tiger commits to signing and returning the NDA by tomorrow noon and requests David to set up the secure data room."
+      }
+    },
+    {
+      "id": 6,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 13350,
+      "details": [
+        "Expected waiting_on_them \"send.*detailed proposal|proposal.*pricing\" -- NOT FOUND",
+        "Expected waiting_on_them \"schedule.*call|walk.*pricing\" -- NOT FOUND"
+      ],
+      "raw_response": {
+        "commitments": [],
+        "summary": "API call failed"
+      }
+    },
+    {
+      "id": 7,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 2,
+      "fn": 4,
+      "pre_filter_correct": true,
+      "latency_ms": 11386,
+      "details": [
+        "Expected i_promised \"data model documentation\" -- NOT FOUND",
+        "Expected i_promised \"API integration test\" -- NOT FOUND",
+        "Expected i_promised \"user acceptance testing\" -- NOT FOUND",
+        "Expected waiting_on_them \"share.*requirements document\" -- NOT FOUND",
+        "Unexpected waiting_on_them \"Confirm deliverables dates and flag concerns by end of this week\" (conf=0.9) -- FALSE POSITIVE",
+        "Unexpected i_promised \"Share updated requirements document with team by Wednesday\" (conf=0.9) -- FALSE POSITIVE"
+      ],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "waiting_on_them",
+            "title": "Confirm deliverables dates and flag concerns by end of this week",
+            "due_date": "2026-04-03",
+            "due_reason": "End of this week from email date 2026-03-30",
+            "confidence": 0.9
+          },
+          {
+            "type": "i_promised",
+            "title": "Share updated requirements document with team by Wednesday",
+            "due_date": "2026-04-01",
+            "due_reason": "Wednesday from email date 2026-03-30",
+            "confidence": 0.9
+          }
+        ],
+        "rejected": [
+          {
+            "title": "Updated data model documentation due 7 April",
+            "gate_failed": "Q2",
+            "reason": "Not an active commitment by sender; it's a request for confirmation from recipient"
+          },
+          {
+            "title": "API integration test results due 14 April",
+            "gate_failed": "Q2",
+            "reason": "Not an active commitment by sender; it's a request for confirmation from recipient"
+          },
+          {
+            "title": "User acceptance testing sign-off due 21 April",
+            "gate_failed": "Q2",
+            "reason": "Not an active commitment by sender; it's a request for confirmation from recipient"
+          }
+        ],
+        "summary": "Sarah requests confirmation of deliverables dates from Tiger and commits to sharing a document by Wednesday."
+      }
+    },
+    {
+      "id": 8,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 9843,
+      "details": [
+        "Unexpected i_promised \"Have draft ready for internal review by 5 April\" (conf=0.8) -- FALSE POSITIVE"
+      ],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "i_promised",
+            "title": "Submit full response by 10 April deadline",
+            "due_date": "2026-04-10",
+            "due_reason": "Deadline specified in the RFP",
+            "confidence": 0.9
+          },
+          {
+            "type": "i_promised",
+            "title": "Have draft ready for internal review by 5 April",
+            "due_date": "2026-04-05",
+            "due_reason": "Internal deadline mentioned in the message",
+            "confidence": 0.8
+          }
+        ],
+        "rejected": [
+          {
+            "title": "Clarify pricing in SGD or USD",
+            "gate_failed": "Q1",
+            "reason": "No real consequences if forgotten; it's a request for information"
+          },
+          {
+            "title": "Clarify reference letters from Singapore-based clients only",
+            "gate_failed": "Q1",
+            "reason": "No real consequences if forgotten; it's a request for information"
+          }
+        ],
+        "summary": "The sender commits to submitting an RFP response by 10 April and having a draft ready by 5 April, while requesting clarifications on pricing and reference letters."
+      }
+    },
+    {
+      "id": 9,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 3,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 2,
+      "fn": 3,
+      "pre_filter_correct": true,
+      "latency_ms": 11373,
+      "details": [
+        "Expected waiting_on_them \"activate.*credits\" -- NOT FOUND",
+        "Expected waiting_on_them \"schedule.*architecture review\" -- NOT FOUND",
+        "Expected waiting_on_them \"send.*enterprise license|license agreement\" -- NOT FOUND",
+        "Unexpected i_promised \"Activate $50,000 AWS credits on your account by this Friday\" (conf=0.95) -- FALSE POSITIVE",
+        "Unexpected i_promised \"Send over the enterprise license agreement for signature by Monday\" (conf=0.95) -- FALSE POSITIVE"
+      ],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "i_promised",
+            "title": "Activate $50,000 AWS credits on your account by this Friday",
+            "due_date": "2026-04-01",
+            "due_reason": "Explicitly stated 'by this Friday' in the message",
+            "confidence": 0.95
+          },
+          {
+            "type": "i_promised",
+            "title": "Send over the enterprise license agreement for signature by Monday",
+            "due_date": "2026-04-04",
+            "due_reason": "Explicitly stated 'by Monday' in the message",
+            "confidence": 0.95
+          }
+        ],
+        "rejected": [
+          {
+            "title": "Our solutions architect, Mei Ling, will reach out to schedule an architecture review session next week",
+            "gate_failed": "Q2",
+            "reason": "Commitment is from a third party (Mei Ling), not the sender, so it's not an active, deliberate commitment by the sender"
+          },
+          {
+            "title": "Is there anything else you need for the board presentation?",
+            "gate_failed": "Q2",
+            "reason": "This is a question or offer for help, not an explicit commitment to do something"
+          }
+        ],
+        "summary": "Alex Ng confirms approval for AWS credits, commits to activating credits by Friday and sending the license agreement by Monday, and mentions a third-party follow-up."
+      }
+    },
+    {
+      "id": 10,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 1,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 7497,
+      "details": [
+        "Expected waiting_on_them \"process.*payment|bank transfer\" -- NOT FOUND",
+        "Expected waiting_on_them \"forward.*registration number|send.*details\" -- NOT FOUND",
+        "Unexpected waiting_on_them \"Resend invoice with updated company registration number\" (conf=0.9) -- FALSE POSITIVE"
+      ],
+      "raw_response": {
+        "commitments": [
+          {
+            "type": "waiting_on_them",
+            "title": "Resend invoice with updated company registration number",
+            "due_date": null,
+            "due_reason": "No specific due date mentioned in the request",
+            "confidence": 0.9
+          }
+        ],
+        "rejected": [
+          {
+            "title": "We will process the payment within 30 days",
+            "gate_failed": "Q2",
+            "reason": "Standard payment terms, not an active, deliberate commitment by the sender"
+          },
+          {
+            "title": "I'll forward you the details separately",
+            "gate_failed": "Q3",
+            "reason": "Too vague; lacks a clear deliverable or action worth tracking separately"
+          }
+        ],
+        "summary": "Jenny acknowledges receipt of an invoice, states standard payment processing, and requests a resend with updated details."
+      }
+    }
+  ]
+}

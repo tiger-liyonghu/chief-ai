@@ -1,0 +1,854 @@
+{
+  "timestamp": "2026-03-30T04:02:47.247Z",
+  "model": "deepseek-chat",
+  "temperature": 0.2,
+  "emailCount": 30,
+  "metrics": {
+    "precision": 0.95,
+    "recall": 0.7917,
+    "f1": 0.8636,
+    "falsePositiveRate": 0
+  },
+  "perType": {
+    "i_promised": {
+      "precision": 0.9333,
+      "recall": 1,
+      "tp": 14,
+      "fp": 1,
+      "fn": 0
+    },
+    "waiting_on_them": {
+      "precision": 1,
+      "recall": 0.5,
+      "tp": 5,
+      "fp": 0,
+      "fn": 5
+    }
+  },
+  "targets": {
+    "precision": 0.85,
+    "recall": 0.8
+  },
+  "pass": false,
+  "perEmail": [
+    {
+      "id": 1,
+      "category": "positive",
+      "description": "Simple I-will-send promise",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 2,
+      "category": "positive",
+      "description": "Request for information",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 3,
+      "category": "positive",
+      "description": "Multiple commitments in one email",
+      "expected": 3,
+      "extracted": 3,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 4,
+      "category": "positive",
+      "description": "Chinese language commitment",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 5,
+      "category": "positive",
+      "description": "Follow-up request with soft deadline",
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"budget\", got nothing"
+      ]
+    },
+    {
+      "id": 6,
+      "category": "positive",
+      "description": "Will-do acknowledgment",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 7,
+      "category": "positive",
+      "description": "Request for a meeting",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"availability\", got nothing"
+      ]
+    },
+    {
+      "id": 8,
+      "category": "positive",
+      "description": "Promise to introduce someone",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 9,
+      "category": "positive",
+      "description": "Data request with deadline",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 10,
+      "category": "positive",
+      "description": "I will fix a bug",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 11,
+      "category": "positive",
+      "description": "Mixed Chinese-English promise",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 12,
+      "category": "positive",
+      "description": "Scheduling commitment",
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"review template|template\", got nothing"
+      ]
+    },
+    {
+      "id": 13,
+      "category": "positive",
+      "description": "Promise to pay / financial commitment",
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"wire|transfer|details\", got nothing"
+      ]
+    },
+    {
+      "id": 14,
+      "category": "positive",
+      "description": "Promise to share document",
+      "expected": 1,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "details": [
+        "  FP: Unexpected i_promised \"Send NDA for review\" (conf=0.8)"
+      ]
+    },
+    {
+      "id": 15,
+      "category": "positive",
+      "description": "Request with \"looking forward to\"",
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"mood board\", got nothing"
+      ]
+    },
+    {
+      "id": 16,
+      "category": "negative",
+      "description": "Simple thank you",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 17,
+      "category": "negative",
+      "description": "FYI forward",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 18,
+      "category": "negative",
+      "description": "Newsletter-style update",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 19,
+      "category": "negative",
+      "description": "Short acknowledgment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 20,
+      "category": "negative",
+      "description": "Congratulations message",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 21,
+      "category": "negative",
+      "description": "Out of office auto-reply",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 22,
+      "category": "negative",
+      "description": "Simple forwarded article",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 23,
+      "category": "negative",
+      "description": "Acceptance without action",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 24,
+      "category": "negative",
+      "description": "Opinion sharing, no action",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 25,
+      "category": "negative",
+      "description": "Chinese small talk",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 26,
+      "category": "edge_case",
+      "description": "Conditional promise — should NOT be a commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 27,
+      "category": "edge_case",
+      "description": "Pleasantry that sounds like a commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 28,
+      "category": "edge_case",
+      "description": "Past tense — already done, not a new commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 29,
+      "category": "edge_case",
+      "description": "Suggestion vs commitment — ambiguous",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 30,
+      "category": "edge_case",
+      "description": "Commitment embedded in a long email with noise",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    }
+  ],
+  "rawResponses": {
+    "1": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "send over the updated pitch deck",
+          "due_date": "2026-03-27",
+          "due_reason": "explicitly stated 'by end of day Friday' in the message",
+          "confidence": 1
+        }
+      ],
+      "rejected": [],
+      "summary": "Tiger commits to sending the updated pitch deck by end of day Friday."
+    },
+    "2": {
+      "commitments": [
+        {
+          "type": "waiting_on_them",
+          "title": "Send updated pricing proposal",
+          "due_date": "2026-03-31",
+          "due_reason": "Explicitly requested by next Monday from the email date (2026-03-24)",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [],
+      "summary": "Tiger requests Sarah to send an updated pricing proposal by next Monday to finalize the budget."
+    },
+    "3": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "prepare the quarterly report and share it by Wednesday",
+          "due_date": "2026-03-30",
+          "due_reason": "explicitly mentioned 'by Wednesday' in the message",
+          "confidence": 0.95
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "send individual KPI updates by tomorrow",
+          "due_date": "2026-03-27",
+          "due_reason": "explicitly mentioned 'by tomorrow' in the message",
+          "confidence": 0.95
+        },
+        {
+          "type": "i_promised",
+          "title": "set up the new Slack channel for the project today",
+          "due_date": "2026-03-26",
+          "due_reason": "explicitly mentioned 'today' in the message",
+          "confidence": 0.95
+        }
+      ],
+      "rejected": [],
+      "summary": "Tiger commits to preparing and sharing the quarterly report by Wednesday, setting up a new Slack channel today, and requests KPI updates from the team by tomorrow."
+    },
+    "4": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "今天下午把合同修改稿发给你",
+          "due_date": "2026-03-27",
+          "due_reason": "explicitly stated '今天下午' (this afternoon) in the message",
+          "confidence": 0.9
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "麻烦你让法务审一下",
+          "due_date": null,
+          "due_reason": "no specific date mentioned, but implied after sending the contract",
+          "confidence": 0.8
+        }
+      ],
+      "rejected": [],
+      "summary": "The sender commits to sending the contract revision this afternoon and requests the recipient to have legal review it."
+    },
+    "5": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "review requirements and get back with detailed proposal early next week",
+          "due_date": "2026-03-31",
+          "due_reason": "mentioned 'early next week' from date 2026-03-25",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [
+        {
+          "title": "confirm budget range",
+          "gate_failed": "Q2",
+          "reason": "conditional request ('can you confirm') lacks explicit commitment from sender"
+        }
+      ],
+      "summary": "Tiger commits to reviewing requirements and providing a proposal early next week, while asking Mike to confirm the budget range."
+    },
+    "6": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "prepare the onboarding doc and have it ready before the new hire starts",
+          "due_date": "2026-04-01",
+          "due_reason": "new hire starts on April 1st",
+          "confidence": 0.95
+        }
+      ],
+      "rejected": [],
+      "summary": "Tiger commits to preparing the onboarding document before the new hire starts on April 1st."
+    },
+    "7": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Could you let me know your availability next week for a 30-minute call?",
+          "gate_failed": "Q1",
+          "reason": "No real consequences if forgotten; it's a request for information with no explicit commitment from sender."
+        },
+        {
+          "title": "I can send a calendar invite once confirmed.",
+          "gate_failed": "Q2",
+          "reason": "Conditional on confirmation, not an active, deliberate commitment."
+        }
+      ],
+      "summary": "Tiger requests Alex's availability for a call next week and offers to send a calendar invite upon confirmation."
+    },
+    "8": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Introduce James to Sarah from the analytics team",
+          "due_date": "2026-03-27",
+          "due_reason": "mentioned 'tomorrow' in the email",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [],
+      "summary": "Tiger commits to introducing James to Sarah tomorrow as promised."
+    },
+    "9": {
+      "commitments": [
+        {
+          "type": "waiting_on_them",
+          "title": "Pull March user engagement data and share dashboard",
+          "due_date": "2026-04-02",
+          "due_reason": "Explicit deadline mentioned in the message for board deck preparation",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [],
+      "summary": "Tiger requests the analytics team to provide March user engagement data and dashboard by April 2nd for a board deck."
+    },
+    "10": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "look into the login redirect bug this afternoon and push a fix before EOD",
+          "due_date": "2026-03-27",
+          "due_reason": "mentioned 'before EOD' (end of day) on the email date",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [],
+      "summary": "The sender commits to investigating and fixing a login redirect bug by the end of the day."
+    },
+    "11": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "写Q1 summary",
+          "due_date": null,
+          "due_reason": "No specific date mentioned in the message",
+          "confidence": 0.9
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "把customer feedback整理一下发给我",
+          "due_date": null,
+          "due_reason": "No specific date mentioned in the message",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [],
+      "summary": "The sender commits to writing the Q1 summary and requests Chen to organize and send customer feedback."
+    },
+    "12": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "complete all direct reports' performance reviews by end of this week",
+          "due_date": "2026-03-28",
+          "due_reason": "end of this week mentioned in the message",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [
+        {
+          "title": "Can you share the review template?",
+          "gate_failed": "Q2",
+          "reason": "This is a request to someone else, not an active commitment by the sender."
+        }
+      ],
+      "summary": "The sender commits to completing performance reviews by the end of the week and requests the review template from HR."
+    },
+    "13": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "process payment for invoice #4521",
+          "due_date": "2026-03-31",
+          "due_reason": "by end of this month",
+          "confidence": 0.95
+        }
+      ],
+      "rejected": [
+        {
+          "title": "confirm wire transfer details",
+          "gate_failed": "Q2",
+          "reason": "This is a request to the recipient, not a commitment by the sender."
+        }
+      ],
+      "summary": "The sender commits to processing payment for invoice #4521 by the end of the month and asks for confirmation of wire transfer details."
+    },
+    "14": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Draft NDA by Thursday",
+          "due_date": "2026-03-28",
+          "due_reason": "Explicitly mentioned 'by Thursday' in the message",
+          "confidence": 0.9
+        },
+        {
+          "type": "i_promised",
+          "title": "Send NDA for review",
+          "due_date": null,
+          "due_reason": "Implied to follow after drafting, but no specific date given",
+          "confidence": 0.8
+        }
+      ],
+      "rejected": [],
+      "summary": "The sender commits to having their legal team draft an NDA by Thursday and will send it for review."
+    },
+    "15": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Send brand guidelines document",
+          "due_date": "2026-03-26",
+          "due_reason": "Explicitly stated 'tomorrow' from email date 2026-03-25",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [
+        {
+          "title": "Receive initial mood boards by next Friday",
+          "gate_failed": "Q2",
+          "reason": "This is a request/expectation from the sender to the design team, but it's phrased as 'Looking forward to receiving', which is more of a pleasantry or expectation rather than an active commitment by the sender."
+        }
+      ],
+      "summary": "The sender initiates a brand refresh, requests mood boards by next Friday, and commits to sending brand guidelines tomorrow."
+    },
+    "16": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Thanks for sending this over. Looks great!",
+          "gate_failed": "Q2",
+          "reason": "Acknowledgment or pleasantry, not an active commitment"
+        }
+      ],
+      "summary": "The sender acknowledges receipt and compliments a report without making any new commitments."
+    },
+    "17": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Sharing industry report",
+          "gate_failed": "Q1",
+          "reason": "No real consequences if forgotten; it's an FYI notification without a specific action or expectation."
+        }
+      ],
+      "summary": "The sender shares an industry report from McKinsey as an FYI for the team."
+    },
+    "18": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Feature X launched to 100% of users",
+          "gate_failed": "Q2",
+          "reason": "Statement of past event, not an active commitment"
+        },
+        {
+          "title": "Revenue grew 12% MoM",
+          "gate_failed": "Q2",
+          "reason": "Statement of past event, not an active commitment"
+        },
+        {
+          "title": "We hired 2 new engineers",
+          "gate_failed": "Q2",
+          "reason": "Statement of past event, not an active commitment"
+        },
+        {
+          "title": "Have a great week!",
+          "gate_failed": "Q1",
+          "reason": "Generic pleasantry with no real consequences if forgotten"
+        }
+      ],
+      "summary": "Weekly update email announcing past achievements and ending with a greeting."
+    },
+    "19": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Got it, makes sense. Thanks!",
+          "gate_failed": "Q2",
+          "reason": "Acknowledgment without explicit commitment"
+        }
+      ],
+      "summary": "The sender acknowledges receipt of meeting notes without making any new commitments."
+    },
+    "20": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Let's grab coffee sometime to celebrate",
+          "gate_failed": "Q2",
+          "reason": "Vague intention without explicit commitment"
+        }
+      ],
+      "summary": "A congratulatory message suggesting a future coffee meeting without concrete plans."
+    },
+    "21": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "I'll respond to your message when I return on March 29",
+          "gate_failed": "Q2",
+          "reason": "Auto-reply template, not an active, deliberate commitment"
+        }
+      ],
+      "summary": "An out-of-office auto-reply indicating limited email access and providing an alternative contact for urgent matters."
+    },
+    "22": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Saw this and thought of you. Worth a read!",
+          "gate_failed": "Q1",
+          "reason": "No real consequences if forgotten; it's a casual sharing of an article."
+        }
+      ],
+      "summary": "The sender forwarded an article on AI trends to a colleague without any explicit commitments."
+    },
+    "23": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "I'll be there",
+          "gate_failed": "Q1",
+          "reason": "Attendance confirmation lacks real consequences if forgotten, as it's a social event."
+        }
+      ],
+      "summary": "The sender acknowledges an event invitation and confirms attendance."
+    },
+    "24": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "I think this is a solid approach",
+          "gate_failed": "Q2",
+          "reason": "Vague intention without explicit commitment"
+        },
+        {
+          "title": "The user flow looks clean and the technical architecture makes sense",
+          "gate_failed": "Q2",
+          "reason": "Observation or feedback, not an active commitment"
+        },
+        {
+          "title": "No concerns from my side",
+          "gate_failed": "Q2",
+          "reason": "Acknowledgment or agreement, not a commitment to action"
+        }
+      ],
+      "summary": "The sender provides positive feedback on a feature proposal without making any new commitments."
+    },
+    "25": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "到时候再说",
+          "gate_failed": "Q2",
+          "reason": "Vague intention without explicit commitment"
+        }
+      ],
+      "summary": "The sender acknowledges the weekend plans but defers discussion due to busyness."
+    },
+    "26": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "sponsor the event if funding approved",
+          "gate_failed": "Q2",
+          "reason": "Conditional on funding approval, not an active commitment"
+        },
+        {
+          "title": "revisit once we hear back from the board",
+          "gate_failed": "Q2",
+          "reason": "Vague intention without a clear, deliberate action"
+        }
+      ],
+      "summary": "The sender expresses conditional willingness to sponsor an event pending funding approval and suggests revisiting the topic after board feedback."
+    },
+    "27": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "We should definitely catch up soon",
+          "gate_failed": "Q2",
+          "reason": "Vague intention without explicit commitment"
+        },
+        {
+          "title": "Let me know when you're free",
+          "gate_failed": "Q2",
+          "reason": "Request for information, not a commitment to action"
+        }
+      ],
+      "summary": "A friendly email suggesting to catch up soon and asking for availability."
+    },
+    "28": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "Let me know if anything is missing",
+          "gate_failed": "Q2",
+          "reason": "This is a request for feedback, not an active commitment by the sender."
+        }
+      ],
+      "summary": "Tiger confirms submission of an expense report and receipts, asking for feedback if needed."
+    },
+    "29": {
+      "commitments": [],
+      "rejected": [
+        {
+          "title": "I can take on the API refactoring task if no one else has bandwidth",
+          "gate_failed": "Q2",
+          "reason": "Conditional/tentative commitment ('if no one else has bandwidth')"
+        },
+        {
+          "title": "Let me know what you think",
+          "gate_failed": "Q3",
+          "reason": "Too vague, no clear deliverable or action to track"
+        }
+      ],
+      "summary": "Tiger offers to take on the API refactoring task conditionally and asks for feedback."
+    },
+    "30": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "investigate and send corrected report",
+          "due_date": "2026-03-31",
+          "due_reason": "mentioned 'by Monday' in the email, with the email date being 2026-03-28 (Friday), so Monday is 2026-03-31",
+          "confidence": 0.9
+        }
+      ],
+      "rejected": [
+        {
+          "title": "thanks for feedback and acknowledgment",
+          "gate_failed": "Q1",
+          "reason": "no real consequences if forgotten, it's a courtesy"
+        },
+        {
+          "title": "discuss Q2 planning and market trends",
+          "gate_failed": "Q2",
+          "reason": "vague intention without explicit commitment"
+        }
+      ],
+      "summary": "Tiger commits to investigating a data discrepancy and sending a corrected report by Monday, while acknowledging feedback and discussing Q2 planning."
+    }
+  }
+}

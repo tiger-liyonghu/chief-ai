@@ -1,0 +1,741 @@
+{
+  "timestamp": "2026-03-30T03:46:09.017Z",
+  "model": "deepseek-chat",
+  "temperature": 0.2,
+  "emailCount": 30,
+  "metrics": {
+    "precision": 0.7097,
+    "recall": 0.9167,
+    "f1": 0.8,
+    "falsePositiveRate": 0.2143
+  },
+  "perType": {
+    "i_promised": {
+      "precision": 0.65,
+      "recall": 0.9286,
+      "tp": 13,
+      "fp": 7,
+      "fn": 1
+    },
+    "waiting_on_them": {
+      "precision": 0.8182,
+      "recall": 0.9,
+      "tp": 9,
+      "fp": 2,
+      "fn": 1
+    }
+  },
+  "targets": {
+    "precision": 0.85,
+    "recall": 0.8
+  },
+  "pass": false,
+  "perEmail": [
+    {
+      "id": 1,
+      "category": "positive",
+      "description": "Simple I-will-send promise",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 2,
+      "category": "positive",
+      "description": "Request for information",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 3,
+      "category": "positive",
+      "description": "Multiple commitments in one email",
+      "expected": 3,
+      "extracted": 3,
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 4,
+      "category": "positive",
+      "description": "Chinese language commitment",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 2,
+      "fn": 2,
+      "details": [
+        "  FN: Expected i_promised \"合同\", got nothing",
+        "  FN: Expected waiting_on_them \"法务\", got nothing",
+        "  FP: Unexpected i_promised \"Send contract revision to Wang\" (conf=0.95)",
+        "  FP: Unexpected waiting_on_them \"Have legal review contract\" (conf=0.9)"
+      ]
+    },
+    {
+      "id": 5,
+      "category": "positive",
+      "description": "Follow-up request with soft deadline",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 6,
+      "category": "positive",
+      "description": "Will-do acknowledgment",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 7,
+      "category": "positive",
+      "description": "Request for a meeting",
+      "expected": 1,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "details": [
+        "  FP: Unexpected i_promised \"Send calendar invite once availability confirmed\" (conf=0.8)"
+      ]
+    },
+    {
+      "id": 8,
+      "category": "positive",
+      "description": "Promise to introduce someone",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 9,
+      "category": "positive",
+      "description": "Data request with deadline",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 10,
+      "category": "positive",
+      "description": "I will fix a bug",
+      "expected": 1,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "details": [
+        "  FP: Unexpected i_promised \"Push fix for login redirect bug\" (conf=0.9)"
+      ]
+    },
+    {
+      "id": 11,
+      "category": "positive",
+      "description": "Mixed Chinese-English promise",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 12,
+      "category": "positive",
+      "description": "Scheduling commitment",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 13,
+      "category": "positive",
+      "description": "Promise to pay / financial commitment",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 14,
+      "category": "positive",
+      "description": "Promise to share document",
+      "expected": 1,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "details": [
+        "  FP: Unexpected i_promised \"Send NDA for review\" (conf=0.7)"
+      ]
+    },
+    {
+      "id": 15,
+      "category": "positive",
+      "description": "Request with \"looking forward to\"",
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 16,
+      "category": "negative",
+      "description": "Simple thank you",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 17,
+      "category": "negative",
+      "description": "FYI forward",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 18,
+      "category": "negative",
+      "description": "Newsletter-style update",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 19,
+      "category": "negative",
+      "description": "Short acknowledgment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 20,
+      "category": "negative",
+      "description": "Congratulations message",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 21,
+      "category": "negative",
+      "description": "Out of office auto-reply",
+      "expected": 0,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "details": [
+        "  FP: Unexpected i_promised \"Respond to message when return\" (conf=0.9)"
+      ]
+    },
+    {
+      "id": 22,
+      "category": "negative",
+      "description": "Simple forwarded article",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 23,
+      "category": "negative",
+      "description": "Acceptance without action",
+      "expected": 0,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "details": [
+        "  FP: Unexpected i_promised \"Attend event\" (conf=0.8)"
+      ]
+    },
+    {
+      "id": 24,
+      "category": "negative",
+      "description": "Opinion sharing, no action",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 25,
+      "category": "negative",
+      "description": "Chinese small talk",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 26,
+      "category": "edge_case",
+      "description": "Conditional promise — should NOT be a commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 27,
+      "category": "edge_case",
+      "description": "Pleasantry that sounds like a commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 28,
+      "category": "edge_case",
+      "description": "Past tense — already done, not a new commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 29,
+      "category": "edge_case",
+      "description": "Suggestion vs commitment — ambiguous",
+      "expected": 0,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 2,
+      "fn": 0,
+      "details": [
+        "  FP: Unexpected i_promised \"Take on API refactoring task\" (conf=0.9)",
+        "  FP: Unexpected waiting_on_them \"Get feedback on API refactoring proposal\" (conf=0.8)"
+      ]
+    },
+    {
+      "id": 30,
+      "category": "edge_case",
+      "description": "Commitment embedded in a long email with noise",
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    }
+  ],
+  "rawResponses": {
+    "1": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Send updated pitch deck to David",
+          "due_date": "2026-03-27",
+          "due_reason": "Explicit deadline mentioned: 'by end of day Friday' (assuming email date 2026-03-25 is a Wednesday, Friday is 2026-03-27)",
+          "confidence": 0.95
+        }
+      ],
+      "summary": "Tiger promised to send the updated pitch deck to David by end of day Friday."
+    },
+    "2": {
+      "commitments": [
+        {
+          "type": "waiting_on_them",
+          "title": "Send updated pricing proposal",
+          "due_date": "2026-03-31",
+          "due_reason": "Explicit deadline mentioned: 'by next Monday' (email sent on 2026-03-24, so next Monday is 2026-03-31)",
+          "confidence": 0.95
+        }
+      ],
+      "summary": "User requested Sarah to send the updated pricing proposal by next Monday (2026-03-31) to finalize the budget."
+    },
+    "3": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Prepare quarterly report",
+          "due_date": "2026-03-30",
+          "due_reason": "Explicit deadline 'by Wednesday' (today is 2026-03-26, Wednesday is 2026-03-30)",
+          "confidence": 0.95
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "Send individual KPI updates",
+          "due_date": "2026-03-27",
+          "due_reason": "Explicit deadline 'by tomorrow' (today is 2026-03-26, tomorrow is 2026-03-27)",
+          "confidence": 0.95
+        },
+        {
+          "type": "i_promised",
+          "title": "Set up new Slack channel for project",
+          "due_date": "2026-03-26",
+          "due_reason": "Explicit deadline 'today' (today is 2026-03-26)",
+          "confidence": 0.95
+        }
+      ],
+      "summary": "User committed to prepare quarterly report by Wednesday and set up Slack channel today, while requesting KPI updates from team by tomorrow."
+    },
+    "4": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Send contract revision to Wang",
+          "due_date": "2026-03-27",
+          "due_reason": "Message says '今天下午' (this afternoon) and email date is 2026-03-27",
+          "confidence": 0.95
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "Have legal review contract",
+          "due_date": null,
+          "due_reason": "No specific deadline mentioned for the legal review request",
+          "confidence": 0.9
+        }
+      ],
+      "summary": "User promised to send contract revision today and asked recipient to have legal review it."
+    },
+    "5": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Review requirements and send detailed proposal",
+          "due_date": "2026-03-31",
+          "due_reason": "User said 'early next week' - message date is 2026-03-25 (Thursday), so early next week likely means Monday-Wednesday (2026-03-30 to 2026-04-01). Using 2026-03-31 as conservative estimate.",
+          "confidence": 0.9
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "Confirm budget range",
+          "due_date": null,
+          "due_reason": "No specific deadline mentioned",
+          "confidence": 0.8
+        }
+      ],
+      "summary": "User promised to review requirements and send a proposal early next week while asking Mike to confirm the budget range."
+    },
+    "6": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Prepare onboarding doc",
+          "due_date": "2026-04-01",
+          "due_reason": "Before the new hire starts on April 1st",
+          "confidence": 0.9
+        }
+      ],
+      "summary": "The user promised to prepare the onboarding document before the new hire starts on April 1st."
+    },
+    "7": {
+      "commitments": [
+        {
+          "type": "waiting_on_them",
+          "title": "Provide availability for intro call",
+          "due_date": null,
+          "due_reason": null,
+          "confidence": 0.9
+        },
+        {
+          "type": "i_promised",
+          "title": "Send calendar invite once availability confirmed",
+          "due_date": null,
+          "due_reason": null,
+          "confidence": 0.8
+        }
+      ],
+      "summary": "User asked Alex for availability next week for a call and promised to send a calendar invite once confirmed."
+    },
+    "8": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Introduce James to Sarah from analytics team",
+          "due_date": "2026-03-27",
+          "due_reason": "Message says 'tomorrow' and email date is 2026-03-26",
+          "confidence": 0.95
+        }
+      ],
+      "summary": "User promised to introduce James to Sarah from the analytics team tomorrow."
+    },
+    "9": {
+      "commitments": [
+        {
+          "type": "waiting_on_them",
+          "title": "Pull March user engagement data and share dashboard",
+          "due_date": "2026-04-02",
+          "due_reason": "Explicit deadline mentioned in request",
+          "confidence": 0.95
+        }
+      ],
+      "summary": "User requested the analytics team to provide March user engagement data and dashboard by April 2nd for the board deck."
+    },
+    "10": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Look into login redirect bug",
+          "due_date": "2026-03-27",
+          "due_reason": "This afternoon and before EOD",
+          "confidence": 0.9
+        },
+        {
+          "type": "i_promised",
+          "title": "Push fix for login redirect bug",
+          "due_date": "2026-03-27",
+          "due_reason": "Before EOD",
+          "confidence": 0.9
+        }
+      ],
+      "summary": "The user committed to investigate and fix the login redirect bug by the end of the day."
+    },
+    "11": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Write Q1 summary",
+          "due_date": null,
+          "due_reason": null,
+          "confidence": 0.9
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "Organize and send customer feedback",
+          "due_date": null,
+          "due_reason": null,
+          "confidence": 0.9
+        }
+      ],
+      "summary": "User promised to write the Q1 summary and asked Chen to organize and send customer feedback."
+    },
+    "12": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Complete direct reports' performance reviews",
+          "due_date": "2026-03-28",
+          "due_reason": "End of this week (email sent on 2026-03-24, end of week is 2026-03-28)",
+          "confidence": 0.95
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "Share performance review template",
+          "due_date": null,
+          "due_reason": "No specific deadline mentioned",
+          "confidence": 0.9
+        }
+      ],
+      "summary": "User committed to complete performance reviews by end of week and requested the review template from HR."
+    },
+    "13": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Process payment for invoice #4521",
+          "due_date": "2026-03-31",
+          "due_reason": "User committed to process payment by end of this month (March 2026)",
+          "confidence": 0.95
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "Confirm wire transfer details",
+          "due_date": null,
+          "due_reason": "No specific deadline mentioned",
+          "confidence": 0.9
+        }
+      ],
+      "summary": "User promised to process invoice payment by month-end and requested confirmation of wire transfer details."
+    },
+    "14": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Draft NDA with legal team",
+          "due_date": "2026-03-28",
+          "due_reason": "Explicitly mentioned 'by Thursday' in the message, with the email date being 2026-03-26 (Thursday is 2026-03-28).",
+          "confidence": 0.9
+        },
+        {
+          "type": "i_promised",
+          "title": "Send NDA for review",
+          "due_date": "2026-03-28",
+          "due_reason": "Implied to send after drafting, likely by the same Thursday deadline.",
+          "confidence": 0.7
+        }
+      ],
+      "summary": "The user promised to have the legal team draft the NDA by Thursday and send it for review."
+    },
+    "15": {
+      "commitments": [
+        {
+          "type": "waiting_on_them",
+          "title": "Receive initial mood boards from Design Team",
+          "due_date": "2026-04-01",
+          "due_reason": "Mentioned 'by next Friday' from email date 2026-03-25",
+          "confidence": 0.9
+        },
+        {
+          "type": "i_promised",
+          "title": "Send brand guidelines document to Design Team",
+          "due_date": "2026-03-26",
+          "due_reason": "Mentioned 'tomorrow' from email date 2026-03-25",
+          "confidence": 0.95
+        }
+      ],
+      "summary": "User requested mood boards by next Friday and promised to send brand guidelines tomorrow."
+    },
+    "16": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "17": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "18": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "19": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "20": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "21": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Respond to message when return",
+          "due_date": "2026-03-29",
+          "due_reason": "User explicitly states they will respond when they return on March 29",
+          "confidence": 0.9
+        }
+      ],
+      "summary": "User promised to respond to the recipient's message when they return from out of office on March 29."
+    },
+    "22": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this forwarded message."
+    },
+    "23": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Attend event",
+          "due_date": "2026-03-25",
+          "due_reason": "Implied from email date and context of event invitation",
+          "confidence": 0.8
+        }
+      ],
+      "summary": "User committed to attending the event."
+    },
+    "24": {
+      "commitments": [],
+      "summary": "No commitments were made in this message."
+    },
+    "25": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "26": {
+      "commitments": [],
+      "summary": "No specific commitments were made in this message."
+    },
+    "27": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "28": {
+      "commitments": [],
+      "summary": "No commitments were made or requested in this message."
+    },
+    "29": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Take on API refactoring task",
+          "due_date": null,
+          "due_reason": null,
+          "confidence": 0.9
+        },
+        {
+          "type": "waiting_on_them",
+          "title": "Get feedback on API refactoring proposal",
+          "due_date": null,
+          "due_reason": null,
+          "confidence": 0.8
+        }
+      ],
+      "summary": "User offered to handle the API refactoring task and requested team feedback on this proposal."
+    },
+    "30": {
+      "commitments": [
+        {
+          "type": "i_promised",
+          "title": "Investigate data discrepancy and send corrected report",
+          "due_date": "2026-03-31",
+          "due_reason": "Explicit deadline 'by Monday' mentioned in message sent on 2026-03-28 (Friday)",
+          "confidence": 0.95
+        }
+      ],
+      "summary": "Tiger promised to investigate the data discrepancy and send a corrected report by Monday."
+    }
+  }
+}

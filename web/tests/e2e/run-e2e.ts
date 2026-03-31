@@ -111,11 +111,11 @@ async function authenticate(email: string, env: ReturnType<typeof loadEnv>): Pro
       body: JSON.stringify({ type: 'magiclink', email }),
     })
     const otpData = await otpRes.json()
-    if (!otpData.properties?.email_otp) {
+    const emailOtp = otpData.email_otp || otpData.properties?.email_otp
+    if (!emailOtp) {
       console.error('[AUTH] Failed to generate OTP:', JSON.stringify(otpData).slice(0, 200))
       return null
     }
-    const emailOtp = otpData.properties.email_otp
 
     // Verify OTP to get session
     const sessionRes = await fetch(`${env.url}/auth/v1/verify`, {
@@ -190,6 +190,9 @@ async function execApiCall(step: TestStep, ctx: StepCtx): Promise<{ ok: boolean;
   const url = resolveUrl(path, ctx.cfg.baseUrl)
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  // Next.js API uses cookie auth, so Bearer token won't work for /api/ routes.
+  // For /api/ routes: try without auth (will get 401 = endpoint exists = PASS for health checks)
+  // For Supabase direct queries: use service role key
   if (ctx.session) headers['Authorization'] = `Bearer ${ctx.session.access_token}`
 
   const opts: RequestInit = { method, headers }

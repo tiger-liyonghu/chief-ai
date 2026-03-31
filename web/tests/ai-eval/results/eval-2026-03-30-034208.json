@@ -1,0 +1,527 @@
+{
+  "timestamp": "2026-03-30T03:42:08.622Z",
+  "model": "deepseek-chat",
+  "temperature": 0.2,
+  "emailCount": 30,
+  "metrics": {
+    "precision": 0,
+    "recall": 0,
+    "f1": 0,
+    "falsePositiveRate": 0
+  },
+  "perType": {
+    "i_promised": {
+      "precision": null,
+      "recall": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 14
+    },
+    "waiting_on_them": {
+      "precision": null,
+      "recall": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 10
+    }
+  },
+  "targets": {
+    "precision": 0.85,
+    "recall": 0.8
+  },
+  "pass": false,
+  "perEmail": [
+    {
+      "id": 1,
+      "category": "positive",
+      "description": "Simple I-will-send promise",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected i_promised \"pitch deck\", got nothing"
+      ]
+    },
+    {
+      "id": 2,
+      "category": "positive",
+      "description": "Request for information",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"pricing proposal\", got nothing"
+      ]
+    },
+    {
+      "id": 3,
+      "category": "positive",
+      "description": "Multiple commitments in one email",
+      "expected": 3,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "details": [
+        "  FN: Expected i_promised \"quarterly report\", got nothing",
+        "  FN: Expected waiting_on_them \"KPI\", got nothing",
+        "  FN: Expected i_promised \"slack channel\", got nothing"
+      ]
+    },
+    {
+      "id": 4,
+      "category": "positive",
+      "description": "Chinese language commitment",
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "details": [
+        "  FN: Expected i_promised \"合同\", got nothing",
+        "  FN: Expected waiting_on_them \"法务\", got nothing"
+      ]
+    },
+    {
+      "id": 5,
+      "category": "positive",
+      "description": "Follow-up request with soft deadline",
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "details": [
+        "  FN: Expected i_promised \"proposal\", got nothing",
+        "  FN: Expected waiting_on_them \"budget\", got nothing"
+      ]
+    },
+    {
+      "id": 6,
+      "category": "positive",
+      "description": "Will-do acknowledgment",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected i_promised \"onboarding\", got nothing"
+      ]
+    },
+    {
+      "id": 7,
+      "category": "positive",
+      "description": "Request for a meeting",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"availability\", got nothing"
+      ]
+    },
+    {
+      "id": 8,
+      "category": "positive",
+      "description": "Promise to introduce someone",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected i_promised \"introduce|loop\", got nothing"
+      ]
+    },
+    {
+      "id": 9,
+      "category": "positive",
+      "description": "Data request with deadline",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected waiting_on_them \"data|dashboard\", got nothing"
+      ]
+    },
+    {
+      "id": 10,
+      "category": "positive",
+      "description": "I will fix a bug",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected i_promised \"login|bug|fix\", got nothing"
+      ]
+    },
+    {
+      "id": 11,
+      "category": "positive",
+      "description": "Mixed Chinese-English promise",
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "details": [
+        "  FN: Expected i_promised \"Q1 summary|summary\", got nothing",
+        "  FN: Expected waiting_on_them \"feedback|customer\", got nothing"
+      ]
+    },
+    {
+      "id": 12,
+      "category": "positive",
+      "description": "Scheduling commitment",
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "details": [
+        "  FN: Expected i_promised \"performance review\", got nothing",
+        "  FN: Expected waiting_on_them \"review template|template\", got nothing"
+      ]
+    },
+    {
+      "id": 13,
+      "category": "positive",
+      "description": "Promise to pay / financial commitment",
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "details": [
+        "  FN: Expected i_promised \"payment|invoice\", got nothing",
+        "  FN: Expected waiting_on_them \"wire|transfer|details\", got nothing"
+      ]
+    },
+    {
+      "id": 14,
+      "category": "positive",
+      "description": "Promise to share document",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected i_promised \"NDA|draft\", got nothing"
+      ]
+    },
+    {
+      "id": 15,
+      "category": "positive",
+      "description": "Request with \"looking forward to\"",
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "details": [
+        "  FN: Expected waiting_on_them \"mood board\", got nothing",
+        "  FN: Expected i_promised \"brand guidelines\", got nothing"
+      ]
+    },
+    {
+      "id": 16,
+      "category": "negative",
+      "description": "Simple thank you",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 17,
+      "category": "negative",
+      "description": "FYI forward",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 18,
+      "category": "negative",
+      "description": "Newsletter-style update",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 19,
+      "category": "negative",
+      "description": "Short acknowledgment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 20,
+      "category": "negative",
+      "description": "Congratulations message",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 21,
+      "category": "negative",
+      "description": "Out of office auto-reply",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 22,
+      "category": "negative",
+      "description": "Simple forwarded article",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 23,
+      "category": "negative",
+      "description": "Acceptance without action",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 24,
+      "category": "negative",
+      "description": "Opinion sharing, no action",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 25,
+      "category": "negative",
+      "description": "Chinese small talk",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 26,
+      "category": "edge_case",
+      "description": "Conditional promise — should NOT be a commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 27,
+      "category": "edge_case",
+      "description": "Pleasantry that sounds like a commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 28,
+      "category": "edge_case",
+      "description": "Past tense — already done, not a new commitment",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 29,
+      "category": "edge_case",
+      "description": "Suggestion vs commitment — ambiguous",
+      "expected": 0,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "details": []
+    },
+    {
+      "id": 30,
+      "category": "edge_case",
+      "description": "Commitment embedded in a long email with noise",
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "details": [
+        "  FN: Expected i_promised \"report|corrected|investigate\", got nothing"
+      ]
+    }
+  ],
+  "rawResponses": {
+    "1": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "2": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "3": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "4": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "5": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "6": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "7": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "8": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "9": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "10": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "11": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "12": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "13": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "14": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "15": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "16": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "17": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "18": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "19": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "20": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "21": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "22": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "23": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "24": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "25": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "26": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "27": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "28": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "29": {
+      "commitments": [],
+      "summary": "API call failed"
+    },
+    "30": {
+      "commitments": [],
+      "summary": "API call failed"
+    }
+  }
+}
