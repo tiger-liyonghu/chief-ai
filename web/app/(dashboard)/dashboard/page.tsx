@@ -498,10 +498,16 @@ function MostImportantCard({ c, onUpdate, onDraft }: { c: Commitment; onUpdate: 
 
 /* ─── Schedule Timeline Event ─── */
 
-function ScheduleEvent({ event }: { event: UnifiedEvent }) {
+function ScheduleEvent({ event, contacts }: { event: UnifiedEvent; contacts?: Array<{ id: string; email: string; name: string | null }> }) {
   const isFamily = event.layer === 'family'
   const platform = extractMeetingPlatform(event.meeting_link)
   const attendeeCount = event.attendees?.length || 0
+
+  // Try to match first attendee to a contact for linking
+  const firstAttendee = event.attendees?.[0]
+  const matchedContact = firstAttendee && contacts
+    ? contacts.find(c => c.email && firstAttendee.email && c.email.toLowerCase() === firstAttendee.email.toLowerCase())
+    : null
 
   return (
     <div className={cn(
@@ -543,12 +549,22 @@ function ScheduleEvent({ event }: { event: UnifiedEvent }) {
 
         {/* Meta row */}
         <div className="flex items-center gap-2 mt-0.5">
-          {attendeeCount > 0 && (
+          {attendeeCount > 0 && matchedContact ? (
+            <Link
+              href={`/dashboard/contacts/${matchedContact.id}`}
+              className="text-xs text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
+            >
+              <Users className="w-3 h-3" />
+              {matchedContact.name || firstAttendee?.name || firstAttendee?.email}
+              {attendeeCount > 1 && <span className="text-text-tertiary">+{attendeeCount - 1}</span>}
+            </Link>
+          ) : attendeeCount > 0 ? (
             <span className="text-xs text-text-tertiary flex items-center gap-1">
               <Users className="w-3 h-3" />
-              {attendeeCount}
+              {firstAttendee?.name || firstAttendee?.email || `${attendeeCount}`}
+              {attendeeCount > 1 && <span>+{attendeeCount - 1}</span>}
             </span>
-          )}
+          ) : null}
           {platform && event.meeting_link && (
             <a
               href={event.meeting_link}
@@ -824,9 +840,19 @@ function CommitmentCard({ c, t, onUpdate, onDraft }: { c: Commitment; t: ReturnT
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-medium text-sm truncate">
-              {c.type === 'family' ? c.family_member : (c.contacts?.name || c.contact_name || c.contact_email)}
-            </span>
+            {c.type !== 'family' && c.contacts?.id ? (
+              <Link
+                href={`/dashboard/contacts/${c.contacts.id}`}
+                className="font-medium text-sm truncate text-text-primary hover:text-primary transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {c.contacts.name || c.contact_name || c.contact_email}
+              </Link>
+            ) : (
+              <span className="font-medium text-sm truncate">
+                {c.type === 'family' ? c.family_member : (c.contacts?.name || c.contact_name || c.contact_email)}
+              </span>
+            )}
             {c.contacts?.company && (
               <span className="text-xs text-slate-500 truncate">@ {c.contacts.company}</span>
             )}
@@ -1169,21 +1195,29 @@ export default function TodayBriefing() {
   const [scanning, setScanning] = useState(false)
   const [scanMessage, setScanMessage] = useState('')
   const [draftModal, setDraftModal] = useState<DraftData | null>(null)
+  const [contactList, setContactList] = useState<Array<{ id: string; email: string; name: string | null }>>([])
+
 
   const fetchData = useCallback(async () => {
     const todayISO = new Date().toISOString().slice(0, 10)
     const tomorrowISO = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
 
-    const [cRes, sRes, calRes] = await Promise.all([
+    const [cRes, sRes, calRes, ctRes] = await Promise.all([
       fetch('/api/commitments'),
       fetch('/api/commitments/stats'),
       fetch(`/api/calendar/unified?from=${todayISO}&to=${tomorrowISO}`).catch(() => null),
+      fetch('/api/contacts?limit=500').catch(() => null),
     ])
     if (cRes.ok) setCommitments(await cRes.json())
     if (sRes.ok) setStats(await sRes.json())
     if (calRes?.ok) {
       const calData = await calRes.json()
       setCalendarEvents(calData.events || [])
+    }
+    if (ctRes?.ok) {
+      const ctData = await ctRes.json()
+      const contacts = Array.isArray(ctData) ? ctData : (ctData.contacts || [])
+      setContactList(contacts.map((c: any) => ({ id: c.id, email: c.email, name: c.name })))
     }
     setLoading(false)
   }, [])
@@ -1299,7 +1333,7 @@ export default function TodayBriefing() {
                 <SectionLabel>Today&apos;s Schedule</SectionLabel>
                 <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100 px-4">
                   {todaySchedule.map((event) => (
-                    <ScheduleEvent key={event.id} event={event} />
+                    <ScheduleEvent key={event.id} event={event} contacts={contactList} />
                   ))}
                 </div>
               </section>

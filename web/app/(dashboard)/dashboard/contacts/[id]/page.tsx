@@ -16,6 +16,9 @@ import {
   ChevronRight,
   ExternalLink,
   Thermometer,
+  PenLine,
+  CalendarPlus,
+  Send,
 } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { cn, fixDoubleUtf8 } from '@/lib/utils'
@@ -99,6 +102,8 @@ interface RelationshipData {
 type TimelineItem =
   | { type: 'email'; data: EmailItem; date: string }
   | { type: 'whatsapp'; data: WhatsAppMessage; date: string }
+  | { type: 'commitment'; data: FollowUp; date: string }
+  | { type: 'event'; data: CalendarEvent; date: string }
 
 /* ─── Constants ─── */
 
@@ -301,6 +306,49 @@ function InteractionTimeline({ items }: { items: TimelineItem[] }) {
     )
   }
 
+  function getIconStyle(type: TimelineItem['type']) {
+    switch (type) {
+      case 'email': return { bg: 'bg-blue-100 text-blue-600', icon: <Mail className="w-3.5 h-3.5" /> }
+      case 'whatsapp': return { bg: 'bg-emerald-100 text-emerald-600', icon: <MessageSquare className="w-3.5 h-3.5" /> }
+      case 'commitment': return { bg: 'bg-amber-100 text-amber-600', icon: <AlertCircle className="w-3.5 h-3.5" /> }
+      case 'event': return { bg: 'bg-indigo-100 text-indigo-600', icon: <Calendar className="w-3.5 h-3.5" /> }
+    }
+  }
+
+  function getLabel(type: TimelineItem['type']) {
+    switch (type) {
+      case 'email': return 'Email'
+      case 'whatsapp': return 'WhatsApp'
+      case 'commitment': return 'Commitment'
+      case 'event': return 'Meeting'
+    }
+  }
+
+  function getTitle(item: TimelineItem): string {
+    switch (item.type) {
+      case 'email': return fixDoubleUtf8((item.data as EmailItem).subject || '(No subject)')
+      case 'whatsapp': return (item.data as WhatsAppMessage).body
+      case 'commitment': {
+        const fu = item.data as FollowUp
+        return fu.commitment_text || fu.subject || 'Follow-up'
+      }
+      case 'event': return (item.data as CalendarEvent).title
+    }
+  }
+
+  function getSubtitle(item: TimelineItem): string | null {
+    if (item.type === 'email') return (item.data as EmailItem).snippet || null
+    if (item.type === 'commitment') {
+      const fu = item.data as FollowUp
+      return fu.status === 'active' ? 'Active' : fu.status === 'done' ? 'Completed' : fu.status
+    }
+    if (item.type === 'event') {
+      const ev = item.data as CalendarEvent
+      return ev.location || null
+    }
+    return null
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-border p-5">
       <h3 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
@@ -311,53 +359,63 @@ function InteractionTimeline({ items }: { items: TimelineItem[] }) {
         </span>
       </h3>
       <div className="space-y-1">
-        {items.map((item, idx) => (
-          <motion.div
-            key={`${item.type}-${item.type === 'email' ? item.data.id : item.data.id}-${idx}`}
-            initial={{ opacity: 0, x: -8 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.03 }}
-            className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-surface-secondary transition-colors"
-          >
-            {/* Icon */}
-            <div className={cn(
-              'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
-              item.type === 'email'
-                ? 'bg-blue-100 text-blue-600'
-                : 'bg-emerald-100 text-emerald-600'
-            )}>
-              {item.type === 'email'
-                ? <Mail className="w-3.5 h-3.5" />
-                : <MessageSquare className="w-3.5 h-3.5" />
-              }
-            </div>
+        {items.map((item, idx) => {
+          const iconStyle = getIconStyle(item.type)
+          const title = getTitle(item)
+          const subtitle = getSubtitle(item)
+          const dateStr = new Date(item.date).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })
 
-            {/* Content */}
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-text-primary truncate">
-                {item.type === 'email'
-                  ? fixDoubleUtf8((item.data as EmailItem).subject || '(No subject)')
-                  : (item.data as WhatsAppMessage).body
-                }
-              </p>
-              {item.type === 'email' && (item.data as EmailItem).snippet && (
-                <p className="text-xs text-text-tertiary truncate mt-0.5">
-                  {(item.data as EmailItem).snippet}
-                </p>
-              )}
-              <p className="text-[11px] text-text-tertiary mt-1">
-                {item.type === 'email' ? 'Email' : 'WhatsApp'} · {formatRelativeTime(item.date)}
-              </p>
-            </div>
-
-            {/* Reply needed badge */}
-            {item.type === 'email' && (item.data as EmailItem).is_reply_needed && (
-              <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
-                Reply needed
+          return (
+            <motion.div
+              key={`${item.type}-${item.data.id}-${idx}`}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.03 }}
+              className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-surface-secondary transition-colors"
+            >
+              {/* Date column */}
+              <span className="text-[11px] text-text-tertiary w-10 shrink-0 pt-1 text-right font-medium">
+                {dateStr}
               </span>
-            )}
-          </motion.div>
-        ))}
+
+              {/* Icon */}
+              <div className={cn(
+                'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5',
+                iconStyle.bg,
+              )}>
+                {iconStyle.icon}
+              </div>
+
+              {/* Content */}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-primary truncate">{title}</p>
+                {subtitle && (
+                  <p className="text-xs text-text-tertiary truncate mt-0.5">{subtitle}</p>
+                )}
+                <p className="text-[11px] text-text-tertiary mt-1">
+                  {getLabel(item.type)} · {formatRelativeTime(item.date)}
+                </p>
+              </div>
+
+              {/* Badges */}
+              {item.type === 'email' && (item.data as EmailItem).is_reply_needed && (
+                <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                  Needs reply
+                </span>
+              )}
+              {item.type === 'commitment' && (item.data as FollowUp).status === 'done' && (
+                <span className="text-[10px] font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full shrink-0">
+                  Completed
+                </span>
+              )}
+              {item.type === 'commitment' && (item.data as FollowUp).status === 'active' && (
+                <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full shrink-0">
+                  Active
+                </span>
+              )}
+            </motion.div>
+          )
+        })}
       </div>
     </div>
   )
@@ -538,7 +596,7 @@ export default function ContactDetailPage() {
     fetchData()
   }, [fetchData])
 
-  // Build merged timeline
+  // Build merged timeline (emails + whatsapp + commitments + events)
   const timeline: TimelineItem[] = [
     ...emails.map((e) => ({
       type: 'email' as const,
@@ -549,6 +607,16 @@ export default function ContactDetailPage() {
       type: 'whatsapp' as const,
       data: m,
       date: m.received_at,
+    })),
+    ...followUps.map((f) => ({
+      type: 'commitment' as const,
+      data: f,
+      date: f.created_at,
+    })),
+    ...sharedEvents.map((ev) => ({
+      type: 'event' as const,
+      data: ev,
+      date: ev.start_time,
     })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
@@ -586,14 +654,48 @@ export default function ContactDetailPage() {
       />
 
       <div className="px-4 sm:px-8 py-6 max-w-4xl">
-        {/* Back link */}
-        <Link
-          href="/dashboard/contacts"
-          className="inline-flex items-center gap-1.5 text-sm text-text-tertiary hover:text-primary mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          All contacts
-        </Link>
+        {/* Back link + action buttons */}
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <Link
+            href="/dashboard/contacts"
+            className="inline-flex items-center gap-1.5 text-sm text-text-tertiary hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            All contacts
+          </Link>
+
+          <div className="flex items-center gap-2">
+            {contact.email && (
+              <a
+                href={`mailto:${contact.email}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-secondary transition-colors"
+              >
+                <PenLine className="w-3.5 h-3.5" />
+                Draft Email
+              </a>
+            )}
+            <Link
+              href={`/dashboard/calendar`}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-secondary transition-colors"
+            >
+              <CalendarPlus className="w-3.5 h-3.5" />
+              Schedule Meeting
+            </Link>
+            {contact.email && (
+              <button
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('chief-open-chat', {
+                    detail: { prefill: `Draft a quick check-in email to ${contact.name || contact.email} at ${contact.email}` }
+                  }))
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-primary border border-primary/20 bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Send Check-in
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Left column: Profile + Temperature + Follow-ups + Events */}

@@ -555,9 +555,10 @@ function EventCard({
                 <p className="text-xs text-text-secondary mb-3 whitespace-pre-wrap">{event.description}</p>
               )}
 
+              {/* Full attendee list */}
               {attendees.length > 0 && (
                 <div className="mb-3">
-                  <p className="text-xs font-medium text-text-secondary mb-1">Attendees</p>
+                  <p className="text-xs font-medium text-text-secondary mb-1">Attendees ({attendees.length})</p>
                   <div className="flex flex-wrap gap-1.5">
                     {attendees.map((a: any, i: number) => (
                       <span key={i} className="text-xs bg-surface-secondary text-text-secondary px-2 py-0.5 rounded-full">
@@ -578,7 +579,65 @@ function EventCard({
                 </div>
               )}
 
-              <div className="flex items-center gap-2">
+              {/* Location with map link */}
+              {event.location && (
+                <div className="mb-3 flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+                  <a
+                    href={`https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {event.location}
+                    <ExternalLink className="w-3 h-3 inline ml-1 -mt-0.5" />
+                  </a>
+                </div>
+              )}
+
+              {/* Family event info */}
+              {layer === 'family' && event.family_member && (
+                <div className="mb-3 flex items-center gap-2 text-xs text-pink-600">
+                  <span>{familyIcon}</span>
+                  <span className="font-medium">{event.family_member}</span>
+                  {event.event_type && (
+                    <span className="text-pink-400 capitalize">({event.event_type.replace(/_/g, ' ')})</span>
+                  )}
+                </div>
+              )}
+
+              {/* Related commitments indicator */}
+              {layer === 'work' && attendees.length > 0 && event.contact_name && (
+                <div className="mb-3 flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2.5 py-1.5 rounded-lg">
+                  {'\u{1F4CB}'} Active commitments with {event.contact_name}
+                </div>
+              )}
+
+              {/* Action buttons row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {event.meeting_link && (
+                  <a
+                    href={event.meeting_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    Join Meeting
+                  </a>
+                )}
+                {layer === 'work' && attendees.length > 0 && (
+                  <a
+                    href="/dashboard/meetings"
+                    onClick={e => e.stopPropagation()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors"
+                  >
+                    <Brain className="w-3.5 h-3.5" />
+                    View Prep
+                  </a>
+                )}
                 {onEdit && (
                   <button
                     onClick={e => { e.stopPropagation(); onEdit() }}
@@ -610,18 +669,6 @@ function EventCard({
                     <Brain className="w-3.5 h-3.5" />
                     Context
                   </button>
-                )}
-                {event.meeting_link && (
-                  <a
-                    href={event.meeting_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors ml-auto"
-                  >
-                    <Video className="w-3.5 h-3.5" />
-                    Join Meeting
-                  </a>
                 )}
               </div>
 

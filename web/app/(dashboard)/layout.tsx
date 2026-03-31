@@ -124,6 +124,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Floating AI Chat */}
       <ChatPanel />
+
+      {/* Sophia Floating Action Button */}
+      <button
+        onClick={openChat}
+        className="fixed bottom-20 right-4 lg:bottom-6 lg:right-6 z-40 w-12 h-12 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-full shadow-lg hover:shadow-xl flex items-center justify-center text-white transition-all hover:scale-105"
+        aria-label="Ask Sophia"
+      >
+        <MessageCircle className="w-5 h-5" />
+      </button>
     </div>
   )
 }
