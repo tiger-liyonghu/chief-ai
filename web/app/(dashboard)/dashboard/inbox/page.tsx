@@ -15,6 +15,7 @@ import {
   Sparkles,
   Copy,
   Check,
+  Send,
 } from 'lucide-react'
 import { SkeletonCard } from '@/components/ui/Skeleton'
 import { cn, fixDoubleUtf8 } from '@/lib/utils'
@@ -30,6 +31,9 @@ interface EmailItem {
   received_at: string
   is_reply_needed: boolean
   body_text?: string
+  source_account_email?: string
+  gmail_message_id?: string
+  thread_id?: string
 }
 
 interface WhatsAppMessage {
@@ -339,6 +343,20 @@ export default function InboxPage() {
                             </span>
                           )}
                         </div>
+                        {/* Sender email + source account */}
+                        {item.channel === 'email' && (
+                          <div className="flex items-center gap-2 text-[11px] text-text-tertiary">
+                            <span>{(item.raw as EmailItem).from_address}</span>
+                            {(item.raw as EmailItem).source_account_email && (
+                              <>
+                                <span>→</span>
+                                <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[10px]">
+                                  {(item.raw as EmailItem).source_account_email}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
                         {item.subject && (
                           <p className="text-sm text-text-secondary truncate">{fixDoubleUtf8(item.subject)}</p>
                         )}
@@ -423,6 +441,46 @@ export default function InboxPage() {
                                           {draftText}
                                           {draftLoading && <span className="inline-block w-1.5 h-4 bg-primary/60 animate-pulse ml-0.5 align-text-bottom rounded-sm" />}
                                         </div>
+                                        {/* Send button */}
+                                        {draftText && !draftLoading && (
+                                          <div className="mt-3 flex items-center gap-2">
+                                            <button
+                                              onClick={async () => {
+                                                const email = item.raw as EmailItem
+                                                try {
+                                                  const res = await fetch('/api/send-reply', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                      to: email.from_address,
+                                                      subject: `Re: ${email.subject || ''}`,
+                                                      body: draftText,
+                                                      in_reply_to: email.gmail_message_id,
+                                                      thread_id: email.thread_id,
+                                                    }),
+                                                  })
+                                                  if (res.ok) {
+                                                    setDraftText('')
+                                                    setDraftVisible(false)
+                                                    alert('Sent!')
+                                                    fetchData()
+                                                  } else {
+                                                    alert('Failed to send. Please try again.')
+                                                  }
+                                                } catch {
+                                                  alert('Failed to send.')
+                                                }
+                                              }}
+                                              className="flex items-center gap-2 px-5 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
+                                            >
+                                              <Send className="w-4 h-4" />
+                                              Send Reply
+                                            </button>
+                                            <span className="text-xs text-text-tertiary">
+                                              to {(item.raw as EmailItem).from_address}
+                                            </span>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
