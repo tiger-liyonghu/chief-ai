@@ -768,6 +768,21 @@ function SettingsContent() {
                             <div className="bg-white p-6 rounded-2xl border border-border shadow-sm mb-4">
                               <p className="text-4xl font-mono font-bold tracking-[0.3em] text-primary">{waPairingCode}</p>
                             </div>
+
+                            <div className="bg-surface-secondary rounded-xl p-4 text-left w-full max-w-sm">
+                              <p className="text-xs font-semibold text-text-secondary mb-2">{t('whatsappSetupGuidePairing')}</p>
+                              <div className="text-xs text-text-tertiary space-y-1">
+                                <p>{t('waPairingStep1')}</p>
+                                <p>{t('waPairingStep2')}</p>
+                                <p>{t('waPairingStep3')}</p>
+                                <p>{t('waPairingStep4')}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-4 text-xs text-text-tertiary">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>{t('waWaitingPairing')}</span>
+                            </div>
                           </>
                         ) : waQrDataUrl ? (
                           <>
@@ -781,22 +796,22 @@ function SettingsContent() {
                                 className="w-[280px] h-[280px]"
                               />
                             </div>
+
+                            <div className="bg-surface-secondary rounded-xl p-4 text-left w-full max-w-sm">
+                              <p className="text-xs font-semibold text-text-secondary mb-2">{t('whatsappSetupGuide')}</p>
+                              <div className="text-xs text-text-tertiary space-y-1">
+                                <p>{t('waStep1')}</p>
+                                <p>{t('waStep2')}</p>
+                                <p>{t('waStep3')}</p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-4 text-xs text-text-tertiary">
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              <span>{t('waWaitingScan')}</span>
+                            </div>
                           </>
                         ) : null}
-
-                        <div className="bg-surface-secondary rounded-xl p-4 text-left w-full max-w-sm">
-                          <p className="text-xs font-semibold text-text-secondary mb-2">{t('whatsappSetupGuide')}</p>
-                          <div className="text-xs text-text-tertiary space-y-1">
-                            <p>{t('waStep1')}</p>
-                            <p>{t('waStep2')}</p>
-                            <p>{t('waStep3')}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 mt-4 text-xs text-text-tertiary">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>{t('waWaitingScan')}</span>
-                        </div>
 
                         <button
                           onClick={() => { setWaQrDataUrl(null); setWaError(null); if (waQrPollRef.current) clearInterval(waQrPollRef.current) }}
@@ -1051,8 +1066,8 @@ function SettingsContent() {
             </div>
           </section>
 
-          {/* LLM Configuration Section — users must be able to see and change AI provider */}
-          <section>
+          {/* LLM Configuration Section — hidden from regular users */}
+          <section className="hidden">
             <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">AI Model Configuration</h2>
             <div className="bg-white rounded-2xl border border-border divide-y divide-border">
               {llmLoading ? (

@@ -114,14 +114,16 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
 
   return new Promise<ConnectResult>((rawResolve) => {
     let resolved = false
+    let pairingCodeSent = false // Track if we're waiting for user to enter pairing code
     const resolve = (result: ConnectResult) => { connectingUsers.delete(userId); rawResolve(result) }
 
+    const timeoutMs = phoneNumber ? 90000 : 30000 // Pairing code: 90s for user to type on phone
     const timeout = setTimeout(() => {
       if (!resolved) {
         resolved = true
         resolve({ connected: false })
       }
-    }, 30000)
+    }, timeoutMs)
 
     const sock = makeWASocket({
       version,
@@ -129,19 +131,26 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
       printQRInTerminal: false,
       logger: pino({ level: 'warn' }) as any,
       browser: ['Chrome', 'Chrome', '145.0.0'],
-      connectTimeoutMs: 20000,
+      connectTimeoutMs: phoneNumber ? 60000 : 20000, // Pairing code needs more time for user to type
     })
 
     sock.ev.on('creds.update', saveCreds)
 
     sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update
-      console.log(`[WA] connection.update:`, { connection, qr: qr ? 'QR_RECEIVED' : undefined, lastDisconnect: lastDisconnect?.error?.message })
+      console.log(`[WA] connection.update:`, { connection, qr: qr ? 'QR_RECEIVED' : undefined, pairingCodeSent, lastDisconnect: lastDisconnect?.error?.message })
+
+      // If we already sent a pairing code, ignore subsequent QR refreshes
+      if (qr && pairingCodeSent) {
+        console.log(`[WA] Ignoring QR refresh — pairing code already sent, waiting for user input`)
+        return
+      }
 
       if (qr && phoneNumber && !resolved) {
         try {
           const cleanNumber = phoneNumber.replace(/[\s\-\+]/g, '')
           const code = await sock.requestPairingCode(cleanNumber)
+          pairingCodeSent = true
           resolved = true
           clearTimeout(timeout)
           resolve({ pairingCode: code, connected: false, phoneNumber: cleanNumber })
@@ -160,13 +169,14 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
       }
 
       if (connection === 'open') {
+        pairingCodeSent = false
         connections.set(userId, sock)
         setupMessageHandler(userId)
         await upsertConnectionRecord(supabase, userId, 'active', sock.user?.id.split(':')[0])
+        clearTimeout(timeout)
 
         if (!resolved) {
           resolved = true
-          clearTimeout(timeout)
           resolve({ connected: true, phoneNumber: sock.user?.id.split(':')[0] })
         }
       }
@@ -174,7 +184,40 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
       if (connection === 'close') {
         const reason = (lastDisconnect?.error as Boom)?.output?.statusCode
         const errorMsg = lastDisconnect?.error?.message || 'unknown'
-        console.log(`[WA] Connection closed. Reason code: ${reason}, message: ${errorMsg}`)
+        console.log(`[WA] Connection closed. Reason code: ${reason}, message: ${errorMsg}, pairingCodeSent: ${pairingCodeSent}`)
+
+        // If pairing code was sent and user hasn't finished yet, auto-reconnect silently
+        if (pairingCodeSent && reason !== DisconnectReason.loggedOut && reason !== 401) {
+          console.log(`[WA] Pairing in progress — auto-reconnecting to keep socket alive`)
+          setTimeout(async () => {
+            try {
+              // Reconnect with same session to preserve pairing state
+              const { state: freshState, saveCreds: freshSaveCreds } = await useMultiFileAuthState(sessionPath)
+              const freshSock = makeWASocket({
+                version,
+                auth: freshState,
+                printQRInTerminal: false,
+                logger: pino({ level: 'warn' }) as any,
+                browser: ['Chrome', 'Chrome', '145.0.0'],
+                connectTimeoutMs: 60000,
+              })
+              freshSock.ev.on('creds.update', freshSaveCreds)
+              freshSock.ev.on('connection.update', async (freshUpdate) => {
+                if (freshUpdate.connection === 'open') {
+                  pairingCodeSent = false
+                  connections.set(userId, freshSock)
+                  setupMessageHandler(userId)
+                  await upsertConnectionRecord(supabase, userId, 'active', freshSock.user?.id.split(':')[0])
+                  console.log(`[WA] Pairing reconnect successful for ${userId}`)
+                }
+              })
+            } catch (err) {
+              console.error(`[WA] Pairing reconnect failed for ${userId}:`, err)
+            }
+          }, 2000)
+          return
+        }
+
         connections.delete(userId)
 
         if (reason === DisconnectReason.loggedOut || reason === 401) {

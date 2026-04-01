@@ -3,8 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import QRCode from 'qrcode'
 
-// Allow up to 60 seconds for WhatsApp connection (Baileys needs 10-30s)
-export const maxDuration = 60
+// Allow up to 120 seconds for WhatsApp connection (pairing code flow needs user to type on phone)
+export const maxDuration = 120
 
 /**
  * GET /api/whatsapp — connection status
