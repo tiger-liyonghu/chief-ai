@@ -15,6 +15,7 @@ import {
   type UserContext,
 } from '@/lib/ai/prompts/chat'
 import { detectAlerts, formatAlertsForPrompt, type AlertResult } from '@/lib/alerts/detect'
+import { CHIEF_TOOLS, type ChiefTool } from '@/lib/ai/tools'
 
 export interface GatheredContext {
   userContext: UserContext
@@ -22,6 +23,9 @@ export interface GatheredContext {
   contextBlock: string
   alertsBlock: string
   timezone: string
+  intents: Intent[]
+  relevantTools: ChiefTool[]
+  personContext: string | null // Pre-resolved person context if a specific person is mentioned
 }
 
 // ─── Intent Detection（关键词匹配，零成本） ───
@@ -73,6 +77,102 @@ function detectIntent(message: string): Intent[] {
   }
 
   return intents
+}
+
+// ─── Tool Narrowing（按intent只暴露相关工具） ───
+
+const INTENT_TOOL_NAMES: Record<Intent, string[]> = {
+  schedule:   ['create_event', 'search'],
+  commitment: ['create_commitment', 'complete_task', 'draft_reply', 'search'],
+  person:     ['draft_reply', 'create_commitment', 'query_relationships', 'search'],
+  trip:       ['create_expense', 'create_event', 'recommend_place', 'search'],
+  family:     ['create_event', 'search'],
+  email:      ['draft_reply', 'forward_email', 'search'],
+  general:    [], // empty = use all tools
+  emotional:  ['create_task', 'search'], // minimal — don't overwhelm
+}
+
+function narrowTools(intents: Intent[]): ChiefTool[] {
+  // If 'general' intent or multiple intents, return all tools
+  if (intents.includes('general') || intents.length >= 3) return CHIEF_TOOLS
+
+  const toolNames = new Set<string>()
+  for (const intent of intents) {
+    for (const name of INTENT_TOOL_NAMES[intent] || []) {
+      toolNames.add(name)
+    }
+  }
+
+  if (toolNames.size === 0) return CHIEF_TOOLS
+  return CHIEF_TOOLS.filter(t => 'function' in t && toolNames.has((t as any).function.name))
+}
+
+// ─── Person Resolution（检测并预加载特定人物上下文） ───
+
+async function resolvePersonContext(
+  admin: SupabaseClient,
+  userId: string,
+  message: string,
+): Promise<string | null> {
+  // Try to find a contact by name match in the message
+  const { data: contacts } = await admin
+    .from('contacts')
+    .select('id, name, email, company, relationship, importance, last_contact_at')
+    .eq('user_id', userId)
+    .limit(200)
+
+  if (!contacts || contacts.length === 0) return null
+
+  // Find contacts mentioned in the message
+  const mentioned = contacts.filter(c => {
+    if (!c.name) return false
+    const name = c.name.toLowerCase()
+    const msg = message.toLowerCase()
+    // Match full name or first name (at least 2 chars to avoid false positives)
+    return name.length >= 2 && msg.includes(name)
+  })
+
+  if (mentioned.length === 0) return null
+
+  // For the first mentioned contact, load rich context
+  const person = mentioned[0]
+  const [commitments, recentEmails] = await Promise.all([
+    admin
+      .from('commitments')
+      .select('type, title, deadline, status, urgency_score')
+      .eq('user_id', userId)
+      .eq('contact_email', person.email)
+      .in('status', ['pending', 'in_progress', 'overdue'])
+      .order('urgency_score', { ascending: false })
+      .limit(5),
+    admin
+      .from('emails')
+      .select('subject, received_at')
+      .eq('user_id', userId)
+      .eq('from_address', person.email)
+      .order('received_at', { ascending: false })
+      .limit(3),
+  ])
+
+  const parts: string[] = []
+  parts.push(`\n--- Person Context: ${person.name} ---`)
+  parts.push(`Email: ${person.email} | ${person.relationship || 'unknown'} | ${person.importance || 'normal'}${person.company ? ` @ ${person.company}` : ''}`)
+  if (person.last_contact_at) {
+    const daysSince = Math.floor((Date.now() - new Date(person.last_contact_at).getTime()) / 86400000)
+    parts.push(`Last contact: ${daysSince} days ago`)
+  }
+  if (commitments.data?.length) {
+    parts.push(`Open commitments:`)
+    for (const c of commitments.data) {
+      const dir = c.type === 'i_promised' ? 'YOU owe them' : 'They owe YOU'
+      parts.push(`  - ${dir}: "${c.title}"${c.deadline ? ` (due: ${c.deadline})` : ''}${c.status === 'overdue' ? ' [OVERDUE]' : ''}`)
+    }
+  }
+  if (recentEmails.data?.length) {
+    parts.push(`Recent emails: ${recentEmails.data.map((e: any) => `"${e.subject}"`).join(', ')}`)
+  }
+  parts.push(`--- End Person Context ---`)
+  return parts.join('\n')
 }
 
 // ─── Core Context（永远注入，~300 tokens） ───
@@ -230,7 +330,7 @@ export async function gatherUserContext(
   const timezone = core.timezone
 
   // 2. Detect intent from message
-  const intents = message ? detectIntent(message) : ['general']
+  const intents: Intent[] = message ? detectIntent(message) : ['general']
 
   // 3. Load on-demand context based on intents
   const userContext: UserContext = {
@@ -318,10 +418,21 @@ export async function gatherUserContext(
 
   await Promise.all(loaders)
 
-  // 4. Format context
-  const contextBlock = formatUserContext(userContext)
+  // 4. Person-specific context (if someone is mentioned by name)
+  let personContext: string | null = null
+  if (message && (intents.includes('person') || intents.includes('commitment'))) {
+    try {
+      personContext = await resolvePersonContext(admin, userId, message)
+    } catch { /* non-fatal */ }
+  }
 
-  // 5. Alerts (always, best-effort)
+  // 5. Format context
+  let contextBlock = formatUserContext(userContext)
+  if (personContext) {
+    contextBlock += personContext
+  }
+
+  // 6. Alerts (always, best-effort)
   let alertResult: AlertResult | null = null
   let alertsBlock = ''
   try {
@@ -333,11 +444,17 @@ export async function gatherUserContext(
     // best-effort
   }
 
+  // 7. Narrow tools based on detected intents
+  const relevantTools = narrowTools(intents)
+
   return {
     userContext,
     alertResult,
     contextBlock,
     alertsBlock,
     timezone,
+    intents,
+    relevantTools,
+    personContext,
   }
 }

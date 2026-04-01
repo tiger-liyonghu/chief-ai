@@ -133,6 +133,17 @@ Example 7b — NOT a commitment (describes a process, not a personal promise):
 Email: "Invoices are processed within 30 business days per our payment policy."
 → Rejected: company policy, not personal commitment (Q2).
 
+═══ SUB-TYPE CLASSIFICATION ═══
+
+Beyond type (i_promised/waiting_on_them), classify sub_type:
+
+- **promise** (default): Explicit commitment with a deliverable. "I'll send the report."
+- **debt**: A favor owed / social obligation. "Thanks for introducing me to James" → they invested in you. "I owe you one for this" → explicit debt.
+- **investment**: Relationship-building without direct return. "I wrote Lisa a recommendation letter." "I'll attend your launch event to show support."
+- **signal**: Action that signals priority/respect. "I'll personally handle this for you." "I'll make time for this despite my schedule."
+
+Most commitments are "promise". Only use debt/investment/signal when the intent is clearly about the relationship, not a task.
+
 ═══ OUTPUT FORMAT ═══
 
 Respond in JSON:
@@ -140,6 +151,7 @@ Respond in JSON:
   "commitments": [
     {
       "type": "i_promised" | "waiting_on_them",
+      "sub_type": "promise" | "debt" | "investment" | "signal",
       "title": "concise verb-first description",
       "due_date": "ISO date if mentioned, null otherwise",
       "due_reason": "why this date",

@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
   const useTools = supportsTools(llmConfig.provider)
 
   // Gather user context — layered injection based on message intent
-  const { contextBlock, alertsBlock, timezone } = await gatherUserContext(admin, user.id, message)
+  const { contextBlock, alertsBlock, timezone, relevantTools } = await gatherUserContext(admin, user.id, message)
 
   // 👂 Emotion detection
   const { detectEmotion, formatEmotionContext } = await import('@/lib/ai/emotion/detect')
@@ -120,8 +120,8 @@ export async function POST(request: NextRequest) {
   const encoder = new TextEncoder()
 
   if (useTools) {
-    // ─── Function-calling path ───
-    return handleWithTools(client, model, messages, user.id, admin, encoder, message)
+    // ─── Function-calling path (with intent-narrowed tools) ───
+    return handleWithTools(client, model, messages, user.id, admin, encoder, message, relevantTools)
   } else {
     // ─── Text-parsing fallback path ───
     return handleWithTextParsing(client, model, messages, user.id, admin, encoder)
@@ -140,7 +140,9 @@ async function handleWithTools(
   admin: any,
   encoder: TextEncoder,
   userMessage?: string,
+  narrowedTools?: typeof CHIEF_TOOLS,
 ) {
+  const toolsToUse = narrowedTools && narrowedTools.length > 0 ? narrowedTools : CHIEF_TOOLS
   const readable = new ReadableStream({
     async start(controller) {
       try {
@@ -148,7 +150,7 @@ async function handleWithTools(
         const stream = await client.chat.completions.create({
           model,
           messages,
-          tools: CHIEF_TOOLS,
+          tools: toolsToUse,
           stream: true,
           temperature: 0.7,
           max_tokens: 2048,

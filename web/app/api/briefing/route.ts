@@ -25,7 +25,7 @@ async function gatherBriefingContext(userId: string, timezone: string) {
   const weekAheadISO = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const fourteenDaysAgoISO = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
 
-  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes, myCommitmentsRes, waMessagesRes, familyEventsRes, pendingDecisionsRes, horizonEventsRes, staleVipRes] = await Promise.all([
+  const [eventsRes, tasksRes, emailsRes, followUpsRes, recentEmailsRes, vipContactsRes, myCommitmentsRes, waMessagesRes, familyEventsRes, pendingDecisionsRes, horizonEventsRes, staleVipRes, activeTripsRes] = await Promise.all([
     // Today's calendar events
     admin
       .from('calendar_events')
@@ -139,6 +139,17 @@ async function gatherBriefingContext(userId: string, timezone: string) {
       .eq('user_id', userId)
       .in('importance', ['vip', 'high'])
       .lt('last_contact_at', fourteenDaysAgoISO)
+      .limit(3),
+
+    // Active or upcoming trips (today falls within trip dates, or starting within 3 days)
+    admin
+      .from('trips')
+      .select('id, title, destination_city, destination_country, start_date, end_date, status')
+      .eq('user_id', userId)
+      .in('status', ['planned', 'active', 'confirmed'])
+      .lte('start_date', new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
+      .gte('end_date', todayISO)
+      .order('start_date', { ascending: true })
       .limit(3),
   ])
 
@@ -281,6 +292,11 @@ async function gatherBriefingContext(userId: string, timezone: string) {
     pendingDecisions: pendingDecisionsRes.data || [],
     horizonEvents: horizonEventsRes.data || [],
     staleVipContacts: staleVipRes.data || [],
+    activeTrips: (activeTripsRes.data || []).map((t: any) => ({
+      ...t,
+      is_today: t.start_date <= todayISO && t.end_date >= todayISO,
+      days_until: Math.max(0, Math.ceil((new Date(t.start_date).getTime() - now.getTime()) / 86400000)),
+    })),
     memoryPatterns,
     todayDate: now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: timezone }),
     timezone,
@@ -322,19 +338,32 @@ export async function GET(request: Request) {
     .single()
 
   if (cached && !forceRefresh) {
+    // Extract verdict from cached briefing (starts with 🎯)
+    const cachedVerdict = cached.briefing?.startsWith('🎯')
+      ? cached.briefing.split('\n')[0].replace('🎯 ', '')
+      : null
     return NextResponse.json({
       briefing: cached.briefing,
+      verdict: cachedVerdict,
       generated_at: cached.generated_at,
       cached: true,
       score: cached.score || null,
     })
   }
 
-  // Gather all context + alerts in parallel
+  // Gather all context + alerts + emotion in parallel
   const [context, alertResult] = await Promise.all([
     gatherBriefingContext(user.id, timezone),
     detectAlerts(admin, user.id).catch(() => null),
   ])
+
+  // 👂 Detect user's recent emotional state from WhatsApp messages
+  const { detectEmotion } = await import('@/lib/ai/emotion/detect')
+  const recentEmotions = (context.recentWhatsApp || [])
+    .slice(0, 3)
+    .map((m: any) => detectEmotion(m.snippet || ''))
+    .filter((e: any) => e.emotion !== 'calm' && e.confidence >= 0.5)
+  const dominantEmotion = recentEmotions.length > 0 ? recentEmotions[0] : null
 
   // --- Score calculation ---
   const thirtyDaysAgoISO = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -399,6 +428,18 @@ export async function GET(request: Request) {
     }
   }
 
+  // 👂 Inject emotional context into prompt
+  if (dominantEmotion) {
+    const emotionGuide: Record<string, string> = {
+      stressed: 'User is stressed. Be ruthlessly brief. Only show the ONE most critical item. Say what can wait.',
+      tired: 'User is exhausted. Lead verdict with "没有紧急的事" if possible. Defer non-critical items. Do not add cognitive load.',
+      anxious: 'User feels time pressure. Give certainty. Exact times, exact actions. No ambiguity in verdict.',
+      panicked: 'User is panicking. Verdict must be calming: "先缓一下，最重要的一件事是X。" One step only.',
+      angry: 'User is frustrated. Acknowledge briefly, then focus on actionable items. No cheerfulness.',
+    }
+    userPrompt += `\n\n--- Emotional State ---\nUser recently shows: ${dominantEmotion.emotion} (confidence: ${dominantEmotion.confidence.toFixed(1)})\n${emotionGuide[dominantEmotion.emotion] || 'Normal tone.'}`
+  }
+
   // Append detected issues so the AI naturally mentions conflicts/warnings
   if (alertResult && alertResult.alerts.length > 0) {
     userPrompt += `\n\n--- ${formatAlertsForPrompt(alertResult)} ---\nMention the most important issues naturally in the briefing.`
@@ -412,12 +453,46 @@ export async function GET(request: Request) {
         { role: 'system', content: BRIEFING_SYSTEM },
         { role: 'user', content: userPrompt },
       ],
-      max_tokens: 300,
+      max_tokens: 500,
       temperature: 0.7,
+      response_format: { type: 'json_object' },
     })
 
-    const briefing = completion.choices[0]?.message?.content?.trim() || ''
+    const rawContent = completion.choices[0]?.message?.content?.trim() || '{}'
     const generated_at = new Date().toISOString()
+
+    // Parse structured briefing
+    let structured: { verdict?: string; today?: any[]; action?: any[]; horizon?: any[] }
+    try {
+      structured = JSON.parse(rawContent)
+    } catch {
+      // Fallback: treat as plain text briefing (old format)
+      structured = { verdict: rawContent, today: [], action: [], horizon: [] }
+    }
+
+    // Build display text from structured data (backwards compatible)
+    const briefingParts: string[] = []
+    if (structured.verdict) {
+      briefingParts.push(`🎯 ${structured.verdict}`)
+    }
+    if (structured.today?.length) {
+      briefingParts.push('\nTODAY')
+      for (const t of structured.today) {
+        briefingParts.push(`  ${t.time} ${t.event}${t.note ? ` — ${t.note}` : ''}`)
+      }
+    }
+    if (structured.action?.length) {
+      briefingParts.push('\nACTION')
+      for (const a of structured.action) {
+        const icon = a.level === 'red' ? '🔴' : a.level === 'yellow' ? '🟡' : '🟢'
+        briefingParts.push(`  ${icon} ${a.person} ${a.item} — ${a.why}${a.suggestion ? `，${a.suggestion}` : ''}`)
+      }
+    }
+    if (structured.horizon?.length) {
+      briefingParts.push('\nHORIZON')
+      briefingParts.push(`  ${structured.horizon.map((h: any) => `${h.day}: ${h.item}`).join(' · ')}`)
+    }
+    const briefing = briefingParts.join('\n')
 
     // Cache in database
     await admin.from('daily_briefings').insert({
@@ -437,7 +512,14 @@ export async function GET(request: Request) {
       },
     })
 
-    return NextResponse.json({ briefing, generated_at, cached: false, score })
+    return NextResponse.json({
+      briefing,
+      verdict: structured.verdict || null,
+      structured,
+      generated_at,
+      cached: false,
+      score,
+    })
   } catch (err: any) {
     console.error('Briefing generation failed:', err)
     return NextResponse.json(

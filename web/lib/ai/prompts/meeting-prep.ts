@@ -38,7 +38,8 @@ Rules:
 - Only list documents/attachments that were actually mentioned in the emails
 - If no relevant documents were mentioned, return an empty array for related_docs
 - Return 3-5 talking points maximum
-- Return at most 5 open items`
+- Return at most 5 open items
+- If open commitments exist with attendees, ALWAYS include them in open_items and talking_points — these are the most critical prep items (e.g., "You promised X to send report", "They owe you Y")`
 
 export const MEETING_PREP_USER = (params: {
   title: string
@@ -53,6 +54,7 @@ export const MEETING_PREP_USER = (params: {
     received_at: string
   }>
   companyProfiles?: Record<string, any>
+  openCommitments?: Array<{ type: string; title: string; contact_email: string; contact_name?: string; deadline?: string; status: string; urgency_score?: number }>
 }) => {
   const attendeeList = params.attendees
     .map(a => {
@@ -80,12 +82,24 @@ Preview: ${e.snippet}`)
       .join('\n')
   }
 
+  let commitmentSection = ''
+  if (params.openCommitments && params.openCommitments.length > 0) {
+    commitmentSection = '\n\nOpen Commitments with Attendees:\n' + params.openCommitments
+      .map(c => {
+        const direction = c.type === 'i_promised' ? 'YOU promised' : 'THEY promised'
+        const deadlineStr = c.deadline ? ` (due: ${c.deadline})` : ''
+        const statusStr = c.status === 'overdue' ? ' [OVERDUE]' : ''
+        return `- ${direction} ${c.contact_name || c.contact_email}: "${c.title}"${deadlineStr}${statusStr}`
+      })
+      .join('\n')
+  }
+
   return `Meeting: ${params.title}
 Time: ${params.start_time}
 ${params.description ? `Description: ${params.description}` : ''}
 
 Attendees:
-${attendeeList}${companySection}
+${attendeeList}${companySection}${commitmentSection}
 
 Email History with Attendees:
 ${emailList}`

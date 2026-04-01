@@ -135,6 +135,18 @@ export async function recallMemories(
     } catch { /* best-effort */ }
   }
 
+  // Apply time-decay: recent memories rank higher
+  // relevance = importance * recency_factor
+  // recency_factor = 1 / (1 + days_since * 0.05)
+  const now = Date.now()
+  memories.sort((a, b) => {
+    const daysA = (now - new Date(a.created_at).getTime()) / 86400000
+    const daysB = (now - new Date(b.created_at).getTime()) / 86400000
+    const scoreA = a.importance * (1 / (1 + daysA * 0.05))
+    const scoreB = b.importance * (1 / (1 + daysB * 0.05))
+    return scoreB - scoreA
+  })
+
   return memories.slice(0, limit)
 }
 

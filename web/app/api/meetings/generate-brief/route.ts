@@ -63,6 +63,16 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .in('email', attendeeEmails)
 
+    // Fetch open commitments with attendees
+    const { data: openCommitments } = await admin
+      .from('commitments')
+      .select('type, title, contact_email, contact_name, deadline, status, urgency_score')
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'in_progress', 'overdue'])
+      .in('contact_email', attendeeEmails)
+      .order('urgency_score', { ascending: false })
+      .limit(10)
+
     const companyNames = [...new Set((contactRecords || []).map(c => c.company).filter(Boolean))]
     const companyProfiles: Record<string, any> = {}
     for (const name of companyNames.slice(0, 3)) {
@@ -99,6 +109,7 @@ export async function POST(request: NextRequest) {
             }),
             emailHistory,
             companyProfiles: Object.keys(companyProfiles).length > 0 ? companyProfiles : undefined,
+            openCommitments: openCommitments || [],
           }),
         },
       ],

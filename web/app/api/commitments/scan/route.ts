@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
 
   // 3. Batch emails into groups for LLM processing
   const newCommitments: Array<{
-    type: string; title: string; contact_email: string;
+    type: string; sub_type: string; title: string; contact_email: string;
     contact_name: string | null; deadline: string | null; confidence: number;
     source_email_id: string;
   }> = []
@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
           if ((c.confidence || 0) < 0.5) continue
           newCommitments.push({
             type: c.type === 'waiting_on_them' ? 'they_promised' : c.type,
+            sub_type: c.sub_type || 'promise',
             title: c.title,
             contact_email: (Array.isArray(email.labels) && email.labels.includes('SENT'))
               ? (Array.isArray(email.to_addresses) ? email.to_addresses[0] : (email.to_addresses || ''))
@@ -185,19 +186,49 @@ export async function POST(req: NextRequest) {
     newCommitments.find(nc => nc.title === fc.title && nc.type === fc.type)!
   ).filter(Boolean)
 
+  // Batch label confidence with per-person calibration
+  const { batchLabelConfidence } = await import('@/lib/commitments/confidence')
+  const confidenceResults = await batchLabelConfidence(
+    supabase, user.id,
+    toInsert.map(c => ({ confidence: c.confidence, contact_email: c.contact_email }))
+  )
+
+  // Resolve contact_email → contact_id in batch
+  const uniqueEmails = [...new Set(toInsert.map(c => c.contact_email).filter(Boolean))]
+  const contactIdMap = new Map<string, string>()
+  if (uniqueEmails.length > 0) {
+    const { data: matchedContacts } = await supabase
+      .from('contacts')
+      .select('id, email')
+      .eq('user_id', user.id)
+      .in('email', uniqueEmails)
+    for (const mc of matchedContacts || []) {
+      contactIdMap.set(mc.email.toLowerCase(), mc.id)
+    }
+  }
+
   let inserted = 0
-  for (const c of toInsert) {
+  for (let i = 0; i < toInsert.length; i++) {
+    const c = toInsert[i]
+    const contactId = contactIdMap.get((c.contact_email || '').toLowerCase()) || null
+    const conf = confidenceResults[i]
+
+    // Skip unlikely commitments (per-person calibration may downgrade)
+    if (conf.label === 'unlikely') continue
 
     await supabase.from('commitments').insert({
       user_id: user.id,
       type: c.type,
+      sub_type: c.sub_type,
       contact_email: c.contact_email,
       contact_name: c.contact_name,
+      contact_id: contactId,
       title: c.title,
       source_type: 'email',
       source_email_id: c.source_email_id,
       deadline: c.deadline,
-      confidence: c.confidence,
+      confidence: conf.adjusted,
+      confidence_label: conf.label,
       status: 'pending',
     })
     existingTitles.push(c.title)

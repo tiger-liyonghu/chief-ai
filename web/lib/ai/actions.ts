@@ -255,6 +255,24 @@ export async function executeActions(
             })
             break
           }
+          // Check constraints before creating (family = hard constraint)
+          try {
+            const { checkConstraints } = await import('@/lib/calendar/constraint-solver')
+            const check = await checkConstraints(admin, userId, start_time, end_time)
+            if (!check.ok) {
+              // Hard constraint violated — block creation, return conflict details
+              results.push({
+                type: 'CREATE_EVENT',
+                status: 'blocked',
+                detail: check.summary,
+              })
+              break
+            }
+            // Soft constraints → attach warning but proceed
+            if (check.conflicts.length > 0 || check.warnings.length > 0) {
+              // Will append warning after successful creation
+            }
+          } catch { /* non-fatal — proceed without constraint check */ }
           try {
             const accessToken = await getValidAccessToken(userId)
             const { createEvent } = await import('@/lib/google/calendar')
@@ -357,6 +375,42 @@ export async function executeActions(
           }
           break
         }
+        case 'CREATE_COMMITMENT': {
+          const { type, title, contact_name, contact_email, deadline } = action.params
+          if (!type || !title) {
+            results.push({ type: 'CREATE_COMMITMENT', status: 'error', detail: 'Missing required fields: type, title' })
+            break
+          }
+          // Resolve contact_id from email if provided
+          let contactId = null
+          if (contact_email) {
+            const { data: contact } = await admin
+              .from('contacts')
+              .select('id')
+              .eq('user_id', userId)
+              .eq('email', contact_email)
+              .maybeSingle()
+            contactId = contact?.id || null
+          }
+          const { error: cmtError } = await admin.from('commitments').insert({
+            user_id: userId,
+            type,
+            title,
+            contact_name: contact_name || null,
+            contact_email: contact_email || null,
+            contact_id: contactId,
+            deadline: deadline || null,
+            confidence: 1.0,
+            source_type: 'manual',
+            status: 'pending',
+          })
+          results.push({
+            type: 'CREATE_COMMITMENT',
+            status: cmtError ? 'error' : 'ok',
+            detail: cmtError ? cmtError.message : `${type === 'i_promised' ? 'You promised' : 'They promised'}: ${title}`,
+          })
+          break
+        }
         case 'CREATE_EXPENSE': {
           const { category, merchant_name, amount, currency, expense_date, notes } = action.params
           if (!category || !merchant_name || !amount || !currency || !expense_date) {
@@ -445,6 +499,10 @@ export function formatActionResultsForWhatsApp(results: ActionResult[]): string 
       case 'COMPLETE_TASK':
         if (r.status === 'ok') lines.push(`\u2705 Task completed: ${r.detail}`)
         else lines.push(`\u26a0\ufe0f Task not found: ${r.detail}`)
+        break
+      case 'CREATE_COMMITMENT':
+        if (r.status === 'ok') lines.push(`\ud83e\udd1d Commitment tracked: ${r.detail}`)
+        else lines.push(`\u274c Failed to track commitment: ${r.detail}`)
         break
       case 'CREATE_EVENT':
         if (r.status === 'ok') lines.push(`\ud83d\udcc5 Event created: ${r.detail}`)

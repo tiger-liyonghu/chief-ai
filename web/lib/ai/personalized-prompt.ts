@@ -18,7 +18,9 @@ interface FeedbackRow {
   llm_rejected_reason: string | null
 }
 
-const MIN_FEEDBACK_THRESHOLD = 50
+// Lower threshold: start calibrating after just 5 feedbacks (was 50).
+// Even a few confirmed/rejected examples significantly improve precision.
+const MIN_FEEDBACK_THRESHOLD = 5
 
 export async function getPersonalizedPrompt(userId: string): Promise<string | null> {
   const supabase = await createClient()

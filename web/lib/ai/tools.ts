@@ -214,6 +214,40 @@ export const CHIEF_TOOLS: ChiefTool[] = [
   {
     type: 'function',
     function: {
+      name: 'create_commitment',
+      description: 'Track a commitment/promise — something the user promised someone, or someone promised the user',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+            enum: ['i_promised', 'they_promised'],
+            description: 'i_promised = user committed to do something; they_promised = someone else committed',
+          },
+          title: {
+            type: 'string',
+            description: 'What was promised (verb-first, e.g., "Send Q2 report to David")',
+          },
+          contact_name: {
+            type: 'string',
+            description: 'Name of the other party',
+          },
+          contact_email: {
+            type: 'string',
+            description: 'Email of the other party (if known)',
+          },
+          deadline: {
+            type: 'string',
+            description: 'Due date in ISO format (e.g., 2026-04-05)',
+          },
+        },
+        required: ['type', 'title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'query_relationships',
       description:
         'Check relationship health — which contacts are going cold, who needs attention',
@@ -258,6 +292,7 @@ export const TOOL_TO_ACTION_TYPE: Record<string, string> = {
   create_event: 'CREATE_EVENT',
   recommend_place: 'RECOMMEND_PLACE',
   create_expense: 'CREATE_EXPENSE',
+  create_commitment: 'CREATE_COMMITMENT',
   query_relationships: 'QUERY_RELATIONSHIPS',
   run_debrief: 'RUN_DEBRIEF',
 }

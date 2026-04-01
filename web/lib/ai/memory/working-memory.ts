@@ -96,6 +96,40 @@ export function formatSessionContext(session: ChatSession | null): string {
 }
 
 /**
+ * Auto-record important conversation moments as episodic memories.
+ * Triggered after each exchange. Only fires if message matches triggers.
+ */
+const EPISODE_TRIGGERS = [
+  { pattern: /答应|承诺|promise|commit|保证/i, type: 'event' as const, importance: 7 },
+  { pattern: /决定|decide|确定|定了|选择|go with/i, type: 'event' as const, importance: 6 },
+  { pattern: /取消|cancel|不去了|改期|推迟|postpone/i, type: 'event' as const, importance: 6 },
+  { pattern: /喜欢|偏好|prefer|习惯|不喜欢|avoid/i, type: 'preference' as const, importance: 5 },
+  { pattern: /记住|remember|别忘|don't forget/i, type: 'event' as const, importance: 7 },
+  { pattern: /以后|from now on|下次|next time/i, type: 'lesson' as const, importance: 6 },
+]
+
+export async function maybeRecordEpisode(
+  admin: SupabaseClient,
+  userId: string,
+  userMessage: string,
+  assistantReply: string,
+): Promise<void> {
+  const matched = EPISODE_TRIGGERS.find(t => t.pattern.test(userMessage))
+  if (!matched) return
+
+  try {
+    const { saveMemory } = await import('@/lib/ai/memory/episodic-memory')
+    await saveMemory(admin, userId, {
+      memory_type: matched.type,
+      content: `User: "${userMessage.slice(0, 150)}" → Action: "${assistantReply.slice(0, 150)}"`,
+      importance: matched.importance,
+      confidence: 0.7,
+      source: 'observed',
+    })
+  } catch { /* non-fatal */ }
+}
+
+/**
  * Clean up expired sessions (> 24 hours).
  * Called periodically by the scheduler.
  */
