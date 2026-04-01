@@ -65,16 +65,16 @@ export async function GET(request: NextRequest) {
 
     const supabase = createAdminClient()
 
-    // Check if this google_email is already connected for this user
-    const { data: existing } = await supabase
+    // Check if this email is already bound by this user (re-auth → update tokens)
+    const { data: ownExisting } = await supabase
       .from('google_accounts')
       .select('id')
       .eq('user_id', userId)
       .eq('google_email', userInfo.email)
+      .eq('provider', 'google')
       .single()
 
-    if (existing) {
-      // Update tokens for existing account
+    if (ownExisting) {
       await supabase.from('google_accounts').update({
         access_token_encrypted: encrypt(tokens.access_token),
         refresh_token_encrypted: encrypt(tokens.refresh_token),
@@ -82,20 +82,38 @@ export async function GET(request: NextRequest) {
         google_name: userInfo.name || null,
         google_avatar: userInfo.picture || null,
         updated_at: new Date().toISOString(),
-      }).eq('id', existing.id)
+      }).eq('id', ownExisting.id)
 
       return NextResponse.redirect(
         new URL('/dashboard/settings?account_updated=' + encodeURIComponent(userInfo.email), origin)
       )
     }
 
-    // Check if this is the user's first account (should be primary)
+    // Check if this email is already bound by ANOTHER user (global unique)
+    const { data: otherExisting } = await supabase
+      .from('google_accounts')
+      .select('id')
+      .eq('google_email', userInfo.email)
+      .eq('provider', 'google')
+      .single()
+
+    if (otherExisting) {
+      return NextResponse.redirect(
+        new URL('/dashboard/settings?error=email_taken', origin)
+      )
+    }
+
+    // Enforce max 3 accounts per user
     const { count } = await supabase
       .from('google_accounts')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
 
-    const isFirst = !count || count === 0
+    if (count && count >= 3) {
+      return NextResponse.redirect(
+        new URL('/dashboard/settings?error=max_accounts', origin)
+      )
+    }
 
     // Insert new account
     await supabase.from('google_accounts').insert({
@@ -103,7 +121,6 @@ export async function GET(request: NextRequest) {
       google_email: userInfo.email,
       google_name: userInfo.name || null,
       google_avatar: userInfo.picture || null,
-      is_primary: isFirst,
       access_token_encrypted: encrypt(tokens.access_token),
       refresh_token_encrypted: encrypt(tokens.refresh_token),
       token_expires_at: new Date(tokens.expiry_date || Date.now() + 3600000).toISOString(),

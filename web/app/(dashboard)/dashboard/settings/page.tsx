@@ -19,7 +19,6 @@ interface GoogleAccount {
   google_email: string
   google_name: string | null
   google_avatar: string | null
-  is_primary: boolean
   provider?: string | null
   created_at: string
 }
@@ -103,6 +102,10 @@ function SettingsContent() {
       setAccountMessage({ type: 'success', text: `Connected ${added}` })
     } else if (updated) {
       setAccountMessage({ type: 'success', text: `Re-authorized ${updated}` })
+    } else if (error === 'email_taken') {
+      setAccountMessage({ type: 'error', text: 'This email is already connected by another account.' })
+    } else if (error === 'max_accounts') {
+      setAccountMessage({ type: 'error', text: 'Maximum 3 email accounts allowed.' })
     } else if (error === 'add_failed') {
       setAccountMessage({ type: 'error', text: 'Failed to add account. Please try again.' })
     }
@@ -580,7 +583,7 @@ function SettingsContent() {
                 <div className="p-5 text-sm text-text-tertiary animate-pulse">Loading accounts...</div>
               ) : accounts.length === 0 ? (
                 <div className="p-5 text-sm text-text-tertiary">
-                  No email accounts connected. Add Gmail or Outlook to start syncing.
+                  No email accounts connected. Add Gmail or IMAP to start syncing.
                 </div>
               ) : (
                 accounts.map((account) => (
@@ -599,59 +602,46 @@ function SettingsContent() {
                         </div>
                       )}
                       <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium">
-                            {account.google_name || account.google_email}
-                          </p>
-                          {account.is_primary && (
-                            <span className="text-[10px] font-semibold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                              Primary
-                            </span>
-                          )}
-                        </div>
+                        <p className="text-sm font-medium">
+                          {account.google_name || account.google_email}
+                        </p>
                         <p className="text-xs text-text-tertiary flex items-center gap-1">
                           <Mail className="w-3 h-3" />
                           {account.google_email}
                         </p>
                       </div>
                     </div>
-                    {!account.is_primary && (
-                      <button
-                        onClick={() => removeAccount(account.id)}
-                        disabled={removingId === account.id}
-                        className="text-xs font-medium text-text-tertiary hover:text-danger transition-colors disabled:opacity-50"
-                      >
-                        {removingId === account.id ? 'Removing...' : 'Remove'}
-                      </button>
-                    )}
+                    <button
+                      onClick={() => removeAccount(account.id)}
+                      disabled={removingId === account.id}
+                      className="text-xs font-medium text-text-tertiary hover:text-danger transition-colors disabled:opacity-50"
+                    >
+                      {removingId === account.id ? 'Removing...' : 'Remove'}
+                    </button>
                   </div>
                 ))
               )}
 
               {/* Add Account buttons */}
-              <div className="p-5 flex items-center gap-6">
-                <a
-                  href="/api/accounts/add"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Gmail
-                </a>
-                <a
-                  href="/api/accounts/add-outlook"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-500 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Outlook
-                </a>
-                <button
-                  onClick={() => { setImapModalOpen(true); setImapError(null); setImapEmail(''); setImapPassword('') }}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-500 transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add 163 / IMAP
-                </button>
-              </div>
+              {/* Add Account buttons — max 3 accounts */}
+              {accounts.length < 3 && (
+                <div className="p-5 flex items-center gap-6">
+                  <a
+                    href="/api/accounts/add"
+                    className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Gmail
+                  </a>
+                  <button
+                    onClick={() => { setImapModalOpen(true); setImapError(null); setImapEmail(''); setImapPassword('') }}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-orange-600 hover:text-orange-500 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add 163 / IMAP
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 

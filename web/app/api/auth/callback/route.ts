@@ -79,44 +79,32 @@ export async function GET(request: NextRequest) {
     }, { onConflict: 'user_id' })
 
     // Also store in google_accounts (multi-account table)
-    // If no accounts exist yet, mark as primary
-    const { count: existingAccountCount } = await supabase
-      .from('google_accounts')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-
-    const isPrimary = !existingAccountCount || existingAccountCount === 0
-
     const googleAccountData = {
       user_id: userId,
       google_email: userInfo.email!,
       google_name: userInfo.name || null,
       google_avatar: userInfo.picture || null,
-      is_primary: isPrimary,
       access_token_encrypted: encrypt(tokens.access_token),
       refresh_token_encrypted: encrypt(tokens.refresh_token),
       token_expires_at: new Date(tokens.expiry_date || Date.now() + 3600000).toISOString(),
     }
 
-    // Try upsert first (requires unique constraint on user_id,google_email)
-    const { error: upsertError } = await supabase.from('google_accounts').upsert(
-      googleAccountData, { onConflict: 'user_id,google_email' }
-    )
-    if (upsertError) {
-      // Fallback: check if exists, then update or insert
-      const { data: existing } = await supabase.from('google_accounts')
-        .select('id').eq('user_id', userId).eq('google_email', userInfo.email!).single()
-      if (existing) {
-        await supabase.from('google_accounts').update({
-          access_token_encrypted: googleAccountData.access_token_encrypted,
-          refresh_token_encrypted: googleAccountData.refresh_token_encrypted,
-          token_expires_at: googleAccountData.token_expires_at,
-          google_name: googleAccountData.google_name,
-          google_avatar: googleAccountData.google_avatar,
-        }).eq('id', existing.id)
-      } else {
-        await supabase.from('google_accounts').insert(googleAccountData)
-      }
+    // Check if this email+provider already exists (global unique)
+    const { data: existing } = await supabase.from('google_accounts')
+      .select('id, user_id').eq('google_email', userInfo.email!).eq('provider', 'google').single()
+
+    if (existing) {
+      // Update tokens (whether same user re-auth or account migration on login)
+      await supabase.from('google_accounts').update({
+        user_id: userId,
+        access_token_encrypted: googleAccountData.access_token_encrypted,
+        refresh_token_encrypted: googleAccountData.refresh_token_encrypted,
+        token_expires_at: googleAccountData.token_expires_at,
+        google_name: googleAccountData.google_name,
+        google_avatar: googleAccountData.google_avatar,
+      }).eq('id', existing.id)
+    } else {
+      await supabase.from('google_accounts').insert(googleAccountData)
     }
 
     // Check if this is a first-time user who needs onboarding

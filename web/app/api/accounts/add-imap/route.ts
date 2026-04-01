@@ -82,8 +82,8 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient()
 
-    // Check if account already exists
-    const { data: existing } = await admin
+    // Check if this user already has this email bound (re-auth → update)
+    const { data: ownExisting } = await admin
       .from('google_accounts')
       .select('id')
       .eq('user_id', user.id)
@@ -91,40 +91,53 @@ export async function POST(request: NextRequest) {
       .eq('provider', 'imap')
       .single()
 
-    if (existing) {
-      // Update existing account credentials
+    if (ownExisting) {
       await admin.from('google_accounts').update({
         access_token_encrypted: encrypt(password),
         refresh_token_encrypted: encrypt(JSON.stringify({
           imapHost, imapPort, smtpHost, smtpPort, preset,
         })),
-        token_expires_at: '2099-12-31T23:59:59Z', // IMAP doesn't expire via OAuth
+        token_expires_at: '2099-12-31T23:59:59Z',
         updated_at: new Date().toISOString(),
-      }).eq('id', existing.id)
+      }).eq('id', ownExisting.id)
 
       return NextResponse.json({
         ok: true,
         action: 'updated',
         email,
-        accountId: existing.id,
+        accountId: ownExisting.id,
       })
     }
 
-    // Check if this is the first account (make it primary)
+    // Check if this email is already bound by ANOTHER user (global unique)
+    const { data: otherExisting } = await admin
+      .from('google_accounts')
+      .select('id')
+      .eq('google_email', email)
+      .eq('provider', 'imap')
+      .single()
+
+    if (otherExisting) {
+      return NextResponse.json(
+        { error: 'This email is already connected by another account.' },
+        { status: 409 },
+      )
+    }
+
+    // Enforce max 3 accounts per user
     const { count } = await admin
       .from('google_accounts')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
 
-    const isPrimary = !count || count === 0
+    if (count && count >= 3) {
+      return NextResponse.json(
+        { error: 'Maximum 3 email accounts allowed.' },
+        { status: 400 },
+      )
+    }
 
     // Store new IMAP account
-    // We store:
-    // - access_token_encrypted: the authorization code (password)
-    // - refresh_token_encrypted: JSON with IMAP/SMTP server config
-    // - token_expires_at: far future (no OAuth expiry)
-    // - google_email: the email address (reusing the column name)
-    // - provider: 'imap'
     const { data: newAccount, error: insertError } = await admin
       .from('google_accounts')
       .insert({
@@ -132,7 +145,6 @@ export async function POST(request: NextRequest) {
         google_email: email,
         google_name: email.split('@')[0],
         provider: 'imap',
-        is_primary: isPrimary,
         access_token_encrypted: encrypt(password),
         refresh_token_encrypted: encrypt(JSON.stringify({
           imapHost, imapPort, smtpHost, smtpPort, preset,

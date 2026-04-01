@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-/** GET /api/accounts — list all connected Google accounts for the current user */
+/** GET /api/accounts — list all connected email accounts for the current user */
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -11,9 +11,8 @@ export async function GET() {
   const admin = createAdminClient()
   const { data: accounts, error } = await admin
     .from('google_accounts')
-    .select('id, google_email, google_name, google_avatar, is_primary, provider, created_at')
+    .select('id, google_email, google_name, google_avatar, provider, created_at')
     .eq('user_id', user.id)
-    .order('is_primary', { ascending: false })
     .order('created_at', { ascending: true })
 
   if (error) {
@@ -36,10 +35,10 @@ export async function DELETE(request: NextRequest) {
 
   const admin = createAdminClient()
 
-  // Verify the account belongs to this user and is not primary
+  // Verify the account belongs to this user
   const { data: account, error: fetchError } = await admin
     .from('google_accounts')
-    .select('id, is_primary, google_email')
+    .select('id, google_email')
     .eq('id', accountId)
     .eq('user_id', user.id)
     .single()
@@ -48,12 +47,13 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Account not found' }, { status: 404 })
   }
 
-  if (account.is_primary) {
-    return NextResponse.json(
-      { error: 'Cannot remove your primary account. Change primary first.' },
-      { status: 400 }
-    )
-  }
+  // Cascade: delete associated emails and calendar events
+  await admin.from('emails').delete()
+    .eq('user_id', user.id)
+    .eq('source_account_email', account.google_email)
+  await admin.from('calendar_events').delete()
+    .eq('user_id', user.id)
+    .eq('source_account_email', account.google_email)
 
   // Delete the account
   const { error: deleteError } = await admin
@@ -65,9 +65,6 @@ export async function DELETE(request: NextRequest) {
   if (deleteError) {
     return NextResponse.json({ error: deleteError.message }, { status: 500 })
   }
-
-  // Clean up emails and calendar events from this account
-  // (optional: keep them but mark as orphaned — for now we keep them)
 
   return NextResponse.json({ ok: true, removed: account.google_email })
 }

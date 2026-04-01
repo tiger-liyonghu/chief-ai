@@ -95,24 +95,29 @@ export async function GET(request: NextRequest) {
     }
 
     // Store Microsoft account in google_accounts (multi-account table)
-    const { count: existingAccountCount } = await supabase
-      .from('google_accounts')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
+    const { data: existingMs } = await supabase.from('google_accounts')
+      .select('id').eq('google_email', email).eq('provider', 'microsoft').single()
 
-    const isPrimary = !existingAccountCount || existingAccountCount === 0
-
-    await supabase.from('google_accounts').upsert({
-      user_id: userId,
-      google_email: email,
-      google_name: profile.displayName,
-      google_avatar: null,
-      is_primary: isPrimary,
-      provider: 'microsoft',
-      access_token_encrypted: encrypt(tokens.access_token),
-      refresh_token_encrypted: encrypt(tokens.refresh_token),
-      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    }, { onConflict: 'user_id,google_email,provider' })
+    if (existingMs) {
+      await supabase.from('google_accounts').update({
+        user_id: userId,
+        google_name: profile.displayName,
+        access_token_encrypted: encrypt(tokens.access_token),
+        refresh_token_encrypted: encrypt(tokens.refresh_token),
+        token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      }).eq('id', existingMs.id)
+    } else {
+      await supabase.from('google_accounts').insert({
+        user_id: userId,
+        google_email: email,
+        google_name: profile.displayName,
+        google_avatar: null,
+        provider: 'microsoft',
+        access_token_encrypted: encrypt(tokens.access_token),
+        refresh_token_encrypted: encrypt(tokens.refresh_token),
+        token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      })
+    }
 
     // Check if this is a first-time user who needs onboarding
     const { data: profileCheck } = await supabase

@@ -22,16 +22,17 @@ export function encrypt(text: string): string {
   return Buffer.concat([iv, tag, encrypted]).toString('base64')
 }
 
-/** Backward-compatible: get access token from the legacy google_tokens table (primary account) */
+/** Get access token for the user's first (earliest) Google account */
 export async function getValidAccessToken(userId: string): Promise<string> {
-  // Try new google_accounts table first (primary account)
   const supabase = createAdminClient()
 
   const { data: account } = await supabase
     .from('google_accounts')
-    .select('id, access_token_encrypted, refresh_token_encrypted, token_expires_at')
+    .select('id')
     .eq('user_id', userId)
-    .eq('is_primary', true)
+    .eq('provider', 'google')
+    .order('created_at', { ascending: true })
+    .limit(1)
     .single()
 
   if (account) {
@@ -103,7 +104,7 @@ export async function getAllAccountTokens(userId: string): Promise<AccountWithTo
     .select('id, google_email, access_token_encrypted, refresh_token_encrypted, token_expires_at, gmail_history_id')
     .eq('user_id', userId)
     .or('provider.eq.google,provider.is.null')
-    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true })
 
   if (error || !accounts || accounts.length === 0) {
     // Fallback: try legacy google_tokens

@@ -44,24 +44,35 @@ export async function GET(request: NextRequest) {
 
     const admin = createAdminClient()
 
-    // Check how many accounts user has (to determine is_primary)
-    const { count: existingCount } = await admin
-      .from('google_accounts')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', state.userId)
+    // Check if this email is already bound globally
+    const { data: existingMs } = await admin.from('google_accounts')
+      .select('id, user_id').eq('google_email', email).eq('provider', 'microsoft').single()
 
-    // Upsert Microsoft account
-    await admin.from('google_accounts').upsert({
-      user_id: state.userId,
-      google_email: email, // using same column name for compatibility
-      google_name: profile.displayName,
-      google_avatar: null,
-      is_primary: !existingCount || existingCount === 0,
-      provider: 'microsoft',
-      access_token_encrypted: encrypt(tokens.access_token),
-      refresh_token_encrypted: encrypt(tokens.refresh_token),
-      token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    }, { onConflict: 'user_id,google_email,provider' })
+    if (existingMs && existingMs.user_id !== state.userId) {
+      return NextResponse.redirect(
+        new URL('/dashboard/settings?error=email_taken', origin),
+      )
+    }
+
+    if (existingMs) {
+      await admin.from('google_accounts').update({
+        google_name: profile.displayName,
+        access_token_encrypted: encrypt(tokens.access_token),
+        refresh_token_encrypted: encrypt(tokens.refresh_token),
+        token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      }).eq('id', existingMs.id)
+    } else {
+      await admin.from('google_accounts').insert({
+        user_id: state.userId,
+        google_email: email,
+        google_name: profile.displayName,
+        google_avatar: null,
+        provider: 'microsoft',
+        access_token_encrypted: encrypt(tokens.access_token),
+        refresh_token_encrypted: encrypt(tokens.refresh_token),
+        token_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+      })
+    }
 
     return NextResponse.redirect(
       new URL(`/dashboard/settings?account_added=${encodeURIComponent(email)}`, origin),

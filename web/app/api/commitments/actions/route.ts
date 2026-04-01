@@ -28,13 +28,14 @@ export async function POST(req: NextRequest) {
 
   // Resolve the user's primary email for the "from" field
   const admin = createAdminClient()
-  const { data: primaryAccount } = await admin
+  const { data: firstAccount } = await admin
     .from('google_accounts')
     .select('google_email')
     .eq('user_id', user.id)
-    .eq('is_primary', true)
+    .order('created_at', { ascending: true })
+    .limit(1)
     .single()
-  const fromEmail = primaryAccount?.google_email || null
+  const fromEmail = firstAccount?.google_email || null
 
   switch (action) {
     case 'mark_done': {

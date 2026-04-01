@@ -24,12 +24,13 @@ async function resolveAccountProvider(userId: string, fromEmail?: string) {
     if (account) return account
   }
 
-  // Fall back to primary account
+  // Fall back to first account
   const { data: account } = await admin
     .from('google_accounts')
     .select('id, google_email, provider, access_token_encrypted, refresh_token_encrypted')
     .eq('user_id', userId)
-    .eq('is_primary', true)
+    .order('created_at', { ascending: true })
+    .limit(1)
     .single()
   return account
 }
