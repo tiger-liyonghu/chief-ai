@@ -8,6 +8,7 @@ import { TASK_EXTRACTION_SYSTEM, TASK_EXTRACTION_USER } from '@/lib/ai/prompts/t
 import { TRIP_DETECTION_SYSTEM, TRIP_DETECTION_USER } from '@/lib/ai/prompts/trip-detection'
 import { COMMITMENT_EXTRACTION_SYSTEM, COMMITMENT_EXTRACTION_USER } from '@/lib/ai/prompts/commitment-extraction'
 import { shouldSkipEmail, postFilterCommitments } from '@/lib/ai/commitment-filters'
+import { verifyCommitmentDirections, shouldTriggerTier2 } from '@/lib/ai/commitment-verifier'
 import { getImapAccountTokens } from '@/lib/imap/tokens'
 import { fetchImapMessageBody, type ImapConfig } from '@/lib/imap/client'
 
@@ -399,6 +400,43 @@ export async function POST(request: NextRequest) {
             if (!tripError && newTrip) {
               tripsDetected++
 
+              // Write to structured tables (trip_flights / trip_hotels)
+              if (parsed.trip_type === 'flight' && parsed.flight_info) {
+                const fi = parsed.flight_info
+                await admin.from('trip_flights').insert({
+                  trip_id: newTrip.id,
+                  user_id: user.id,
+                  airline: fi.airline || null,
+                  flight_number: fi.flight_number || null,
+                  origin_airport: fi.origin || null,
+                  dest_airport: fi.destination || null,
+                  departure_at: parsed.start_date || null,
+                  arrival_at: parsed.end_date || null,
+                  booking_ref: fi.booking_ref || fi.confirmation || null,
+                  cabin_class: fi.cabin_class || null,
+                  seat_number: fi.seat || null,
+                  signal_id: email.id,
+                  signal_channel: 'email',
+                })
+              }
+
+              if (parsed.trip_type === 'hotel' && parsed.hotel_info) {
+                const hi = parsed.hotel_info
+                await admin.from('trip_hotels').insert({
+                  trip_id: newTrip.id,
+                  user_id: user.id,
+                  name: hi.hotel_name || hi.name || city || 'Hotel',
+                  address: hi.address || null,
+                  city: city || null,
+                  checkin_at: parsed.start_date || null,
+                  checkout_at: parsed.end_date || null,
+                  booking_ref: hi.booking_ref || hi.confirmation || null,
+                  room_type: hi.room_type || null,
+                  signal_id: email.id,
+                  signal_channel: 'email',
+                })
+              }
+
               // Create expense if amount detected
               if (parsed.amount && parsed.amount > 0) {
                 await admin.from('trip_expenses').insert({
@@ -478,9 +516,37 @@ export async function POST(request: NextRequest) {
             const content = aiRes.choices[0]?.message?.content
             if (content) {
               const parsed = JSON.parse(content)
-              for (const c of parsed.commitments || []) {
-                if ((c.confidence || 0) < 0.5) continue
+              let commitments = (parsed.commitments || []).filter((c: any) => (c.confidence || 0) >= 0.5)
 
+              // Tier 2: Reasoner direction verification (if triggered)
+              if (commitments.length > 0) {
+                const isOutbound = (email.labels || []).includes('SENT')
+                const shouldVerify = shouldTriggerTier2(
+                  commitments,
+                  { body, subject: email.subject || '', to_addresses: email.to_addresses },
+                  false,
+                )
+
+                if (shouldVerify) {
+                  try {
+                    commitments = await verifyCommitmentDirections(
+                      aiClient as any,
+                      commitments,
+                      {
+                        from: email.from_address || '',
+                        to: toAddr,
+                        subject: email.subject || '',
+                        body,
+                        direction: isOutbound ? 'outbound' : 'inbound',
+                      },
+                    )
+                  } catch (verifyErr) {
+                    console.error('Tier 2 verification failed, using Tier 1 results:', verifyErr)
+                  }
+                }
+              }
+
+              for (const c of commitments) {
                 await admin.from('commitments').insert({
                   user_id: user.id,
                   type: c.type === 'waiting_on_them' ? 'they_promised' : 'i_promised',
@@ -489,6 +555,8 @@ export async function POST(request: NextRequest) {
                   title: c.title,
                   description: c.due_reason || null,
                   source_email_id: email.id,
+                  signal_id: email.id,
+                  signal_channel: 'email',
                   deadline: c.due_date || null,
                   status: 'pending',
                 })
@@ -496,7 +564,7 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            // Mark as scanned (use a lightweight update)
+            // Mark as scanned
             await admin.from('emails').update({
               commitment_scanned: true,
             }).eq('id', email.id)

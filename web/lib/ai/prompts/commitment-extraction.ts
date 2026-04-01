@@ -102,14 +102,36 @@ Example 4b — NOT a commitment (meeting agenda):
 Email: "In Thursday's meeting, we will review the Q1 results and discuss next steps."
 → Rejected: agenda item, not a personal commitment to deliver something (Q2).
 
-Example 5a — IS a commitment (multi-item, extract the core ones):
-Email: "I'll handle the following: 1) revenue model 2) architecture doc 3) hiring plan. Will have everything ready by Monday."
-→ {"type":"i_promised","title":"Prepare revenue model, architecture doc, and hiring plan by Monday","confidence":0.95}
-Note: Group related items into ONE commitment, not three separate ones.
+Example 5a — IS a commitment (multi-item → extract EACH separately):
+Email: "I'll handle the following: 1) revenue model by Wednesday 2) architecture doc by Friday 3) hiring plan next week."
+→ {"type":"i_promised","title":"Prepare revenue model by Wednesday","confidence":0.95}
+→ {"type":"i_promised","title":"Prepare architecture doc by Friday","confidence":0.95}
+→ {"type":"i_promised","title":"Prepare hiring plan next week","confidence":0.90}
+Note: Each item has a different deadline → track separately. Only group if they share the same deadline AND deliverable.
 
 Example 5b — NOT a commitment (hypothetical):
 Email: "If we secure Series A funding, we would need to hire 5 engineers and expand to Jakarta."
 → Rejected: hypothetical scenario, conditional on future event (Q2).
+
+Example 6a — IS a commitment (meeting minutes with action items for MULTIPLE people):
+Email: "Meeting notes — Action items: Tiger: finalize financial model by Friday. Wei: fix email sync bug, PR by Tuesday. Sarah: prepare customer case studies."
+→ {"type":"i_promised","title":"Finalize financial model by Friday","confidence":0.95}
+→ {"type":"waiting_on_them","title":"Fix email sync bug, PR by Tuesday","confidence":0.90}
+→ {"type":"waiting_on_them","title":"Prepare customer case studies","confidence":0.85}
+Note: Tiger is the user. Tiger's items = i_promised. Others' items = waiting_on_them.
+
+Example 6b — NOT a commitment (meeting agenda, not action items):
+Email: "Agenda for Friday meeting: 1) Review Q1 results 2) Discuss hiring plan 3) Budget update"
+→ Rejected: agenda items describe what will be discussed, not deliverables (Q2).
+
+Example 7a — IS a commitment (inbound, they promise to pay/deliver):
+Email from client: "We will process the bank transfer for invoice #2026-089 within 30 days. I'll also forward the company registration number you requested."
+→ {"type":"waiting_on_them","title":"Process bank transfer for invoice #2026-089","confidence":0.95}
+→ {"type":"waiting_on_them","title":"Forward company registration number","confidence":0.90}
+
+Example 7b — NOT a commitment (describes a process, not a personal promise):
+Email: "Invoices are processed within 30 business days per our payment policy."
+→ Rejected: company policy, not personal commitment (Q2).
 
 ═══ OUTPUT FORMAT ═══
 
@@ -139,7 +161,7 @@ Respond in JSON:
 - Only output commitments that pass ALL three gates
 - confidence < 0.7 → put in rejected, not commitments
 - Max 6 commitments per message (more than 6 likely means over-extraction)
-- Preserve the original language in title (Chinese email → Chinese title, English → English, mixed → mixed)
+- Title language MUST match the email body language. English email → English title. Chinese email → Chinese title. Mixed → use the dominant language. NEVER translate between languages.
 - Be conservative: when in doubt, reject. A missed commitment can be added manually; a false commitment erodes trust.`
 
 export const COMMITMENT_EXTRACTION_USER = (message: {

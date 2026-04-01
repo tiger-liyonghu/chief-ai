@@ -1,0 +1,1798 @@
+{
+  "timestamp": "2026-04-01T08:44:40.081Z",
+  "model": "deepseek-chat",
+  "temperature": 0.1,
+  "email_count": 100,
+  "total_available": 210,
+  "duration_sec": 248.1,
+  "metrics": {
+    "precision": 1,
+    "recall": 0.325,
+    "f1": 0.4906,
+    "true_positives": 65,
+    "false_positives": 0,
+    "false_negatives": 135
+  },
+  "by_category": {
+    "business_positive_en": {
+      "count": 30,
+      "precision": 1,
+      "recall": 0.2542,
+      "f1": 0.4054
+    },
+    "business_positive_zh": {
+      "count": 20,
+      "precision": 1,
+      "recall": 0.3429,
+      "f1": 0.5106
+    },
+    "business_positive_mixed": {
+      "count": 10,
+      "precision": 1,
+      "recall": 0.1364,
+      "f1": 0.24
+    },
+    "family_personal": {
+      "count": 15,
+      "precision": 1,
+      "recall": 0.5714,
+      "f1": 0.7273
+    },
+    "multi_commitment": {
+      "count": 15,
+      "precision": 1,
+      "recall": 0.2308,
+      "f1": 0.375
+    },
+    "reply_chain": {
+      "count": 10,
+      "precision": 1,
+      "recall": 0.5882,
+      "f1": 0.7407
+    }
+  },
+  "by_difficulty": {
+    "easy": {
+      "count": 15,
+      "precision": 1,
+      "recall": 0.6,
+      "f1": 0.75
+    },
+    "medium": {
+      "count": 50,
+      "precision": 1,
+      "recall": 0.2885,
+      "f1": 0.4478
+    },
+    "hard": {
+      "count": 35,
+      "precision": 1,
+      "recall": 0.3026,
+      "f1": 0.4646
+    }
+  },
+  "by_language": {
+    "en": {
+      "count": 62,
+      "precision": 1,
+      "recall": 0.3465,
+      "f1": 0.5146
+    },
+    "zh": {
+      "count": 26,
+      "precision": 1,
+      "recall": 0.3617,
+      "f1": 0.5313
+    },
+    "mixed": {
+      "count": 12,
+      "precision": 1,
+      "recall": 0.1538,
+      "f1": 0.2667
+    }
+  },
+  "per_email": [
+    {
+      "id": 1,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 7797,
+      "details": []
+    },
+    {
+      "id": 2,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 8498,
+      "details": []
+    },
+    {
+      "id": 3,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 8080,
+      "details": []
+    },
+    {
+      "id": 4,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 8980,
+      "details": [
+        "MISS: waiting_on_them \"send.*service agreement|draft.*agreement|service agreement|agreement.*draft\""
+      ]
+    },
+    {
+      "id": 5,
+      "category": "business_positive_en",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 10034,
+      "details": []
+    },
+    {
+      "id": 6,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 4,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 16849,
+      "details": [
+        "MISS: waiting_on_them \"send.*detailed proposal|proposal.*pricing|detailed.*proposal\"",
+        "MISS: waiting_on_them \"schedule.*call|walk.*pricing|pricing.*call\""
+      ]
+    },
+    {
+      "id": 7,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 14819,
+      "details": [
+        "MISS: waiting_on_them \"share.*requirements|requirements document|updated requirements\""
+      ]
+    },
+    {
+      "id": 8,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 9165,
+      "details": []
+    },
+    {
+      "id": 9,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 12796,
+      "details": [
+        "MISS: waiting_on_them \"activate.*credits|AWS.*credits|\\$50.*credits\"",
+        "MISS: waiting_on_them \"send.*enterprise license|license agreement|architecture review|schedule.*review\""
+      ]
+    },
+    {
+      "id": 10,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 10544,
+      "details": [
+        "MISS: waiting_on_them \"process.*payment|bank transfer\"",
+        "MISS: waiting_on_them \"forward.*registration number|send.*details\""
+      ]
+    },
+    {
+      "id": 11,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 9146,
+      "details": [
+        "MISS: waiting_on_them \"send.*reporting template\""
+      ]
+    },
+    {
+      "id": 12,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 8085,
+      "details": [
+        "MISS: i_promised \"send.*walkthrough video\""
+      ]
+    },
+    {
+      "id": 13,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 11195,
+      "details": [
+        "MISS: waiting_on_them \"intro.*PolicyPal|intro.*Didi\"",
+        "MISS: waiting_on_them \"send.*term sheet feedback\""
+      ]
+    },
+    {
+      "id": 14,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 12548,
+      "details": [
+        "MISS: i_promised \"board deck|financial projections|roadmap|org chart|slides.*board\"",
+        "MISS: i_promised \"competitive landscape\""
+      ]
+    },
+    {
+      "id": 15,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 13053,
+      "details": [
+        "MISS: waiting_on_them \"wire.*\\$100K|transfer.*investment\"",
+        "MISS: waiting_on_them \"intro.*Swiss Re|connect.*Swiss Re\""
+      ]
+    },
+    {
+      "id": 16,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 14509,
+      "details": [
+        "MISS: i_promised \"DPO registration|PDPC.*registration|PDPA.*compliance|Data Protection Policy|publish.*policy\"",
+        "MISS: waiting_on_them \"registration form|prepare.*form|send.*questionnaire|technical questionnaire\""
+      ]
+    },
+    {
+      "id": 17,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 9560,
+      "details": [
+        "MISS: i_promised \"TRM|technology risk|self-assessment|regulatory.*submission|MAS.*compliance\""
+      ]
+    },
+    {
+      "id": 18,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 11030,
+      "details": [
+        "MISS: waiting_on_them \"draft.*alternative language|IP.*language\"",
+        "MISS: i_promised \"confirm.*position|respond.*redline\""
+      ]
+    },
+    {
+      "id": 19,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 3,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 13915,
+      "details": [
+        "MISS: i_promised \"AGM|annual general meeting\"",
+        "MISS: waiting_on_them \"schedule.*call|audit timeline\""
+      ]
+    },
+    {
+      "id": 20,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 3,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 12458,
+      "details": [
+        "MISS: waiting_on_them \"submit.*MOM\""
+      ]
+    },
+    {
+      "id": 21,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 3,
+      "pre_filter_correct": true,
+      "latency_ms": 17322,
+      "details": [
+        "MISS: waiting_on_them \"commitment extraction pipeline\"",
+        "MISS: waiting_on_them \"email sync|reconnection logic\"",
+        "MISS: waiting_on_them \"landing page.*mockups|redesign mockups\""
+      ]
+    },
+    {
+      "id": 22,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 11055,
+      "details": [
+        "MISS: waiting_on_them \"compile.*list|survey panel companies\"",
+        "MISS: i_promised \"draft.*outreach.*template|outreach email\""
+      ]
+    },
+    {
+      "id": 23,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 12430,
+      "details": [
+        "MISS: waiting_on_them \"commitment extraction pipeline\"",
+        "MISS: waiting_on_them \"fix.*bug|email threading|PR.*Tuesday\""
+      ]
+    },
+    {
+      "id": 24,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 4,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 16376,
+      "details": [
+        "MISS: i_promised \"lease signing|sign.*lease\"",
+        "MISS: waiting_on_them \"quotes.*movers|moving companies|notify MOM|ACRA.*address|office move|IT setup\""
+      ]
+    },
+    {
+      "id": 25,
+      "category": "business_positive_en",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 17444,
+      "details": [
+        "MISS: waiting_on_them \"persona engine.*PRD|finalize.*PRD|matching algorithm|prototype|website copy|launch.*website|feedback pipeline|Intercom\""
+      ]
+    },
+    {
+      "id": 26,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 16156,
+      "details": [
+        "MISS: i_promised \"API documentation|sandbox environment|SOC 2|security report\"",
+        "MISS: waiting_on_them \"security assessment|questionnaire|staging environment|data processing agreement\""
+      ]
+    },
+    {
+      "id": 27,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 4,
+      "pre_filter_correct": true,
+      "latency_ms": 16037,
+      "details": [
+        "MISS: i_promised \"3-year financial model|financial model\"",
+        "MISS: i_promised \"SOC 2|external auditor\"",
+        "MISS: waiting_on_them \"customer case studies\"",
+        "MISS: waiting_on_them \"intro.*Singapore Life|introduce.*CEO\""
+      ]
+    },
+    {
+      "id": 28,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 15249,
+      "details": [
+        "MISS: waiting_on_them \"reserved instance pricing|confirm.*pricing|VPC setup|Docker images|push.*ECR|updated SOW|statement of work\""
+      ]
+    },
+    {
+      "id": 29,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 11611,
+      "details": [
+        "MISS: waiting_on_them \"formal approval|VP.*approval|data sharing agreement|legal.*draft|Slack channel\"",
+        "MISS: i_promised \"technical architecture|architecture overview|sample output|persona engine|DPO contact\""
+      ]
+    },
+    {
+      "id": 30,
+      "category": "business_positive_en",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 13686,
+      "details": [
+        "MISS: waiting_on_them \"panelists.*bios|other.*bios|co-panelist\""
+      ]
+    },
+    {
+      "id": 31,
+      "category": "business_positive_zh",
+      "difficulty": "easy",
+      "language": "zh",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 8177,
+      "details": []
+    },
+    {
+      "id": 32,
+      "category": "business_positive_zh",
+      "difficulty": "easy",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 9435,
+      "details": [
+        "MISS: waiting_on_them \"合作协议|合同.*初稿\"",
+        "MISS: waiting_on_them \"确认.*时间|技术对接\""
+      ]
+    },
+    {
+      "id": 33,
+      "category": "business_positive_zh",
+      "difficulty": "easy",
+      "language": "zh",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 8413,
+      "details": []
+    },
+    {
+      "id": 34,
+      "category": "business_positive_zh",
+      "difficulty": "easy",
+      "language": "zh",
+      "passed": false,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 7694,
+      "details": [
+        "MISS: waiting_on_them \"试用账号|技术文档\""
+      ]
+    },
+    {
+      "id": 35,
+      "category": "business_positive_zh",
+      "difficulty": "easy",
+      "language": "zh",
+      "passed": true,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 10333,
+      "details": []
+    },
+    {
+      "id": 36,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 3,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "pre_filter_correct": true,
+      "latency_ms": 19740,
+      "details": [
+        "MISS: waiting_on_them \"需求文档|需求确认\"",
+        "MISS: i_promised \"核心算法|POC开发\"",
+        "MISS: i_promised \"确认.*时间|反馈.*调整\""
+      ]
+    },
+    {
+      "id": 37,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 14239,
+      "details": [
+        "MISS: i_promised \"回复.*进度|reply.*status|respond.*progress\""
+      ]
+    },
+    {
+      "id": 38,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 10394,
+      "details": [
+        "MISS: waiting_on_them \"后端API|API开发\""
+      ]
+    },
+    {
+      "id": 39,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 14777,
+      "details": [
+        "MISS: waiting_on_them \"WBS|人员名单|详细.*计划\"",
+        "MISS: waiting_on_them \"页面框架|组件库\""
+      ]
+    },
+    {
+      "id": 40,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 0,
+      "details": []
+    },
+    {
+      "id": 41,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 8082,
+      "details": [
+        "MISS: waiting_on_them \"付款|支付.*发票\""
+      ]
+    },
+    {
+      "id": 42,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 10968,
+      "details": [
+        "MISS: waiting_on_them \"银行转账|付款|完成.*转账\"",
+        "MISS: waiting_on_them \"续约合同|续签.*合同\""
+      ]
+    },
+    {
+      "id": 43,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 9828,
+      "details": [
+        "MISS: waiting_on_them \"安排付款|付款\""
+      ]
+    },
+    {
+      "id": 44,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": true,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 10575,
+      "details": []
+    },
+    {
+      "id": 45,
+      "category": "business_positive_zh",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 14960,
+      "details": [
+        "MISS: waiting_on_them \"预付款|30%.*付款|支付.*预付\"",
+        "MISS: i_promised \"确认邮件|到账.*确认\""
+      ]
+    },
+    {
+      "id": 46,
+      "category": "business_positive_zh",
+      "difficulty": "hard",
+      "language": "zh",
+      "passed": false,
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 9070,
+      "details": [
+        "MISS: i_promised \"报价|RFQ.*提交|技术方案\""
+      ]
+    },
+    {
+      "id": 47,
+      "category": "business_positive_zh",
+      "difficulty": "hard",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 11032,
+      "details": [
+        "MISS: i_promised \"补充.*材料|等保.*认证|审计报告|资质证明|submit.*materials|compliance.*documents\"",
+        "MISS: waiting_on_them \"技术安全评审|安全评审.*结果|security.*review\""
+      ]
+    },
+    {
+      "id": 48,
+      "category": "business_positive_zh",
+      "difficulty": "hard",
+      "language": "zh",
+      "passed": false,
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 7037,
+      "details": [
+        "MISS: i_promised \"数据出境.*评估|安全评估.*申报\""
+      ]
+    },
+    {
+      "id": 49,
+      "category": "business_positive_zh",
+      "difficulty": "hard",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 10974,
+      "details": [
+        "MISS: waiting_on_them \"尾款|支付.*40%\""
+      ]
+    },
+    {
+      "id": 50,
+      "category": "business_positive_zh",
+      "difficulty": "hard",
+      "language": "zh",
+      "passed": true,
+      "expected": 1,
+      "extracted": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 13900,
+      "details": []
+    },
+    {
+      "id": 51,
+      "category": "business_positive_mixed",
+      "difficulty": "medium",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 12088,
+      "details": [
+        "MISS: waiting_on_them \"follow up.*questionnaire|security questionnaire\""
+      ]
+    },
+    {
+      "id": 52,
+      "category": "business_positive_mixed",
+      "difficulty": "medium",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 16060,
+      "details": [
+        "MISS: i_promised \"demo.*environment|check.*bug|fix.*bug|pricing deck|update.*pricing|case study|meeting.*prep\"",
+        "MISS: waiting_on_them \"arrange.*follow up|referral.*call\""
+      ]
+    },
+    {
+      "id": 53,
+      "category": "business_positive_mixed",
+      "difficulty": "medium",
+      "language": "mixed",
+      "passed": false,
+      "expected": 4,
+      "extracted": 6,
+      "tp": 0,
+      "fp": 0,
+      "fn": 4,
+      "pre_filter_correct": true,
+      "latency_ms": 20232,
+      "details": [
+        "MISS: waiting_on_them \"fix.*redeploy|deployment.*fix\"",
+        "MISS: i_promised \"review.*migration|database migration.*review\"",
+        "MISS: i_promised \"approve.*PR|code review\"",
+        "MISS: waiting_on_them \"Grafana dashboard|monitoring.*dashboard\""
+      ]
+    },
+    {
+      "id": 54,
+      "category": "business_positive_mixed",
+      "difficulty": "medium",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 14498,
+      "details": [
+        "MISS: waiting_on_them \"follow up.*AWS|activate.*credits|Figma.*renew|Figma.*quote|Intercom.*timeline|confirm.*timeline|vendor.*coordinate\""
+      ]
+    },
+    {
+      "id": 55,
+      "category": "business_positive_mixed",
+      "difficulty": "medium",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 4,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 17356,
+      "details": [
+        "MISS: i_promised \"decide.*sprint|persona accuracy|confirm.*priority|batch export|customer feedback.*decision\"",
+        "MISS: waiting_on_them \"feedback.*summary|compile.*feedback|schedule.*demo|Tokio Marine\""
+      ]
+    },
+    {
+      "id": 56,
+      "category": "business_positive_mixed",
+      "difficulty": "hard",
+      "language": "mixed",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 8523,
+      "details": []
+    },
+    {
+      "id": 57,
+      "category": "business_positive_mixed",
+      "difficulty": "hard",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 9376,
+      "details": [
+        "MISS: waiting_on_them \"migration plan\"",
+        "MISS: i_promised \"API key|create.*key|SiliconFlow.*key\""
+      ]
+    },
+    {
+      "id": 58,
+      "category": "business_positive_mixed",
+      "difficulty": "hard",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 15440,
+      "details": [
+        "MISS: i_promised \"welcome chat|intern|Amy|assign.*mentor|approve.*laptop|approve.*Xero|approve.*dinner|onboarding\"",
+        "MISS: waiting_on_them \"EP renewal.*result|MOM.*result|keep.*posted\""
+      ]
+    },
+    {
+      "id": 59,
+      "category": "business_positive_mixed",
+      "difficulty": "hard",
+      "language": "mixed",
+      "passed": false,
+      "expected": 3,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 3,
+      "pre_filter_correct": true,
+      "latency_ms": 11814,
+      "details": [
+        "MISS: waiting_on_them \"UAT.*access|whitelist.*IP|firewall\"",
+        "MISS: waiting_on_them \"share.*test cases\"",
+        "MISS: i_promised \"user guide|操作流程\""
+      ]
+    },
+    {
+      "id": 60,
+      "category": "business_positive_mixed",
+      "difficulty": "hard",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 16491,
+      "details": [
+        "MISS: i_promised \"decide.*option|confirm.*option|choose.*venue|approve.*budget|team building.*activities|offsite.*decision\"",
+        "MISS: waiting_on_them \"venue.*availability|call.*venue|dietary restrictions|facilitator.*quote|team building facilitator\""
+      ]
+    },
+    {
+      "id": 61,
+      "category": "family_personal",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 12304,
+      "details": []
+    },
+    {
+      "id": 62,
+      "category": "family_personal",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 10700,
+      "details": [
+        "MISS: waiting_on_them \"buy milk\""
+      ]
+    },
+    {
+      "id": 63,
+      "category": "family_personal",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 7284,
+      "details": [
+        "MISS: i_promised \"parent-teacher|confirm.*attendance|reply.*conference\""
+      ]
+    },
+    {
+      "id": 64,
+      "category": "family_personal",
+      "difficulty": "easy",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 9855,
+      "details": [
+        "MISS: i_promised \"registration form\"",
+        "MISS: i_promised \"GIRO form\""
+      ]
+    },
+    {
+      "id": 65,
+      "category": "family_personal",
+      "difficulty": "easy",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 7682,
+      "details": []
+    },
+    {
+      "id": 66,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 9564,
+      "details": [
+        "MISS: i_promised \"health screening|doctor.*appointment|Raffles.*appointment\""
+      ]
+    },
+    {
+      "id": 67,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 3,
+      "tp": 3,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 16099,
+      "details": [
+        "MISS: waiting_on_them \"WhatsApp list|parent.*list\""
+      ]
+    },
+    {
+      "id": 68,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 3,
+      "extracted": 3,
+      "tp": 2,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 14107,
+      "details": [
+        "MISS: waiting_on_them \"提醒.*不要吃|提醒妈妈\""
+      ]
+    },
+    {
+      "id": 69,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": true,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 12083,
+      "details": []
+    },
+    {
+      "id": 70,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 10787,
+      "details": [
+        "MISS: i_promised \"attend.*concert|school concert\"",
+        "MISS: waiting_on_them \"white blouse|purchase.*blouse\""
+      ]
+    },
+    {
+      "id": 71,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 14609,
+      "details": [
+        "MISS: waiting_on_them \"passport.*valid|check.*passport|travel insurance|restaurant.*reservations|omakase\""
+      ]
+    },
+    {
+      "id": 72,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 15016,
+      "details": [
+        "MISS: waiting_on_them \"红酒|买.*酒|波尔多\""
+      ]
+    },
+    {
+      "id": 73,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 15601,
+      "details": []
+    },
+    {
+      "id": 74,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 16442,
+      "details": [
+        "MISS: waiting_on_them \"tile selection|kitchen tile|finalize.*tile\""
+      ]
+    },
+    {
+      "id": 75,
+      "category": "family_personal",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 3,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 13621,
+      "details": []
+    },
+    {
+      "id": 76,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 14231,
+      "details": [
+        "MISS: i_promised \"Q2 marketing budget|approve.*budget|intro.*Grab|schedule.*1:1\"",
+        "MISS: waiting_on_them \"Kanban|email sync|reconnection|pricing.*mockups|office.*checklist\""
+      ]
+    },
+    {
+      "id": 77,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 18976,
+      "details": [
+        "MISS: i_promised \"project plan|milestones|sign.*SOW|amended SOW\"",
+        "MISS: waiting_on_them \"API documentation|customer data|IAM roles|AWS.*setup|introduce.*DPO\""
+      ]
+    },
+    {
+      "id": 78,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 5,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 18627,
+      "details": [
+        "MISS: waiting_on_them \"customer reference|reference list|technical.*deck|deep-dive|office visit.*dates\""
+      ]
+    },
+    {
+      "id": 79,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 15738,
+      "details": [
+        "MISS: i_promised \"数据安全.*说明|合规.*书面|审批.*预算|服务器扩容|CTO.*沟通\"",
+        "MISS: waiting_on_them \"数据对接|培训材料|客户培训\""
+      ]
+    },
+    {
+      "id": 80,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 13769,
+      "details": [
+        "MISS: waiting_on_them \"introduce.*Singapore Life|strategic investor\""
+      ]
+    },
+    {
+      "id": 81,
+      "category": "multi_commitment",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 4,
+      "tp": 0,
+      "fp": 0,
+      "fn": 4,
+      "pre_filter_correct": true,
+      "latency_ms": 16979,
+      "details": [
+        "MISS: i_promised \"DeepSeek.*rate limits|API key.*request\"",
+        "MISS: i_promised \"approve.*database reset|staging.*reset\"",
+        "MISS: waiting_on_them \"commitment extraction|prompt engineering\"",
+        "MISS: waiting_on_them \"eval framework|test harness\""
+      ]
+    },
+    {
+      "id": 82,
+      "category": "multi_commitment",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 5,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 5,
+      "pre_filter_correct": true,
+      "latency_ms": 10415,
+      "details": [
+        "MISS: i_promised \"product requirements|STORY-51.*requirements|onboarding.*requirements\"",
+        "MISS: i_promised \"review.*technical design|STORY-50.*design\"",
+        "MISS: i_promised \"Stripe vs PayNow|billing.*decide\"",
+        "MISS: waiting_on_them \"email sync|reconnection|STORY-45\"",
+        "MISS: waiting_on_them \"landing page|STORY-48\""
+      ]
+    },
+    {
+      "id": 83,
+      "category": "multi_commitment",
+      "difficulty": "medium",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 0,
+      "details": []
+    },
+    {
+      "id": 84,
+      "category": "multi_commitment",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 0,
+      "details": []
+    },
+    {
+      "id": 85,
+      "category": "multi_commitment",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 0,
+      "details": []
+    },
+    {
+      "id": 86,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 13312,
+      "details": [
+        "MISS: i_promised \"pitch deck|updated.*deck\"",
+        "MISS: waiting_on_them \"customer advisory board|advisory.*board\""
+      ]
+    },
+    {
+      "id": 87,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 4,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 15747,
+      "details": [
+        "MISS: waiting_on_them \"term sheet|board charter|reference check|intro.*East Ventures|Willson\""
+      ]
+    },
+    {
+      "id": 88,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "zh",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 15331,
+      "details": [
+        "MISS: waiting_on_them \"安排.*演示|产品演示|白皮书|保险.*白皮书\""
+      ]
+    },
+    {
+      "id": 89,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 3,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 14747,
+      "details": [
+        "MISS: i_promised \"executive summary|2-page.*summary|testimonials|case studies|SOC 2|ISO 27001|DPIA.*complete|materials.*Diana\"",
+        "MISS: waiting_on_them \"technical requirements|Alvin.*spec|DPIA template|pilot proposal|schedule.*call|BD.*call\""
+      ]
+    },
+    {
+      "id": 90,
+      "category": "multi_commitment",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 3,
+      "tp": 3,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 16578,
+      "details": [
+        "MISS: i_promised \"fundraising memo|draft.*memo\""
+      ]
+    },
+    {
+      "id": 91,
+      "category": "reply_chain",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 7634,
+      "details": []
+    },
+    {
+      "id": 92,
+      "category": "reply_chain",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 7492,
+      "details": []
+    },
+    {
+      "id": 93,
+      "category": "reply_chain",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": false,
+      "expected": 1,
+      "extracted": 0,
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 8077,
+      "details": [
+        "MISS: i_promised \"steering committee|meeting.*3 April|project status report\""
+      ]
+    },
+    {
+      "id": 94,
+      "category": "reply_chain",
+      "difficulty": "medium",
+      "language": "zh",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 8740,
+      "details": []
+    },
+    {
+      "id": 95,
+      "category": "reply_chain",
+      "difficulty": "medium",
+      "language": "en",
+      "passed": true,
+      "expected": 1,
+      "extracted": 1,
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 11386,
+      "details": []
+    },
+    {
+      "id": 96,
+      "category": "reply_chain",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 1,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 8748,
+      "details": [
+        "MISS: i_promised \"confirm.*hotfix|confirm.*live|hotfix.*deployed\"",
+        "MISS: waiting_on_them \"hotfix.*UAT|deploy.*fix|timezone.*fix\""
+      ]
+    },
+    {
+      "id": 97,
+      "category": "reply_chain",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": true,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "pre_filter_correct": true,
+      "latency_ms": 11861,
+      "details": []
+    },
+    {
+      "id": 98,
+      "category": "reply_chain",
+      "difficulty": "hard",
+      "language": "mixed",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 12155,
+      "details": [
+        "MISS: waiting_on_them \"Python SDK|sample code|Wei.*prepare\""
+      ]
+    },
+    {
+      "id": 99,
+      "category": "reply_chain",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 2,
+      "extracted": 2,
+      "tp": 0,
+      "fp": 0,
+      "fn": 2,
+      "pre_filter_correct": true,
+      "latency_ms": 12938,
+      "details": [
+        "MISS: waiting_on_them \"revised clause|draft.*clause|send.*lawyers\"",
+        "MISS: waiting_on_them \"carve-out|pre-existing IP|persona engine.*excluded\""
+      ]
+    },
+    {
+      "id": 100,
+      "category": "reply_chain",
+      "difficulty": "hard",
+      "language": "en",
+      "passed": false,
+      "expected": 4,
+      "extracted": 3,
+      "tp": 3,
+      "fp": 0,
+      "fn": 1,
+      "pre_filter_correct": true,
+      "latency_ms": 16222,
+      "details": [
+        "MISS: i_promised \"schedule.*call|walk.*incident|prevention plan\""
+      ]
+    }
+  ]
+}

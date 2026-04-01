@@ -73,27 +73,53 @@ export async function GET() {
     .eq('user_id', user.id)
     .order('start_time', { ascending: true })
 
-  // Enrich trips with expenses and meetings
+  // Fetch structured sub-resources for each trip
+
+  const [
+    { data: flights },
+    { data: hotels },
+    { data: transports },
+    { data: tripMeetings },
+    { data: dinners },
+    { data: forums },
+  ] = tripIds.length > 0 ? await Promise.all([
+    admin.from('trip_flights').select('*').in('trip_id', tripIds).order('departure_at'),
+    admin.from('trip_hotels').select('*').in('trip_id', tripIds).order('checkin_at'),
+    admin.from('trip_transports').select('*').in('trip_id', tripIds).order('pickup_at'),
+    admin.from('trip_meetings').select('*').in('trip_id', tripIds).order('start_at'),
+    admin.from('trip_dinners').select('*').in('trip_id', tripIds).order('start_at'),
+    admin.from('trip_forums').select('*').in('trip_id', tripIds).order('start_date'),
+  ]) : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }, { data: [] }]
+
+  // Enrich trips with expenses, sub-resources, and calendar meetings
   const enrichedTrips = (trips || []).map(trip => {
     const tripExpenses = (expenses || []).filter(e => e.trip_id === trip.id)
     const totalExpenses = tripExpenses.reduce((sum: number, e: any) => sum + parseFloat(e.amount || 0), 0)
 
-    // Find meetings during this trip
+    // Calendar meetings during this trip
     const tripStart = new Date(trip.start_date)
     const tripEnd = new Date(trip.end_date)
-    tripEnd.setHours(23, 59, 59) // Include the entire end date
-    const meetings = (calendarEvents || []).filter(evt => {
+    tripEnd.setHours(23, 59, 59)
+    const calMeetings = (calendarEvents || []).filter(evt => {
       const evtDate = new Date(evt.start_time)
       return evtDate >= tripStart && evtDate <= tripEnd
     })
 
     return {
       ...trip,
+      // Structured sub-resources
+      flights: (flights || []).filter(f => f.trip_id === trip.id),
+      hotels: (hotels || []).filter(h => h.trip_id === trip.id),
+      transports: (transports || []).filter(t => t.trip_id === trip.id),
+      trip_meetings: (tripMeetings || []).filter(m => m.trip_id === trip.id),
+      dinners: (dinners || []).filter(d => d.trip_id === trip.id),
+      forums: (forums || []).filter(f => f.trip_id === trip.id),
+      // Legacy
       expenses: tripExpenses,
       total_expenses: totalExpenses,
       expense_currency: tripExpenses[0]?.currency || 'SGD',
-      meetings_count: meetings.length,
-      meetings,
+      meetings_count: calMeetings.length + ((tripMeetings || []).filter(m => m.trip_id === trip.id)).length,
+      meetings: calMeetings,
     }
   })
 

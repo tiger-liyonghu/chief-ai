@@ -24,7 +24,7 @@ import OpenAI from 'openai'
 // Load .env.local
 // ---------------------------------------------------------------------------
 try {
-  const envPath = resolve(__dirname, '../../.env.local')
+  const envPath = resolve(process.cwd(), '.env.local')
   const envContent = readFileSync(envPath, 'utf-8')
   for (const line of envContent.split('\n')) {
     const trimmed = line.trim()
@@ -33,7 +33,7 @@ try {
     if (eqIdx === -1) continue
     const key = trimmed.slice(0, eqIdx)
     const val = trimmed.slice(eqIdx + 1)
-    if (!process.env[key]) process.env[key] = val
+    process.env[key] = val
   }
 } catch {
   // .env.local not found, rely on existing env vars
