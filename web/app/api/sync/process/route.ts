@@ -28,14 +28,26 @@ function looksLikeTravel(subject: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get current user
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Get current user — support both session auth and cron header
+    let userId: string
+    const cronUserId = request.headers.get('x-cron-user-id')
+    const cronAuth = request.headers.get('authorization')
+    if (cronUserId && cronAuth === `Bearer ${process.env.CRON_SECRET}`) {
+      userId = cronUserId
+    } else {
+      const supabase = await createClient()
+      const { data: { user: sessionUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !sessionUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      userId = sessionUser.id
     }
-
     const admin = createAdminClient()
+
+    // Fetch user email for pre-filter
+    const { data: profile } = await admin.from('profiles').select('email').eq('id', userId).single()
+    const user = { id: userId, email: profile?.email || '' }
+
     const { client: aiClient, model: aiModel } = await createUserAIClient(user.id)
 
     // Get Gmail access token (may not exist if user only has IMAP accounts)
@@ -117,7 +129,7 @@ export async function POST(request: NextRequest) {
               body = emailRow.body_text
             } else if (imapConfig && emailRow.gmail_message_id.startsWith('imap-')) {
               // IMAP account (163, QQ, Outlook IMAP, etc.) — fetch body via IMAP
-              const uidMatch = emailRow.gmail_message_id.match(/^imap-[^-]+-(\d+)-/)
+              const uidMatch = emailRow.gmail_message_id.match(/^imap-[a-f0-9-]{36}-(\d+)-/)
               const uid = uidMatch ? parseInt(uidMatch[1], 10) : 0
               if (uid > 0) {
                 try {
@@ -154,9 +166,10 @@ export async function POST(request: NextRequest) {
             if (content) {
               const parsed = JSON.parse(content)
 
-              // Update email: mark as processed + reply status
+              // Update email: mark as processed + reply status + persist body
               await admin.from('emails').update({
                 body_processed: true,
+                body_text: body || null,
                 is_reply_needed: parsed.reply_needed || false,
                 reply_urgency: parsed.reply_urgency || 0,
               }).eq('id', emailRow.id)
@@ -271,7 +284,7 @@ export async function POST(request: NextRequest) {
           const travelSourceEmail = (email.source_account_email || '').toLowerCase()
           const travelImapConfig = imapConfigMap.get(travelSourceEmail)
           if (travelImapConfig && email.gmail_message_id.startsWith('imap-')) {
-            const uidMatch = email.gmail_message_id.match(/^imap-[^-]+-(\d+)-/)
+            const uidMatch = email.gmail_message_id.match(/^imap-[a-f0-9-]{36}-(\d+)-/)
             const uid = uidMatch ? parseInt(uidMatch[1], 10) : 0
             if (uid > 0) {
               try { body = await fetchImapMessageBody(travelImapConfig, uid) || body } catch { /* snippet fallback */ }
@@ -429,7 +442,7 @@ export async function POST(request: NextRequest) {
             const sentSourceEmail = (email.source_account_email || '').toLowerCase()
             const sentImapConfig = imapConfigMap.get(sentSourceEmail)
             if (sentImapConfig && email.gmail_message_id.startsWith('imap-')) {
-              const uidMatch = email.gmail_message_id.match(/^imap-[^-]+-(\d+)-/)
+              const uidMatch = email.gmail_message_id.match(/^imap-[a-f0-9-]{36}-(\d+)-/)
               const uid = uidMatch ? parseInt(uidMatch[1], 10) : 0
               if (uid > 0) {
                 try { body = await fetchImapMessageBody(sentImapConfig, uid, '&XfJT0ZAB-') || body } catch {

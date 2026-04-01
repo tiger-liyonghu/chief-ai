@@ -33,10 +33,31 @@ export async function getMessageMetadata(accessToken: string, messageId: string)
   const res = await gmail.users.messages.get({
     userId: 'me',
     id: messageId,
-    format: 'metadata',
-    metadataHeaders: ['From', 'To', 'Subject', 'Date'],
+    format: 'full',
   })
   return res.data
+}
+
+/** Extract plain text body from a Gmail message payload */
+export function extractBodyText(payload: any): string {
+  let body = ''
+  if (!payload) return body
+
+  if (payload.body?.data) {
+    body += Buffer.from(payload.body.data, 'base64').toString('utf8') + '\n'
+  }
+
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      if (part.mimeType === 'text/plain' && part.body?.data) {
+        body += Buffer.from(part.body.data, 'base64').toString('utf8') + '\n'
+      } else if (part.parts) {
+        body += extractBodyText(part)
+      }
+    }
+  }
+
+  return body.trim()
 }
 
 export async function listHistory(accessToken: string, startHistoryId: string) {

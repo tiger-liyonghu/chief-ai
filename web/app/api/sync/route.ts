@@ -2,23 +2,32 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAllAccountTokens, updateAccountHistoryId } from '@/lib/google/tokens'
-import { listMessages, getMessageMetadata, parseEmailHeaders, listHistory, getProfile } from '@/lib/google/gmail'
+import { listMessages, getMessageMetadata, parseEmailHeaders, listHistory, getProfile, extractBodyText } from '@/lib/google/gmail'
 import { listEvents } from '@/lib/google/calendar'
 import { getMicrosoftAccountTokens, updateMicrosoftDeltaLink } from '@/lib/microsoft/tokens'
 import { listMessages as msListMessages, parseGraphMessage } from '@/lib/microsoft/mail'
 import { listEvents as msListEvents, parseGraphEvent } from '@/lib/microsoft/calendar'
 import { getImapAccountTokens, updateImapSyncState } from '@/lib/imap/tokens'
-import { listImapMessages, listImapSentMessages, type ImapConfig } from '@/lib/imap/client'
+import { listImapMessages, listImapSentMessages, fetchImapMessageBody, type ImapConfig } from '@/lib/imap/client'
 import type { AccountWithToken } from '@/lib/google/tokens'
 
 export async function POST(request: NextRequest) {
   try {
-    // Get current user
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    // Get current user — support both session auth and cron header
+    let userId: string
+    const cronUserId = request.headers.get('x-cron-user-id')
+    const cronAuth = request.headers.get('authorization')
+    if (cronUserId && cronAuth === `Bearer ${process.env.CRON_SECRET}`) {
+      userId = cronUserId
+    } else {
+      const supabase = await createClient()
+      const { data: { user: sessionUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !sessionUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      userId = sessionUser.id
     }
+    const user = { id: userId }
 
     const admin = createAdminClient()
 
@@ -168,6 +177,7 @@ async function syncOneGoogleAccount(
 
           const metaMessage = await getMessageMetadata(accessToken, msgId)
           const headers = parseEmailHeaders(metaMessage.payload?.headers as any)
+          const bodyText = extractBodyText(metaMessage.payload) || null
 
           const fromMatch = headers.from.match(/^(.+?)\s*<(.+?)>$/)
           const fromName = fromMatch ? fromMatch[1].replace(/"/g, '').trim() : null
@@ -183,6 +193,7 @@ async function syncOneGoogleAccount(
             received_at: headers.date ? new Date(headers.date).toISOString() : new Date().toISOString(),
             snippet: metaMessage.snippet || '',
             labels: metaMessage.labelIds || [],
+            body_text: bodyText,
             body_processed: false,
             source_account_email: googleEmail,
           }, { onConflict: 'user_id,gmail_message_id' })
@@ -416,7 +427,7 @@ async function syncOneImapAccount(
       return true
     })
 
-    // Upsert into emails table
+    // Upsert into emails table — fetch body inline for each message
     for (const msg of unique) {
       const imapMessageId = `imap-${accountId}-${msg.uid}-${msg.messageId}`
 
@@ -428,6 +439,14 @@ async function syncOneImapAccount(
         .single()
 
       if (existing?.body_processed) continue
+
+      // Fetch body text inline — one connection per message (ImapFlow is short-lived)
+      let bodyText: string | null = null
+      try {
+        bodyText = await fetchImapMessageBody(imapConfig, msg.uid) || null
+      } catch {
+        // Non-fatal: store without body, process route can retry later
+      }
 
       // Determine labels based on flags
       const labels: string[] = []
@@ -441,7 +460,7 @@ async function syncOneImapAccount(
       await admin.from('emails').upsert({
         user_id: userId,
         gmail_message_id: imapMessageId,
-        thread_id: msg.messageId, // Use message-id as thread grouping
+        thread_id: msg.messageId,
         subject: msg.subject,
         from_address: msg.from.address,
         from_name: msg.from.name,
@@ -449,6 +468,7 @@ async function syncOneImapAccount(
         received_at: msg.date,
         snippet: msg.snippet || msg.subject,
         labels,
+        body_text: bodyText,
         body_processed: false,
         source_account_email: email,
       }, { onConflict: 'user_id,gmail_message_id' })
