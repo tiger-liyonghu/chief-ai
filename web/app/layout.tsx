@@ -1,10 +1,23 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { I18nProvider } from '@/lib/i18n/context'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover', // for notched phones (safe-area-inset)
+}
 
 export const metadata: Metadata = {
   title: 'Sophia — Your AI Chief of Staff',
   description: 'AI-powered email and calendar assistant that tells you what to do, who to reply to, and what to prepare for.',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Sophia',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

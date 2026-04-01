@@ -74,6 +74,14 @@
   100% { opacity: 0.4; }
 }
 
+/* Safe area for notched phones (iPhone X+, Android punch-hole) */
+.safe-area-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

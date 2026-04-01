@@ -60,11 +60,12 @@ export async function GET(request: NextRequest) {
         userId = authUser.user.id
       }
 
-      // Ensure profile exists
+      // Ensure profile exists with correct defaults
       await supabase.from('profiles').upsert({
         id: userId,
         email: userInfo.email!,
         full_name: userInfo.name,
+        assistant_name: 'Sophia',
         gdpr_consent_at: new Date().toISOString(),
       }, { onConflict: 'id' })
     }
@@ -86,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     const isPrimary = !existingAccountCount || existingAccountCount === 0
 
-    await supabase.from('google_accounts').upsert({
+    const googleAccountData = {
       user_id: userId,
       google_email: userInfo.email!,
       google_name: userInfo.name || null,
@@ -95,7 +96,28 @@ export async function GET(request: NextRequest) {
       access_token_encrypted: encrypt(tokens.access_token),
       refresh_token_encrypted: encrypt(tokens.refresh_token),
       token_expires_at: new Date(tokens.expiry_date || Date.now() + 3600000).toISOString(),
-    }, { onConflict: 'user_id,google_email' })
+    }
+
+    // Try upsert first (requires unique constraint on user_id,google_email)
+    const { error: upsertError } = await supabase.from('google_accounts').upsert(
+      googleAccountData, { onConflict: 'user_id,google_email' }
+    )
+    if (upsertError) {
+      // Fallback: check if exists, then update or insert
+      const { data: existing } = await supabase.from('google_accounts')
+        .select('id').eq('user_id', userId).eq('google_email', userInfo.email!).single()
+      if (existing) {
+        await supabase.from('google_accounts').update({
+          access_token_encrypted: googleAccountData.access_token_encrypted,
+          refresh_token_encrypted: googleAccountData.refresh_token_encrypted,
+          token_expires_at: googleAccountData.token_expires_at,
+          google_name: googleAccountData.google_name,
+          google_avatar: googleAccountData.google_avatar,
+        }).eq('id', existing.id)
+      } else {
+        await supabase.from('google_accounts').insert(googleAccountData)
+      }
+    }
 
     // Check if this is a first-time user who needs onboarding
     const { data: profileCheck } = await supabase
