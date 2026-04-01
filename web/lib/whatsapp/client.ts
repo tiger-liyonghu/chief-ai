@@ -504,6 +504,7 @@ async function upsertConnectionRecord(
           user_id: userId,
           phone_number: phoneNumber,
           status: 'active',
+          ai_enabled: true,
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'user_id,phone_number' },
