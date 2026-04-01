@@ -175,6 +175,16 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
         await upsertConnectionRecord(supabase, userId, 'active', sock.user?.id.split(':')[0])
         clearTimeout(timeout)
 
+        // Send welcome message on first connection
+        try {
+          const myNumber = sock.user?.id.split(':')[0] || ''
+          const selfJid = `${myNumber}@s.whatsapp.net`
+          await sock.sendMessage(selfJid, { text: '🍎 你好，我是 Sophia，你的 AI 幕僚长。有什么可以帮到你的，随时跟我说。' })
+          console.log(`[WA] Welcome message sent to ${myNumber}`)
+        } catch (err) {
+          console.error('[WA] Failed to send welcome message:', err)
+        }
+
         if (!resolved) {
           resolved = true
           resolve({ connected: true, phoneNumber: sock.user?.id.split(':')[0] })
@@ -209,6 +219,11 @@ export async function connectWhatsApp(userId: string, phoneNumber?: string): Pro
                   setupMessageHandler(userId)
                   await upsertConnectionRecord(supabase, userId, 'active', freshSock.user?.id.split(':')[0])
                   console.log(`[WA] Pairing reconnect successful for ${userId}`)
+                  // Send welcome message
+                  try {
+                    const num = freshSock.user?.id.split(':')[0] || ''
+                    await freshSock.sendMessage(`${num}@s.whatsapp.net`, { text: '🍎 你好，我是 Sophia，你的 AI 幕僚长。有什么可以帮到你的，随时跟我说。' })
+                  } catch { /* non-fatal */ }
                 }
               })
             } catch (err) {

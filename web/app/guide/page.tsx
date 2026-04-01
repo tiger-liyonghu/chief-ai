@@ -155,6 +155,7 @@ export default function GuidePage() {
                 <SubStep>{L('选择「用手机号关联」', 'Select "Link with phone number"')}</SubStep>
                 <SubStep>{L('输入 Sophia 页面上的 8 位配对码', 'Enter the 8-digit code from Sophia')}</SubStep>
                 <SubStep>{L('等几秒，Sophia 页面自动显示「已连接」', 'Wait a few seconds, Sophia shows "Connected"')}</SubStep>
+                <SubStep>{L('Sophia 会在 WhatsApp 里主动发一条问候消息，说明绑定成功', 'Sophia will send a welcome message in WhatsApp to confirm the connection')}</SubStep>
               </div>
             </div>
 
