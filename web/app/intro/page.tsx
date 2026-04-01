@@ -223,7 +223,7 @@ export default function IntroPage() {
                 </div>
                 <div>
                   <span className="text-xs text-slate-400">{L('密码', 'Password')}</span>
-                  <p className="font-mono text-slate-800">AIAT@actuaryhelp.com</p>
+                  <p className="font-mono text-slate-800">AIAT@actuaryhelp1</p>
                 </div>
               </div>
             </div>
