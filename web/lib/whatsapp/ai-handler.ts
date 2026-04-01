@@ -224,7 +224,7 @@ export async function isAIEnabled(userId: string): Promise<boolean> {
 
 function getSystemPrompt(timezone: string): string {
   const { getSophieWhatsAppPrompt } = require('@/lib/ai/prompts/sophia-voice')
-  return getSophieWhatsAppPrompt(timezone)
+  return getSophieWhatsAppPrompt(timezone, 'Sophia')
 }
 
 // ── Main handler ──
