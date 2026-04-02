@@ -27,7 +27,7 @@ import {
 // Calendar = 家庭不忘（含硬约束）+ 工作日程
 const navKeys = [
   { href: '/dashboard', key: 'todayNav' as const, icon: Target },
-  { href: '/dashboard/commitments', key: 'commitments' as const, icon: CheckCircle },
+  { href: '/dashboard/commitments', key: 'commitmentsNav' as const, icon: CheckCircle },
   { href: '/dashboard/contacts', key: 'people' as const, icon: Users },
   { href: '/dashboard/calendar', key: 'calendar' as const, icon: CalendarDays },
 ]
