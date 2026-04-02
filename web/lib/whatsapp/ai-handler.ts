@@ -634,16 +634,16 @@ export async function processMessageWithAI(
     trackLLMUsage(userId, model, usage?.prompt_tokens || 0, usage?.completion_tokens || 0, rounds, elapsed, hasImage ? 'vision' : 'chat')
 
     // ── POST-PROCESS: fix formatting before sending ──
-    response = sanitizeWhatsAppResponse(response)
+    const sanitizedResponse = sanitizeWhatsAppResponse(response)
 
     // Send reply
-    await sendReply(message.remoteJid, response)
+    await sendReply(message.remoteJid, sanitizedResponse)
 
     // ── ENTER COOLDOWN: lock for N seconds to prevent echo ──
     conversationLock.set(userId, Date.now() + COOLDOWN_MS)
 
     // ── CACHE RESPONSE: for recency check on repeated input ──
-    lastResponse.set(userId, { text: response.slice(0, 200), time: Date.now() })
+    lastResponse.set(userId, { text: sanitizedResponse.slice(0, 200), time: Date.now() })
 
     // Store Sophia's reply
     await supabase.from('whatsapp_messages').insert({
@@ -652,7 +652,7 @@ export async function processMessageWithAI(
       from_number: 'sophia',
       from_name: 'Sophia',
       to_number: message.from,
-      body: response,
+      body: sanitizedResponse,
       message_type: 'text',
       direction: 'inbound',
       received_at: new Date().toISOString(),
