@@ -236,6 +236,8 @@ export async function POST(request: NextRequest) {
       .eq('body_processed', false)
 
     // Lightweight contact detection: upsert new email addresses not yet in contacts table
+    // Also extracts city from email signature for travel contact activation
+    const { extractCityFromEmail } = await import('@/lib/contacts/extract-city')
     const newAddresses = new Set<string>()
     for (const emailRow of unprocessedEmails) {
       if (emailRow.from_address) {
@@ -246,22 +248,105 @@ export async function POST(request: NextRequest) {
     for (const email of newAddresses) {
       const { data: existing } = await admin
         .from('contacts')
-        .select('id')
+        .select('id, city')
         .eq('user_id', user.id)
         .eq('email', email)
         .single()
 
       if (!existing) {
+        // New contact: create with city if detectable
         const matchingEmail = unprocessedEmails.find(e =>
           e.from_address.toLowerCase().trim() === email
         )
+        const city = extractCityFromEmail(matchingEmail?.body_text || null)
         await admin.from('contacts').upsert({
           user_id: user.id,
           email,
           name: matchingEmail?.from_name || null,
+          importance: 'normal',
           email_count: 1,
           last_contact_at: new Date().toISOString(),
+          ...(city ? { city } : {}),
         }, { onConflict: 'user_id,email', ignoreDuplicates: true })
+      } else if (!existing.city) {
+        // Existing contact without city: try to fill from latest email
+        const matchingEmail = unprocessedEmails.find(e =>
+          e.from_address.toLowerCase().trim() === email
+        )
+        const city = extractCityFromEmail(matchingEmail?.body_text || null)
+        if (city) {
+          await admin.from('contacts').update({ city }).eq('id', existing.id)
+        }
+      }
+    }
+
+    // --- Policy/insurance signal detection ---
+    const { detectPolicySignal } = await import('@/lib/signals/policy-detect')
+    let policiesDetected = 0
+    for (const emailRow of unprocessedEmails) {
+      if (!emailRow.body_text) continue
+      const signal = detectPolicySignal({
+        id: emailRow.id,
+        from_address: emailRow.from_address || '',
+        from_name: emailRow.from_name || undefined,
+        subject: emailRow.subject || '',
+        body_text: emailRow.body_text,
+      })
+      if (signal && (signal.signalType === 'renewal' || signal.signalType === 'new_policy')) {
+        // Upsert into policies table
+        const contactEmail = emailRow.from_address?.toLowerCase()
+        const { data: contact } = await admin
+          .from('contacts')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('email', contactEmail)
+          .single()
+
+        await admin.from('policies').upsert({
+          user_id: user.id,
+          contact_id: contact?.id || null,
+          contact_email: contactEmail,
+          contact_name: emailRow.from_name || null,
+          product_type: signal.productType || 'unknown',
+          policy_number: signal.policyNumber,
+          expiry_date: signal.expiryDate,
+          status: signal.expiryDate && new Date(signal.expiryDate) < new Date() ? 'expired' : 'active',
+          signal_id: emailRow.id,
+          source: 'email',
+        }, { onConflict: 'user_id,contact_email,product_type', ignoreDuplicates: false })
+        policiesDetected++
+      }
+    }
+
+    // --- Referral detection: "my friend also needs..." ---
+    const { detectReferral } = await import('@/lib/signals/referral-detect')
+    let referralsDetected = 0
+    for (const emailRow of unprocessedEmails) {
+      if (!emailRow.body_text) continue
+      const referral = detectReferral({
+        id: emailRow.id,
+        from_address: emailRow.from_address || '',
+        from_name: emailRow.from_name || undefined,
+        subject: emailRow.subject || '',
+        body_text: emailRow.body_text,
+      })
+      if (referral) {
+        // Store as alert for Dashboard + Briefing display
+        await admin.from('alerts').upsert({
+          user_id: user.id,
+          type: 'referral_detected',
+          title: `Referral from ${referral.fromName}`,
+          body: referral.snippet,
+          severity: 'medium',
+          reference_id: emailRow.id,
+          metadata: {
+            from_email: referral.fromEmail,
+            from_name: referral.fromName,
+            subject: referral.subject,
+            confidence: referral.confidence,
+          },
+        }, { onConflict: 'user_id,type,reference_id', ignoreDuplicates: true })
+        referralsDetected++
       }
     }
 
@@ -547,6 +632,46 @@ export async function POST(request: NextRequest) {
               }
 
               for (const c of commitments) {
+                // Dedup: skip if same contact + similar title exists within 7 days
+                const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+                const { data: existing } = await admin
+                  .from('commitments')
+                  .select('id, title')
+                  .eq('user_id', user.id)
+                  .eq('contact_email', toAddr || '')
+                  .gte('created_at', sevenDaysAgo)
+                  .in('status', ['pending', 'in_progress', 'overdue'])
+                  .limit(20)
+
+                const isDuplicate = (existing || []).some(e => {
+                  const titleA = (e.title || '').toLowerCase()
+                  const titleB = (c.title || '').toLowerCase()
+                  // Exact match
+                  if (titleA === titleB) return true
+                  // Word overlap > 60%
+                  const wordsA = new Set(titleA.split(/\s+/).filter(w => w.length > 1))
+                  const wordsB = new Set(titleB.split(/\s+/).filter(w => w.length > 1))
+                  if (wordsA.size === 0 || wordsB.size === 0) return titleA === titleB
+                  const overlap = [...wordsA].filter(w => wordsB.has(w)).length
+                  return overlap / Math.min(wordsA.size, wordsB.size) > 0.6
+                })
+
+                if (isDuplicate) continue // Skip duplicate
+
+                // Check if contact has family role → mark commitment as family context
+                let context = 'work'
+                if (toAddr) {
+                  const { data: contactRoles } = await admin
+                    .from('contacts')
+                    .select('roles')
+                    .eq('user_id', user.id)
+                    .eq('email', toAddr)
+                    .single()
+                  if (contactRoles?.roles && Array.isArray(contactRoles.roles) && contactRoles.roles.includes('family')) {
+                    context = 'family'
+                  }
+                }
+
                 await admin.from('commitments').insert({
                   user_id: user.id,
                   type: c.type === 'waiting_on_them' ? 'they_promised' : 'i_promised',
@@ -559,6 +684,7 @@ export async function POST(request: NextRequest) {
                   signal_channel: 'email',
                   deadline: c.due_date || null,
                   status: 'pending',
+                  context,
                 })
                 commitmentsExtracted++
               }

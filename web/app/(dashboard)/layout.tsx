@@ -114,7 +114,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </motion.div>
       </main>
 
-      {/* Mobile bottom tab bar */}
+      {/* Mobile bottom tab bar — aligned with manifesto */}
       <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-border safe-area-bottom">
         <div className="flex items-center justify-around py-2">
           <BottomTabItem
@@ -124,22 +124,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             active={pathname === '/dashboard'}
           />
           <BottomTabItem
+            href="/dashboard/commitments"
+            icon={CheckSquare}
+            label={t('commitments' as any)}
+            active={pathname === '/dashboard/commitments' || pathname === '/dashboard/tasks' || pathname === '/dashboard/follow-ups'}
+          />
+          <BottomTabItem
             href="/dashboard/calendar"
             icon={CalendarDays}
             label={t('calendar')}
             active={pathname === '/dashboard/calendar'}
           />
           <BottomTabItem
-            href="/dashboard/inbox"
-            icon={Mail}
-            label={t('inbox')}
-            active={pathname === '/dashboard/inbox' || pathname.startsWith('/dashboard/inbox/')}
-          />
-          <BottomTabItem
-            href="/dashboard/tasks"
-            icon={CheckSquare}
-            label={t('tasks')}
-            active={pathname === '/dashboard/tasks'}
+            icon={MessageCircle}
+            label="Sophia"
+            onClick={() => {
+              // Toggle chat panel — dispatch custom event
+              window.dispatchEvent(new CustomEvent('toggle-sophia-chat'))
+            }}
           />
         </div>
       </div>

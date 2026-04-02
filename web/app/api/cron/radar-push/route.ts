@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { wasNotificationSent, markNotificationSent } from '@/lib/whatsapp/notification-log'
+import { shouldNotify } from '@/lib/scheduler/should-notify'
 
 /**
  * GET /api/cron/radar-push
@@ -38,26 +39,14 @@ export async function GET(request: NextRequest) {
       const alerts = await collectCriticalAlerts(admin, user.id, todayISO)
       if (alerts.length === 0) continue
 
-      // 👂 Check user's recent emotional state — if stressed/tired, only push critical
-      let filteredAlerts = alerts
-      try {
-        const { detectEmotion } = await import('@/lib/ai/emotion/detect')
-        const { data: recentWA } = await admin
-          .from('whatsapp_messages')
-          .select('body')
-          .eq('user_id', user.id)
-          .eq('direction', 'inbound')
-          .order('received_at', { ascending: false })
-          .limit(3)
-        const emotions = (recentWA || [])
-          .map((m: any) => detectEmotion(m.body || ''))
-          .filter((e: any) => e.confidence >= 0.5)
-        const dominant = emotions[0]
-        if (dominant && (dominant.emotion === 'tired' || dominant.emotion === 'stressed')) {
-          // Only push critical alerts when user is tired/stressed — respect their state
-          filteredAlerts = alerts.filter(a => a.urgency === 'critical')
-        }
-      } catch { /* non-fatal — proceed with all alerts */ }
+      // 🫀 shouldNotify: time + meeting + frequency triple check
+      // Replaces emotion-based filtering with manifesto rule #3: "不该烦的时候不烦"
+      const filteredAlerts: typeof alerts = []
+      for (const alert of alerts) {
+        const decision = await shouldNotify(admin, user.id, alert.urgency, 'radar_push')
+        if (decision.allowed) filteredAlerts.push(alert)
+      }
+      if (filteredAlerts.length === 0) continue
 
       // Filter out already-sent alerts
       const unsent: typeof filteredAlerts = []

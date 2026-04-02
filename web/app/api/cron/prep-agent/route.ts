@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createUserAIClient } from '@/lib/ai/unified-client'
+import { getContextBundle } from '@/lib/context-engine'
 
 /**
  * Prep Agent — Vercel Cron calls this every 15 minutes.
@@ -46,47 +47,16 @@ export async function GET(request: NextRequest) {
         .map(a => a.email?.toLowerCase())
         .filter(Boolean) as string[]
 
-      // Gather context in parallel
-      const [emailsRes, followUpsRes, contactsRes, waRes] = await Promise.all([
-        // Recent emails with attendees
-        attendeeEmails.length > 0
-          ? admin
-              .from('emails')
-              .select('from_address, from_name, subject, snippet, received_at')
-              .eq('user_id', event.user_id)
-              .in('from_address', attendeeEmails)
-              .order('received_at', { ascending: false })
-              .limit(attendeeEmails.length * 3)
-          : Promise.resolve({ data: [] }),
-
-        // Active commitments with attendees
-        attendeeEmails.length > 0
-          ? admin
-              .from('commitments')
-              .select('contact_email, contact_name, title, type, deadline')
-              .eq('user_id', event.user_id)
-              .in('status', ['pending', 'in_progress', 'overdue'])
-              .in('contact_email', attendeeEmails)
-          : Promise.resolve({ data: [] }),
-
-        // Contact profiles
-        attendeeEmails.length > 0
-          ? admin
-              .from('contacts')
-              .select('email, name, company, role, relationship, importance')
-              .eq('user_id', event.user_id)
-              .in('email', attendeeEmails)
-          : Promise.resolve({ data: [] }),
-
-        // Recent WhatsApp (last 48h)
-        admin
-          .from('whatsapp_messages')
-          .select('from_name, from_number, body, direction, received_at')
-          .eq('user_id', event.user_id)
-          .gte('received_at', new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString())
-          .order('received_at', { ascending: false })
-          .limit(20),
-      ])
+      // Gather context via unified Context Engine (per attendee)
+      const attendeeBundles = await Promise.all(
+        attendeeEmails.slice(0, 5).map(email =>
+          getContextBundle(event.user_id, {
+            contactEmail: email,
+            mode: 'meeting_prep',
+            depth: 'deep',
+          })
+        )
+      )
 
       // Build context for AI
       const contextParts: string[] = []
@@ -96,47 +66,28 @@ export async function GET(request: NextRequest) {
       if (event.location) contextParts.push(`Location: ${event.location}`)
       if (event.description) contextParts.push(`Description: ${event.description}`)
 
-      // Attendee profiles
-      if (attendees.length > 0) {
+      // Attendee profiles + timelines from Context Engine
+      if (attendeeBundles.length > 0) {
         contextParts.push('\n--- Attendees ---')
-        for (const a of attendees) {
-          const contact = (contactsRes.data || []).find(
-            (c: any) => c.email?.toLowerCase() === a.email?.toLowerCase()
-          )
-          if (contact) {
-            contextParts.push(`- ${contact.name || a.email} (${contact.role || ''} @ ${contact.company || ''}, ${contact.relationship || ''}, ${contact.importance || 'normal'})`)
-          } else {
-            contextParts.push(`- ${a.name || a.email}`)
+        for (const bundle of attendeeBundles) {
+          const c = bundle.contact
+          if (c) {
+            contextParts.push(`- ${c.name} (${c.role || ''} @ ${c.company || ''}, ${c.relationship || ''}, ${c.importance || 'normal'}, temp=${c.temperature}/100)`)
+
+            // Open commitments from timeline
+            if (c.activeCommitments.iPromised > 0 || c.activeCommitments.waitingOnThem > 0) {
+              contextParts.push(`  Commitments: ${c.activeCommitments.iPromised} you promised, ${c.activeCommitments.waitingOnThem} waiting on them`)
+            }
           }
-        }
-      }
 
-      // Recent emails
-      if ((emailsRes.data || []).length > 0) {
-        contextParts.push('\n--- Recent Email Threads ---')
-        for (const e of (emailsRes.data || []).slice(0, 8)) {
-          contextParts.push(`- ${(e as any).from_name || (e as any).from_address}: "${(e as any).subject}" (${new Date((e as any).received_at).toLocaleDateString()})`)
-        }
-      }
-
-      // Commitments
-      if ((followUpsRes.data || []).length > 0) {
-        contextParts.push('\n--- Open Commitments ---')
-        for (const f of followUpsRes.data || []) {
-          const label = (f as any).type === 'i_promised' ? 'YOU PROMISED' : 'WAITING ON THEM'
-          contextParts.push(`- [${label}] ${(f as any).contact_name || (f as any).contact_email}: "${(f as any).title}" (due: ${(f as any).deadline || 'no date'})`)
-        }
-      }
-
-      // WhatsApp context (match by name)
-      const attendeeNames = new Set(attendees.map(a => (a.name || '').toLowerCase()).filter(Boolean))
-      const relevantWa = (waRes.data || []).filter((m: any) =>
-        attendeeNames.has((m.from_name || '').toLowerCase())
-      )
-      if (relevantWa.length > 0) {
-        contextParts.push('\n--- Recent WhatsApp ---')
-        for (const m of relevantWa.slice(0, 5)) {
-          contextParts.push(`- ${(m as any).from_name}: "${((m as any).body || '').slice(0, 100)}"`)
+          // Timeline events (recent interactions)
+          if (bundle.timeline?.events.length) {
+            const recent = bundle.timeline.events.slice(-5)
+            for (const evt of recent) {
+              const dateStr = evt.timestamp.toLocaleDateString()
+              contextParts.push(`  ${evt.type}: "${evt.title}" (${dateStr})`)
+            }
+          }
         }
       }
 

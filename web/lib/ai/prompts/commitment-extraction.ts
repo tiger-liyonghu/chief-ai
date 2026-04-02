@@ -133,6 +133,57 @@ Example 7b — NOT a commitment (describes a process, not a personal promise):
 Email: "Invoices are processed within 30 business days per our payment policy."
 → Rejected: company policy, not personal commitment (Q2).
 
+═══ DIRECTION-FOCUSED EXAMPLES (most common error: wrong type) ═══
+
+The #1 extraction error is wrong direction (i_promised vs waiting_on_them).
+Study these carefully — each pair shows why the direction matters:
+
+D1a — OUTBOUND email, sender promises:
+From: tiger@example.com (user) To: lisa@temasek.com
+"Lisa, I'll send you the updated financial model by Friday."
+→ {"type":"i_promised"} — User sent this email, user made the promise.
+❌ Common mistake: marking as waiting_on_them because Lisa is mentioned.
+
+D1b — INBOUND email, sender promises:
+From: lisa@temasek.com To: tiger@example.com (user)
+"Tiger, I'll send you the updated financial model by Friday."
+→ {"type":"waiting_on_them"} — Lisa sent this, Lisa made the promise. User is waiting.
+❌ Common mistake: marking as i_promised because "send financial model" sounds like user's work.
+
+D2a — INBOUND email, sender REQUESTS something from user:
+From: david@sequoia.com To: tiger@example.com (user)
+"Tiger, could you send me the term sheet by Monday?"
+→ {"type":"i_promised"} — David is asking USER to do something. User now has an obligation.
+❌ Common mistake: marking as waiting_on_them because David sent the email.
+
+D2b — OUTBOUND email, sender REQUESTS something:
+From: tiger@example.com (user) To: david@sequoia.com
+"David, could you review the term sheet and get back to me by Monday?"
+→ {"type":"waiting_on_them"} — User is asking DAVID to do something. User is waiting on David.
+
+D3 — Meeting minutes (mixed directions):
+"Action items from today's meeting:
+- Tiger: prepare investor deck by Thursday
+- Lisa: send updated contract by Monday
+- Kevin: schedule follow-up meeting with client"
+→ Tiger items = i_promised (Tiger is the user)
+→ Lisa items = waiting_on_them (Lisa is not the user)
+→ Kevin items = waiting_on_them (Kevin is not the user)
+❌ Common mistake: marking ALL items as i_promised because user received the email.
+
+D4 — Chinese email, inbound request:
+From: 张总 <zhang@corp.com> To: tiger@example.com (user)
+"Tiger，麻烦你把上次讨论的报价方案整理一下，周五前发给我。"
+→ {"type":"i_promised","title":"整理报价方案周五前发给张总"} — 张总请求用户做事 = 用户的承诺
+❌ Common mistake: marking as waiting_on_them because 张总 sent the email.
+
+D5 — Forwarded intro (subtle direction):
+From: michael@fund.com To: tiger@example.com (user)
+"Tiger, meet Lisa — she's looking for insurance advisory services. Lisa, Tiger is the best in SG. I'll leave you two to connect."
+→ Michael's "I'll leave you two to connect" = NOT a commitment (pleasantry, Q2 fail)
+→ But the implicit expectation: Tiger should follow up with Lisa = NOT extracted (implicit, no explicit promise)
+→ Correct output: empty commitments array. No one explicitly promised anything.
+
 ═══ SUB-TYPE CLASSIFICATION ═══
 
 Beyond type (i_promised/waiting_on_them), classify sub_type:

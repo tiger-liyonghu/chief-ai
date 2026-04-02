@@ -162,7 +162,8 @@ export default function InboxPage() {
   const [emails, setEmails] = useState<EmailItem[]>([])
   const [waMessages, setWaMessages] = useState<WhatsAppMessage[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<ChannelFilter>('all')
+  // Default to 'needs_reply' — Sophia is not an email client, it shows what needs attention
+  const [filter, setFilter] = useState<ChannelFilter>('needs_reply')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [expandedBody, setExpandedBody] = useState<string | null>(null)
   const [bodyLoading, setBodyLoading] = useState(false)

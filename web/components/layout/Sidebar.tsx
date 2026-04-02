@@ -12,29 +12,32 @@ import {
   Users,
   CalendarDays,
   Plane,
-  Receipt,
-  Heart,
-  TrendingUp,
+  CheckCircle,
+  MessageCircle,
   Settings,
   Sparkles,
   LogOut,
   Globe,
 } from 'lucide-react'
 
-// Primary nav: 4 core modules (what CEO uses daily)
+// Primary nav: aligned with manifesto's 3 directions + 3 actions
+// Today = 提醒（往前看+往后看）
+// Commitments = 客户不丢（承诺追踪）
+// People = 客户不丢（关系管理）
+// Calendar = 家庭不忘（含硬约束）+ 工作日程
 const navKeys = [
   { href: '/dashboard', key: 'todayNav' as const, icon: Target },
-  { href: '/dashboard/calendar', key: 'calendar' as const, icon: CalendarDays },
-  { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
+  { href: '/dashboard/commitments', key: 'commitments' as const, icon: CheckCircle },
   { href: '/dashboard/contacts', key: 'people' as const, icon: Users },
+  { href: '/dashboard/calendar', key: 'calendar' as const, icon: CalendarDays },
 ]
 
-// Secondary nav: accessed less frequently
+// Secondary nav: less frequent but important
+// Trips = 差旅不乱（含 expenses）
+// Inbox = 溯源（需要回复的邮件，不是邮件客户端）
 const secondaryNavKeys = [
   { href: '/dashboard/trips', key: 'trips' as const, icon: Plane },
-  { href: '/dashboard/family', key: 'familyNav' as const, icon: Heart },
-  { href: '/dashboard/expenses', key: 'expenses' as const, icon: Receipt },
-  { href: '/dashboard/insights', key: 'insightsNav' as const, icon: TrendingUp },
+  { href: '/dashboard/inbox', key: 'inbox' as const, icon: Mail },
 ]
 
 const locales: Locale[] = ['en', 'zh']

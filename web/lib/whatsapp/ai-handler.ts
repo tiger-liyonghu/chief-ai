@@ -10,6 +10,43 @@ import { APPLE_TOOLS, executeTool, getUserTimezone } from '@/lib/whatsapp/tools/
 import { getLLMClient } from '@/lib/whatsapp/tools/types'
 import { preFetchPersonContext } from '@/lib/whatsapp/tools/pre-fetch'
 
+// ── Response sanitizer: fix formatting issues before sending ──
+
+/**
+ * Post-process LLM response for WhatsApp delivery.
+ *
+ * Three transformations:
+ * 1. Convert Markdown **bold** to WhatsApp *bold*
+ * 2. Strip Markdown headers (##), code blocks (```), bullet points (- )
+ * 3. Remove 🍎 prefix if present
+ */
+function sanitizeWhatsAppResponse(text: string): string {
+  let r = text
+
+  // Remove 🍎 prefix
+  r = r.replace(/^🍎\s*/, '')
+
+  // Convert **bold** to *bold* (WhatsApp format)
+  r = r.replace(/\*\*([^*]+)\*\*/g, '*$1*')
+
+  // Remove ## headers — keep the text
+  r = r.replace(/^#{1,6}\s+/gm, '')
+
+  // Remove ``` code blocks — keep content
+  r = r.replace(/```[\s\S]*?```/g, (match) => match.replace(/```\w*\n?/g, '').trim())
+
+  // Convert markdown bullet "- " to plain newline (WhatsApp doesn't render bullets)
+  r = r.replace(/^\s*[-•]\s+/gm, '  ')
+
+  // Remove numbered list formatting "1. " → "1) " (more WhatsApp-friendly)
+  r = r.replace(/^(\d+)\.\s+/gm, '$1) ')
+
+  // Collapse multiple blank lines to single
+  r = r.replace(/\n{3,}/g, '\n\n')
+
+  return r.trim()
+}
+
 // ── Vision/Audio client (SiliconFlow) ──
 
 function getVisionClient(): OpenAI {
@@ -229,16 +266,73 @@ function getSystemPrompt(timezone: string): string {
 
 // ── Main handler ──
 
-// Track recently processed message IDs to prevent duplicate processing on reconnect
-const recentlyProcessed = new Map<string, number>()
+/**
+ * CONVERSATION MUTEX — prevents echo storms.
+ *
+ * Mathematical model: positive feedback loop in self-chat.
+ * Sophia sends reply → WhatsApp delivers to self → triggers handler → repeat.
+ *
+ * Solution: time-based mutual exclusion lock per user.
+ * States: IDLE → PROCESSING → COOLDOWN → IDLE
+ * During PROCESSING and COOLDOWN, ALL incoming messages are rejected.
+ * Cooldown = 5 seconds (> WhatsApp round-trip time).
+ *
+ * This is mathematically guaranteed to break the feedback loop because
+ * time is monotonically increasing and cannot be bypassed.
+ */
+const conversationLock = new Map<string, number>() // userId → unlock timestamp
+const COOLDOWN_MS = 5000 // 5 seconds after response before accepting new messages
 
-// Clean old entries every 5 minutes
+/**
+ * RECENCY CACHE — prevents duplicate responses to repeated input.
+ *
+ * If Sophia just gave a briefing 30 minutes ago and user says "hi" again,
+ * respond with "刚说过了" instead of repeating the same briefing.
+ */
+const lastResponse = new Map<string, { text: string; time: number }>()
+
+/**
+ * MESSAGE CLASSIFIER — routes messages to appropriate handler.
+ *
+ * chitchat: brief acknowledgment, no tools
+ * action/query: full LLM pipeline
+ * urgent: bypass shouldNotify, full pipeline
+ */
+function classifyMessage(body: string): 'urgent' | 'action' | 'query' | 'chitchat' | 'wait_signal' {
+  const text = body.trim().toLowerCase()
+
+  // Wait signals: user is thinking/acknowledging, don't respond with content
+  if (/^(我看看|让我想想|嗯|好的?|ok|okay|知道了|收到|got it|noted|hmm|看看)$/i.test(text)) return 'wait_signal'
+
+  // Urgent: explicit urgency markers
+  if (/紧急|urgent|马上|立刻|asap|赶紧|emergency/i.test(text)) return 'urgent'
+
+  // Action: user wants Sophia to DO something
+  if (/帮我|起草|发送|创建|完成|延期|催|安排|block|schedule|draft|send|create|done|nudge/i.test(text)) return 'action'
+
+  // Quick commitment commands (handled separately, but classify as action)
+  if (/^(完成|done|起草|draft|延期|postpone|催|nudge|升级)\s/i.test(text)) return 'action'
+
+  // Query: user is asking for information
+  if (/[?？]|什么|几个|有没有|怎么样|多少|哪些|吗$|呢$|today|tomorrow|this week|calendar|email|task|commit/i.test(text)) return 'query'
+
+  // Everything else is chitchat
+  return 'chitchat'
+}
+
+// Track recently processed messages (content-based, for reconnect replays)
+const recentlyProcessed = new Map<string, number>()
 setInterval(() => {
   const fiveMinAgo = Date.now() - 5 * 60 * 1000
   for (const [key, ts] of recentlyProcessed) {
     if (ts < fiveMinAgo) recentlyProcessed.delete(key)
   }
-}, 5 * 60 * 1000)
+  // Also clean old lastResponse entries (> 30 min)
+  const thirtyMinAgo = Date.now() - 30 * 60 * 1000
+  for (const [key, val] of lastResponse) {
+    if (val.time < thirtyMinAgo) lastResponse.delete(key)
+  }
+}, 60 * 1000)
 
 export async function processMessageWithAI(
   userId: string,
@@ -248,19 +342,73 @@ export async function processMessageWithAI(
   const hasImage = message.messageType === 'image' && message.imageBase64
   if (!hasImage && !message.body.trim()) return
 
-  // Dedup: skip if this exact message was already processed (reconnect replay protection)
-  const dedupKey = `${userId}:${message.from}:${message.body?.slice(0, 100)}:${(message as any).timestamp || Date.now()}`
-  if (recentlyProcessed.has(dedupKey)) {
-    console.log(`[Sophia] Skipping duplicate message from ${message.from}`)
+  // ── MUTEX CHECK: if locked, reject immediately ──
+  const unlockTime = conversationLock.get(userId) || 0
+  if (Date.now() < unlockTime) {
+    // Still in PROCESSING or COOLDOWN — this is likely a feedback echo
     return
   }
-  recentlyProcessed.set(dedupKey, Date.now())
+
+  // ── CONTENT DEDUP: same content within 2 minutes = replay ──
+  const contentKey = `${userId}:${message.from}:${(message.body || '').slice(0, 80)}`
+  if (recentlyProcessed.has(contentKey)) {
+    return
+  }
+  recentlyProcessed.set(contentKey, Date.now())
+
+  // ── ACQUIRE LOCK: entering PROCESSING state ──
+  // Lock for 60 seconds max (in case processing hangs, auto-release)
+  conversationLock.set(userId, Date.now() + 60000)
 
   const aiEnabled = await isAIEnabled(userId)
-  if (!aiEnabled) return
+  if (!aiEnabled) {
+    conversationLock.delete(userId) // Release lock
+    return
+  }
 
   if (isRateLimited(userId)) {
     console.log(`[Sophia] Rate limited for user ${userId}`)
+    conversationLock.delete(userId)
+    return
+  }
+
+  // ── CLASSIFY MESSAGE ──
+  const messageClass = message.body ? classifyMessage(message.body) : 'action'
+
+  // ── RECENCY CHECK: don't repeat the same briefing ──
+  const lastResp = lastResponse.get(userId)
+  if (messageClass === 'query' && lastResp && Date.now() - lastResp.time < 30 * 60 * 1000) {
+    // Check if user is asking for the same thing they just asked
+    const simpleInput = (message.body || '').trim().toLowerCase()
+    if (simpleInput === 'hi' || simpleInput === 'hello' || simpleInput === '你好' || simpleInput === 'sophia') {
+      const reply = '刚说过了。你要我帮你处理哪个？'
+      await sendReply(message.remoteJid, reply)
+      // Set cooldown
+      conversationLock.set(userId, Date.now() + COOLDOWN_MS)
+      return
+    }
+  }
+
+  // ── WAIT SIGNAL: user is thinking, don't respond ──
+  if (messageClass === 'wait_signal') {
+    // "我看看", "嗯", "好的" — user is processing, not requesting action
+    // A real chief of staff stays silent here
+    conversationLock.set(userId, Date.now() + COOLDOWN_MS)
+    return // No response at all — silence is the correct behavior
+  }
+
+  // ── CHITCHAT: brief response, no tools ──
+  if (messageClass === 'chitchat' && !hasImage) {
+    // Don't invoke the full LLM pipeline for casual chat
+    // Just acknowledge briefly — a real chief of staff doesn't over-respond to small talk
+    const chitchatResponses = [
+      '收到。',
+      '嗯。需要我做什么吗？',
+      '知道了。',
+    ]
+    const reply = chitchatResponses[Math.floor(Math.random() * chitchatResponses.length)]
+    await sendReply(message.remoteJid, reply)
+    conversationLock.set(userId, Date.now() + COOLDOWN_MS)
     return
   }
 
@@ -485,8 +633,17 @@ export async function processMessageWithAI(
     const { trackLLMUsage } = await import('@/lib/whatsapp/notification-log')
     trackLLMUsage(userId, model, usage?.prompt_tokens || 0, usage?.completion_tokens || 0, rounds, elapsed, hasImage ? 'vision' : 'chat')
 
+    // ── POST-PROCESS: fix formatting before sending ──
+    response = sanitizeWhatsAppResponse(response)
+
     // Send reply
     await sendReply(message.remoteJid, response)
+
+    // ── ENTER COOLDOWN: lock for N seconds to prevent echo ──
+    conversationLock.set(userId, Date.now() + COOLDOWN_MS)
+
+    // ── CACHE RESPONSE: for recency check on repeated input ──
+    lastResponse.set(userId, { text: response.slice(0, 200), time: Date.now() })
 
     // Store Sophia's reply
     await supabase.from('whatsapp_messages').insert({
@@ -504,9 +661,11 @@ export async function processMessageWithAI(
     console.log(`[Sophia] Replied to boss for user ${userId}`)
   } catch (err) {
     console.error('[Sophia] Error:', err)
+    // Release lock on error so user isn't permanently locked out
+    conversationLock.set(userId, Date.now() + COOLDOWN_MS)
     // Send error acknowledgment so boss isn't left waiting
     try {
-      await sendReply(message.remoteJid, '🍎 抱歉老板，刚才处理出了点问题，我再试一下。')
+      await sendReply(message.remoteJid, '抱歉老板，刚才处理出了点问题。再说一遍？')
     } catch { /* ignore send error */ }
   }
 }

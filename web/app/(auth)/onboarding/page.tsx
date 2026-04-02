@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sparkles,
@@ -12,6 +12,10 @@ import {
   ArrowRight,
   Shield,
   Target,
+  AlertTriangle,
+  Users,
+  Calendar,
+  Clock,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/lib/i18n/context'
@@ -20,7 +24,18 @@ import { CommitmentDiscovery } from '@/components/dashboard/CommitmentDiscovery'
 
 /* ─── Step definitions ─── */
 
-type Step = 'channels' | 'scanning' | 'ready'
+type Step = 'channels' | 'wow' | 'ready'
+
+/* ─── Instant Wow data (no LLM, pure DB queries) ─── */
+
+interface InstantWowData {
+  unrepliedCount: number
+  unrepliedTop: Array<{ from: string; subject: string; daysSince: number }>
+  coolingCount: number
+  coolingTop: Array<{ name: string; daysSince: number; importance: string }>
+  conflictCount: number
+  conflictTop: Array<{ event1: string; event2: string; isFamily: boolean }>
+}
 
 /* ─── Channel Connection Card ─── */
 
@@ -198,6 +213,11 @@ export default function OnboardingPage() {
   const [telegramConnected, setTelegramConnected] = useState(false)
   const hasMessagingChannel = whatsappConnected || telegramConnected
 
+  // Wow states
+  const [instantWow, setInstantWow] = useState<InstantWowData | null>(null)
+  const [syncTriggered, setSyncTriggered] = useState(false)
+  const [syncComplete, setSyncComplete] = useState(false)
+
   // If already onboarded, redirect to dashboard
   useEffect(() => {
     fetch('/api/settings').then(r => r.json()).then(data => {
@@ -229,8 +249,32 @@ export default function OnboardingPage() {
     setTelegramConnected(true) // simplified for now
   }
 
-  const handleStartScan = () => {
-    setStep('scanning')
+  // Trigger first-time sync + transition to wow step
+  const handleStartWow = async () => {
+    setStep('wow')
+
+    // 1. Trigger email sync immediately (don't wait for cron)
+    if (!syncTriggered) {
+      setSyncTriggered(true)
+      try {
+        await fetch('/api/sync', { method: 'POST' })
+        setSyncComplete(true)
+      } catch {
+        // Non-blocking: sync will happen via cron anyway
+        setSyncComplete(true)
+      }
+    }
+
+    // 2. Fetch instant wow data (no LLM, pure DB — available in ~30 seconds)
+    try {
+      const res = await fetch('/api/onboarding/wow')
+      if (res.ok) {
+        const data = await res.json()
+        setInstantWow(data)
+      }
+    } catch {
+      // Will show commitment scan as fallback
+    }
   }
 
   const handleDiscoveryComplete = useCallback(async (count: number) => {
@@ -275,7 +319,7 @@ export default function OnboardingPage() {
           </motion.div>
           <h1 className="text-xl font-bold text-slate-900">
             {step === 'channels' ? t('setupSophia') :
-             step === 'scanning' ? t('sophiaLearning') :
+             step === 'wow' ? t('sophiaLearning') :
              t('allSet')}
           </h1>
           {step === 'channels' && (
@@ -285,15 +329,15 @@ export default function OnboardingPage() {
 
         {/* Progress indicator */}
         <div className="flex items-center gap-2 justify-center mb-8">
-          {['channels', 'scanning', 'ready'].map((s, i) => (
+          {['channels', 'wow', 'ready'].map((s, i) => (
             <div key={s} className="flex items-center gap-2">
               <div className={cn('w-2.5 h-2.5 rounded-full transition-colors', {
-                'bg-primary': step === s || ['channels', 'scanning', 'ready'].indexOf(step) > i,
-                'bg-slate-200': ['channels', 'scanning', 'ready'].indexOf(step) < i,
+                'bg-primary': step === s || ['channels', 'wow', 'ready'].indexOf(step) > i,
+                'bg-slate-200': ['channels', 'wow', 'ready'].indexOf(step) < i,
               })} />
               {i < 2 && <div className={cn('w-8 h-0.5', {
-                'bg-primary': ['channels', 'scanning', 'ready'].indexOf(step) > i,
-                'bg-slate-200': ['channels', 'scanning', 'ready'].indexOf(step) <= i,
+                'bg-primary': ['channels', 'wow', 'ready'].indexOf(step) > i,
+                'bg-slate-200': ['channels', 'wow', 'ready'].indexOf(step) <= i,
               })} />}
             </div>
           ))}
@@ -360,7 +404,7 @@ export default function OnboardingPage() {
 
               {/* CTA */}
               <button
-                onClick={handleStartScan}
+                onClick={handleStartWow}
                 disabled={!whatsappConnected}
                 className={cn(
                   'w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all',
@@ -370,7 +414,7 @@ export default function OnboardingPage() {
                 )}
               >
                 {whatsappConnected ? (
-                  <>Scan Emails & Discover Commitments <ArrowRight className="w-4 h-4" /></>
+                  <>Scan Emails & Discover What You Forgot <ArrowRight className="w-4 h-4" /></>
                 ) : (
                   'Connect WhatsApp to continue'
                 )}
@@ -378,14 +422,81 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* ─── Step: Scanning ─── */}
-          {step === 'scanning' && (
+          {/* ─── Step: Wow (Two-phase) ─── */}
+          {step === 'wow' && (
             <motion.div
-              key="scanning"
+              key="wow"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
+              className="space-y-4"
             >
+              {/* Phase 1: Instant Wow — no LLM, pure data */}
+              {instantWow && (instantWow.unrepliedCount > 0 || instantWow.coolingCount > 0 || instantWow.conflictCount > 0) && (
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-700">
+                    {emailAddress?.split('@')[0] || 'Hey'}, here&apos;s what needs your attention:
+                  </h3>
+
+                  {/* Unreplied emails */}
+                  {instantWow.unrepliedCount > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                        <Mail className="w-3.5 h-3.5" />
+                        {instantWow.unrepliedCount} emails need your reply
+                      </div>
+                      {instantWow.unrepliedTop.map((e, i) => (
+                        <div key={i} className="ml-5 text-xs text-slate-600 flex items-center gap-2">
+                          <span className="font-medium">{e.from}</span>
+                          <span className="text-slate-400 truncate flex-1">{e.subject}</span>
+                          <span className="text-slate-400 shrink-0">{e.daysSince}d ago</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Cooling contacts */}
+                  {instantWow.coolingCount > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+                        <Users className="w-3.5 h-3.5" />
+                        {instantWow.coolingCount} important contacts cooling off
+                      </div>
+                      {instantWow.coolingTop.map((c, i) => (
+                        <div key={i} className="ml-5 text-xs text-slate-600 flex items-center gap-2">
+                          <span className="font-medium">{c.name}</span>
+                          <span className="text-slate-400">{c.daysSince} days no contact</span>
+                          {c.importance === 'vip' && (
+                            <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full">VIP</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Calendar conflicts */}
+                  {instantWow.conflictCount > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-medium text-red-500">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        {instantWow.conflictCount} schedule {instantWow.conflictCount === 1 ? 'conflict' : 'conflicts'} this week
+                      </div>
+                      {instantWow.conflictTop.map((c, i) => (
+                        <div key={i} className="ml-5 text-xs text-slate-600">
+                          <span className="font-medium">{c.event1}</span>
+                          <span className="text-red-400 mx-1">vs</span>
+                          <span className="font-medium">{c.event2}</span>
+                          {c.isFamily && (
+                            <span className="ml-1 text-[10px] px-1.5 py-0.5 bg-pink-100 text-pink-700 rounded-full">Family</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Phase 2: Commitment Discovery — SSE, LLM-powered */}
               <CommitmentDiscovery onComplete={handleDiscoveryComplete} />
             </motion.div>
           )}

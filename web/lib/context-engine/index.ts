@@ -8,6 +8,8 @@
  */
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { calculateTemperature } from '@/lib/contacts/temperature'
+import { getOverdueCommitments, getCoolingContacts, getCalendarConflicts } from '@/lib/signals/query'
 
 // ─── Types ───
 
@@ -310,33 +312,14 @@ async function enrichContact(
   if (email && !email.startsWith('wa-')) channels.push('gmail')
   if (contact.phone) channels.push('whatsapp')
 
-  // Calculate temperature with exponential decay
-  // Formula: base_score × decay_factor^days + interaction_bonus + commitment_bonus
-  // Decay: temperature halves every 14 days without interaction
-  const daysSince = contact.last_contact_at
-    ? Math.ceil((Date.now() - new Date(contact.last_contact_at).getTime()) / 86400000)
-    : 999
-
-  const DECAY_HALF_LIFE = 14 // days for temperature to halve
-  const decayFactor = Math.pow(0.5, daysSince / DECAY_HALF_LIFE)
-
-  // Base score from recency (starts at 80, decays over time)
-  const recencyScore = 80 * decayFactor
-
-  // Interaction frequency bonus (each recent email adds warmth)
-  const interactionBonus = Math.min((emailCount || 0) * 4, 20)
-
-  // Active commitments = active relationship
-  const commitmentBonus = (iPromised + waitingOnThem) * 6
-
-  // Importance multiplier (VIP contacts cool slower)
-  const importanceMultiplier = contact.importance === 'vip' ? 1.3
-    : contact.importance === 'high' ? 1.15 : 1.0
-
-  let temperature = Math.round(
-    (recencyScore + interactionBonus + commitmentBonus) * importanceMultiplier
-  )
-  temperature = Math.max(0, Math.min(100, temperature))
+  // Unified temperature algorithm (shared with Weaver Agent)
+  const temp = calculateTemperature({
+    lastInteractionAt: contact.last_contact_at ? new Date(contact.last_contact_at) : null,
+    recentInteractionCount: emailCount || 0,
+    activeCommitmentCount: iPromised + waitingOnThem,
+    importance: contact.importance || 'normal',
+  })
+  const temperature = temp.score
 
   return {
     id: contact.id,
@@ -353,4 +336,109 @@ async function enrichContact(
     temperature,
     activeCommitments: { iPromised, waitingOnThem },
   }
+}
+
+// ─── Context Bundle (unified entry point for all Agents) ───
+
+export type ContextMode = 'reply' | 'meeting_prep' | 'travel' | 'briefing' | 'family_conflict'
+export type ContextDepth = 'light' | 'standard' | 'deep'
+
+export interface ContextBundle {
+  mode: ContextMode
+  contact?: UnifiedContact
+  timeline?: ContactTimeline
+  overdueCommitments?: Awaited<ReturnType<typeof getOverdueCommitments>>
+  coolingContacts?: Awaited<ReturnType<typeof getCoolingContacts>>
+  calendarConflicts?: Awaited<ReturnType<typeof getCalendarConflicts>>
+  userState?: UserState
+  tripContext?: any
+  summary: string
+}
+
+/**
+ * Unified context bundle — the single function all Agents should call.
+ *
+ * Different modes load different data:
+ * - reply: contact + commitments + recent interactions
+ * - meeting_prep: contact + full timeline + commitments + organization
+ * - travel: trip data + destination contacts + commitments due during trip
+ * - briefing: overdue + cooling + conflicts + user state
+ * - family_conflict: calendar conflicts involving family events
+ */
+export async function getContextBundle(
+  userId: string,
+  opts: {
+    contactEmail?: string
+    mode: ContextMode
+    depth?: ContextDepth
+  },
+): Promise<ContextBundle> {
+  const admin = createAdminClient()
+  const { contactEmail, mode, depth = 'standard' } = opts
+  const bundle: ContextBundle = { mode, summary: '' }
+
+  // Contact-centric modes
+  if (contactEmail && (mode === 'reply' || mode === 'meeting_prep')) {
+    bundle.contact = await resolveContact(userId, { email: contactEmail }) || undefined
+
+    if (mode === 'meeting_prep' || depth === 'deep') {
+      bundle.timeline = await getContactTimeline(userId, contactEmail, 30) || undefined
+    }
+  }
+
+  // Briefing mode: aggregate data
+  if (mode === 'briefing') {
+    const [overdue, cooling, conflicts, state] = await Promise.all([
+      getOverdueCommitments(admin, userId),
+      getCoolingContacts(admin, userId, { threshold: 40, limit: 5 }),
+      getCalendarConflicts(admin, userId, { days: 7 }),
+      getUserState(userId),
+    ])
+    bundle.overdueCommitments = overdue
+    bundle.coolingContacts = cooling
+    bundle.calendarConflicts = conflicts
+    bundle.userState = state
+  }
+
+  // Family conflict mode
+  if (mode === 'family_conflict') {
+    bundle.calendarConflicts = await getCalendarConflicts(admin, userId, { days: 7 })
+  }
+
+  // Travel mode
+  if (mode === 'travel') {
+    const { data: activeTrip } = await admin
+      .from('trips')
+      .select('*')
+      .eq('user_id', userId)
+      .in('status', ['active', 'planned', 'confirmed'])
+      .order('start_date')
+      .limit(1)
+      .single()
+
+    if (activeTrip) {
+      bundle.tripContext = activeTrip
+      // Get contacts in destination
+      const city = activeTrip.destination_city
+      if (city) {
+        const { data: localContacts } = await admin
+          .from('contacts')
+          .select('name, email, importance, last_contact_at')
+          .eq('user_id', userId)
+          .ilike('city', `%${city}%`)
+          .limit(10)
+        bundle.tripContext.localContacts = localContacts || []
+      }
+    }
+  }
+
+  // Build summary
+  const parts: string[] = []
+  if (bundle.contact) parts.push(`Contact: ${bundle.contact.name} (${bundle.contact.importance || 'normal'}, temp=${bundle.contact.temperature})`)
+  if (bundle.overdueCommitments?.length) parts.push(`${bundle.overdueCommitments.length} overdue commitments`)
+  if (bundle.coolingContacts?.length) parts.push(`${bundle.coolingContacts.length} cooling contacts`)
+  if (bundle.calendarConflicts?.length) parts.push(`${bundle.calendarConflicts.length} calendar conflicts`)
+  bundle.summary = parts.join('; ') || 'No notable context'
+
+  return bundle
 }
