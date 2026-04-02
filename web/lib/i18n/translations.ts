@@ -168,7 +168,7 @@ const en = {
   aiPoweredProductivity: 'AI-Powered Productivity',
   heroTitle1: 'Your AI',
   heroTitle2: 'Sophia',
-  heroSubtitle: 'Automatically knows what you need to do, who to reply to, and what to prepare for. Connects to your Gmail and Calendar — works in seconds.',
+  heroSubtitle: 'Watches your clients, travel, and family commitments so nothing slips. Connects to Gmail, WhatsApp, and Calendar — works in seconds.',
   connectGmail: 'Connect Your Gmail',
   freeToStart: 'Free to start. No credit card required.',
   commitmentTracking: 'Commitment Tracking',
@@ -198,7 +198,7 @@ const en = {
 
   // Login page
   welcomeBack: 'Welcome to Sophia',
-  signInSubtitle: 'Your AI advisor. Tracks every promise, switches cities seamlessly, guards your family time.',
+  signInSubtitle: 'Your AI chief of staff. Clients, travel, family — nothing drops.',
   continueWithGoogle: 'Continue with Google',
   continueWithMicrosoft: 'Continue with Microsoft',
   microsoftComingSoon: 'Microsoft login coming soon',
@@ -751,7 +751,7 @@ const zh: typeof en = {
   aiPoweredProductivity: 'AI 驱动的生产力',
   heroTitle1: '你的 AI',
   heroTitle2: 'Sophia',
-  heroSubtitle: '自动了解你需要做什么、回复谁、准备什么。连接 Gmail 和日历——几秒即可使用。',
+  heroSubtitle: '盯着你的客户、差旅和家庭承诺，一个都不丢。连接 Gmail、WhatsApp 和日历，几秒即可使用。',
   connectGmail: '连接 Gmail',
   freeToStart: '免费开始，无需信用卡。',
   commitmentTracking: '承诺追踪',
@@ -779,7 +779,7 @@ const zh: typeof en = {
   heroMockTask3: 'Emily — 周末动物园',
 
   welcomeBack: '欢迎使用 Sophia',
-  signInSubtitle: '你的 AI 幕僚 Sophia。盯住每一个承诺，无缝切换城市，守住家庭时间。',
+  signInSubtitle: '你在哪，就安心在哪。客户、差旅、家庭——一个都不丢。',
   continueWithGoogle: '使用 Google 登录',
   continueWithMicrosoft: '使用 Microsoft 登录',
   microsoftComingSoon: 'Microsoft 登录即将上线',

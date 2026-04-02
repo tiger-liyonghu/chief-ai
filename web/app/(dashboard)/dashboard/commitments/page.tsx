@@ -48,8 +48,10 @@ interface Commitment {
 
 export default function CommitmentsPage() {
   const { t } = useI18n()
-  const [tab, setTab] = useState<Tab>('i_promised')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
+  // Default to 'all' tab + 'all' status so new users see everything immediately
+  // Prevents the "empty page" confusion when all commitments are overdue (not "active")
+  const [tab, setTab] = useState<Tab>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [commitments, setCommitments] = useState<Commitment[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ total: 0, overdue: 0, completed: 0, active: 0 })
